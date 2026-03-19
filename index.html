@@ -1,0 +1,644 @@
+<!DOCTYPE html>
+<html lang="el">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Καιρός Αθήνα - Μετεωρολογικά Μοντέλα</title>
+<script src="https://cdn.plot.ly/plotly-2.27.0.min.js"></script>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: 'Segoe UI', sans-serif; background: #0f1117; color: #e0e0e0; min-height: 100vh; }
+  header { background: linear-gradient(135deg, #1a1f2e, #2d3561); padding: 20px 30px; border-bottom: 2px solid #3a4080; }
+  header h1 { font-size: 1.8em; color: #7eb8f7; margin-bottom: 4px; }
+  header p { color: #8899aa; font-size: 0.9em; }
+  .controls { background: #1a1f2e; padding: 20px 30px; display: flex; flex-wrap: wrap; gap: 16px; align-items: flex-end; border-bottom: 1px solid #2a3050; }
+  .control-group { display: flex; flex-direction: column; gap: 6px; }
+  .control-group label { font-size: 0.8em; color: #8899aa; text-transform: uppercase; letter-spacing: 0.05em; }
+  select, input[type="date"] { background: #252d40; color: #e0e0e0; border: 1px solid #3a4a6a; border-radius: 8px; padding: 8px 12px; font-size: 0.9em; cursor: pointer; }
+  .mode-toggle { display: flex; gap: 8px; }
+  .mode-btn { background: #252d40; border: 1px solid #3a4a6a; color: #8899aa; padding: 8px 16px; border-radius: 8px; cursor: pointer; font-size: 0.85em; transition: all 0.2s; }
+  .mode-btn.active { background: #2d3561; border-color: #7eb8f7; color: #7eb8f7; }
+  .fetch-btn { background: linear-gradient(135deg, #3a5fc8, #5a7fd8); color: white; border: none; padding: 10px 24px; border-radius: 8px; cursor: pointer; font-size: 0.95em; font-weight: 600; transition: all 0.2s; align-self: flex-end; }
+  .fetch-btn:hover { background: linear-gradient(135deg, #4a6fd8, #6a8fe8); transform: translateY(-1px); }
+  .fetch-btn:disabled { background: #333; color: #666; cursor: not-allowed; transform: none; }
+  #status { padding: 10px 30px; font-size: 0.85em; color: #7eb8f7; background: #131720; min-height: 36px; display: flex; align-items: center; gap: 8px; }
+  .spinner { width: 16px; height: 16px; border: 2px solid #3a4a6a; border-top-color: #7eb8f7; border-radius: 50%; animation: spin 0.8s linear infinite; display: none; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  .charts-container { padding: 20px 30px; display: grid; gap: 24px; }
+  .chart-card { background: #1a1f2e; border-radius: 12px; border: 1px solid #2a3050; overflow: hidden; }
+  .chart-title { padding: 14px 20px; font-size: 1em; font-weight: 600; color: #c0d8f8; border-bottom: 1px solid #2a3050; display: flex; justify-content: space-between; align-items: center; }
+  .chart-week-badge { font-size: 0.78em; font-weight: normal; color: #7eb8f7; background: #1a2840; padding: 3px 10px; border-radius: 20px; border: 1px solid #2a4060; }
+  .chart-div { width: 100%; min-height: 300px; position: relative; }
+  .chart-loading-overlay { position: absolute; inset: 0; background: rgba(15,17,23,0.7); display: flex; align-items: center; justify-content: center; font-size: 0.9em; color: #7eb8f7; gap: 10px; z-index: 10; display: none; border-radius: 0; }
+  .chart-loading-overlay .mini-spin { width:18px;height:18px;border:2px solid #3a4a6a;border-top-color:#7eb8f7;border-radius:50%;animation:spin 0.7s linear infinite; }
+
+  /* Per-chart timeline nav */
+  .chart-nav { background: #131a28; border-top: 1px solid #2a3050; padding: 8px 14px; display: flex; align-items: center; gap: 10px; }
+  .cnav-btn { background: #1e2a3e; border: 1px solid #2a3a5a; color: #8899bb; width: 28px; height: 28px; border-radius: 6px; cursor: pointer; font-size: 0.9em; display: flex; align-items: center; justify-content: center; transition: all 0.15s; flex-shrink: 0; }
+  .cnav-btn:hover:not(:disabled) { background: #2a3a5a; border-color: #7eb8f7; color: #7eb8f7; }
+  .cnav-btn:disabled { opacity: 0.3; cursor: not-allowed; }
+  .cnav-btn.default-btn { width: auto; padding: 0 9px; font-size: 0.72em; font-weight: 700; color: #7eb8f7; border-color: #2a4a7a; background: #152035; letter-spacing: 0.04em; }
+  .cnav-btn.default-btn:hover { background: #1e3050; }
+  .cnav-track-wrap { flex: 1; height: 28px; display: flex; align-items: center; position: relative; }
+  .cnav-track { width: 100%; height: 5px; background: #1e2a3e; border-radius: 3px; cursor: pointer; position: relative; }
+  .cnav-fill { height: 100%; background: linear-gradient(90deg, #2a4a8a, #7eb8f7); border-radius: 3px; pointer-events: none; }
+  .cnav-thumb { width: 15px; height: 15px; background: #7eb8f7; border: 2px solid #0f1117; border-radius: 50%; position: absolute; top: 50%; transform: translateY(-50%); cursor: grab; box-shadow: 0 0 6px rgba(126,184,247,0.5); }
+  .cnav-thumb:active { cursor: grabbing; }
+  .cnav-label { font-size: 0.76em; color: #6a7a9a; min-width: 80px; text-align: right; flex-shrink: 0; }
+  .cnav-week { font-size: 0.78em; color: #aabbdd; min-width: 160px; text-align: center; flex-shrink: 0; }
+
+  .info-box { background: #1a2535; border: 1px solid #2a4060; border-radius: 8px; padding: 10px 16px; font-size: 0.82em; color: #7899bb; max-width: 340px; line-height: 1.5; }
+  #historical-controls, #compare-controls { display: none; flex-wrap: wrap; gap: 16px; align-items: flex-end; }
+  #forecast-controls { display: flex; gap: 16px; align-items: flex-end; }
+  .empty-state { text-align: center; padding: 80px 20px; color: #4a5a7a; }
+  .empty-state .icon { font-size: 4em; margin-bottom: 16px; }
+
+  .city-tabs-bar { background: #141920; border-bottom: 1px solid #2a3050; padding: 0 30px; display: flex; align-items: stretch; overflow-x: auto; }
+  .city-tab { display: flex; align-items: center; gap: 8px; padding: 10px 18px; cursor: pointer; font-size: 0.9em; color: #8899aa; border-bottom: 3px solid transparent; white-space: nowrap; transition: all 0.15s; user-select: none; }
+  .city-tab:hover { color: #c0d0e8; background: #1a2030; }
+  .city-tab.active { color: #7eb8f7; border-bottom-color: #7eb8f7; background: #1a2030; font-weight: 600; }
+  .city-tab-x { font-size: 0.78em; color: #556; margin-left: 2px; padding: 1px 5px; border-radius: 4px; }
+  .city-tab-x:hover { background: #3a4060; color: #f77eb8; }
+  .add-city-tab { display: flex; align-items: center; padding: 10px 16px; cursor: pointer; color: #556; font-size: 1.3em; background: none; border: none; transition: color 0.15s; }
+  .add-city-tab:hover { color: #7eb8f7; }
+  .modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.7); z-index: 1000; display: none; align-items: center; justify-content: center; }
+  .modal-overlay.open { display: flex; }
+  .modal-box { background: #1a1f2e; border: 1px solid #3a4a6a; border-radius: 14px; padding: 24px; width: 440px; max-width: 95vw; box-shadow: 0 20px 60px rgba(0,0,0,0.5); }
+  .modal-box h3 { color: #7eb8f7; margin-bottom: 14px; }
+  .msearch-wrap { position: relative; }
+  .msearch-wrap input { width: 100%; background: #252d40; border: 1px solid #3a4a6a; border-radius: 8px; padding: 10px 14px 10px 36px; color: #e0e0e0; font-size: 1em; outline: none; }
+  .msearch-wrap input:focus { border-color: #7eb8f7; }
+  .msearch-icon { position: absolute; left: 11px; top: 50%; transform: translateY(-50%); color: #556; pointer-events: none; font-size: 0.95em; }
+  .geo-results { margin-top: 10px; max-height: 260px; overflow-y: auto; }
+  .geo-item { padding: 10px 14px; border-radius: 8px; cursor: pointer; transition: background 0.12s; }
+  .geo-item:hover { background: #252d40; }
+  .geo-item .gi-name { font-size: 0.95em; color: #e0e0e0; font-weight: 600; }
+  .geo-item .gi-sub { font-size: 0.78em; color: #778899; }
+  .geo-empty { color: #556; font-size: 0.88em; padding: 14px; text-align: center; }
+  .modal-cancel { margin-top: 12px; background: #252d40; border: 1px solid #3a4060; color: #8899aa; padding: 8px 18px; border-radius: 8px; cursor: pointer; }
+  .modal-cancel:hover { color: #c0d0e8; }
+  .models-bar { background: #141920; padding: 10px 30px; border-bottom: 1px solid #2a3050; display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+  .models-bar-lbl { font-size: 0.75em; color: #8899aa; text-transform: uppercase; letter-spacing: 0.05em; }
+  .model-chip { display: flex; align-items: center; gap: 7px; background: #1e2a3e; border: 1.5px solid #2a3a5a; border-radius: 20px; padding: 5px 13px 5px 8px; cursor: pointer; transition: all 0.15s; user-select: none; font-size: 0.82em; color: #8899aa; }
+  .model-chip.mc-on { border-color: var(--mc); background: color-mix(in srgb, var(--mc) 12%, #1e2a3e); color: #e0e0e0; }
+  .chip-cb { width: 14px; height: 14px; border-radius: 3px; border: 1.5px solid #3a4a6a; background: transparent; display: flex; align-items: center; justify-content: center; font-size: 0.85em; flex-shrink: 0; }
+  .model-chip.mc-on .chip-cb { background: var(--mc); border-color: var(--mc); color: #000; font-weight: 700; }
+  .chip-dot { width: 9px; height: 9px; border-radius: 50%; background: var(--mc); flex-shrink: 0; }
+</style>
+</head>
+<body>
+
+<header>
+  <h1 id="main-title">🌤 Καιρός Αθήνα — Μετεωρολογικά Μοντέλα</h1>
+  <p>Σύγκριση 5 μοντέλων · Θερμοκρασία · Συννεφιά · Υετός · Πλοήγηση ανά γράφημα</p>
+</header>
+<!-- City Tabs -->
+<div class="city-tabs-bar" id="city-tabs-bar"><button class="add-city-tab" onclick="openCityModal()" title="Προσθήκη πόλης">＋</button></div>
+<!-- City Modal -->
+<div class="modal-overlay" id="city-modal"><div class="modal-box"><h3>🔍 Αναζήτηση πόλης</h3><div class="msearch-wrap"><span class="msearch-icon">🔍</span><input type="text" id="geo-input" placeholder="Πληκτρολογήστε πόλη..." oninput="onGeoSearch(this.value)" autocomplete="off"></div><div class="geo-results" id="geo-results"><div class="geo-empty">Πληκτρολογήστε τουλάχιστον 2 χαρακτήρες...</div></div><button class="modal-cancel" onclick="closeCityModal()">Ακύρωση</button></div></div>
+<!-- Model Chips -->
+<div class="models-bar" id="models-bar"><span class="models-bar-lbl">Ενεργά μοντέλα</span></div>
+
+<div class="controls">
+  <div class="control-group">
+    <label>Λειτουργία</label>
+    <div class="mode-toggle">
+      <button class="mode-btn active" id="btn-forecast" onclick="setMode('forecast')">📅 Πρόγνωση 7 ημερών</button>
+      <button class="mode-btn" id="btn-history" onclick="setMode('history')">🕐 Ιστορικά δεδομένα</button>
+      <button class="mode-btn" id="btn-compare" onclick="setMode('compare')">📊 Σύγκριση ετών</button>
+    </div>
+  </div>
+  <div id="forecast-controls">
+    <div class="info-box">Πρόγνωση 7 ημερών από 5 μοντέλα. Κάθε γράφημα έχει δική του μπάρα για πλοήγηση πίσω στον χρόνο (ERA5).</div>
+  </div>
+  <div id="historical-controls">
+    <div class="control-group"><label>Έναρξη εβδομάδας</label><input type="date" id="hist-start" value="2025-03-12"></div>
+    <div style="align-self:flex-end;font-size:0.82em;color:#8899aa;padding-bottom:10px">→ 7 ημέρες αυτόματα</div>
+    <div class="info-box">Ιστορικά ERA5. Κάθε γράφημα έχει ανεξάρτητη πλοήγηση εβδομάδων.</div>
+  </div>
+  <div id="compare-controls">
+    <div class="control-group"><label>Εβδομάδα αναφοράς</label><input type="date" id="cmp-start" value="2026-03-12"></div>
+    <div class="control-group">
+      <label>Σύγκριση με έτη</label>
+      <select id="cmp-years" multiple size="4">
+        <option value="2025" selected>2025</option>
+        <option value="2024" selected>2024</option>
+        <option value="2023">2023</option>
+        <option value="2022">2022</option>
+        <option value="2021">2021</option>
+        <option value="2020">2020</option>
+      </select>
+    </div>
+    <div class="info-box">Ctrl+click για πολλαπλή επιλογή ετών.</div>
+  </div>
+  <button class="fetch-btn" id="fetch-btn" onclick="fetchData()">🔄 Φόρτωση δεδομένων</button>
+</div>
+
+<div id="status"><span class="spinner" id="spinner"></span><span id="status-text">Πατήστε "Φόρτωση δεδομένων" για να ξεκινήσετε.</span></div>
+
+<div class="charts-container" id="charts">
+  <div class="empty-state"><div class="icon">🌍</div><p>Επιλέξτε λειτουργία και πατήστε Φόρτωση δεδομένων</p></div>
+</div>
+
+<script>
+var _cities=[{id:'c0',name:'Αθήνα',lat:37.9838,lon:23.7275,tz:'Europe/Athens'}];
+var _activeCityId='c0';
+var _cityCounter=1;
+function getCity(){return _cities.find(function(c){return c.id===_activeCityId;})||_cities[0];}
+function _renderTabs(){
+  var bar=document.getElementById('city-tabs-bar');
+  bar.querySelectorAll('.city-tab').forEach(function(t){t.remove();});
+  var addBtn=bar.querySelector('.add-city-tab');
+  // Always sync title with active city
+  var _ac=getCity();
+  var _titleEl=document.getElementById('main-title');
+  if(_titleEl) _titleEl.textContent='🌤 Καιρός '+_ac.name+' — Μετεωρολογικά Μοντέλα';
+  document.title='Καιρός '+_ac.name+' — Μετεωρολογικά Μοντέλα';
+  _cities.forEach(function(c){
+    var tab=document.createElement('div');tab.className='city-tab'+(c.id===_activeCityId?' active':'');
+    tab.innerHTML='<span>'+c.name+'</span>'+(_cities.length>1?'<span class="city-tab-x" data-cid="'+c.id+'">✕</span>':'');
+    tab.addEventListener('click',function(e){
+      if(e.target.classList.contains('city-tab-x')){_removeCity(e.target.dataset.cid);return;}
+      _activeCityId=c.id;_renderTabs();
+      document.getElementById('main-title').textContent='🌤 Καιρός '+c.name+' — Μετεωρολογικά Μοντέλα';
+      document.title='Καιρός '+c.name+' — Μετεωρολογικά Μοντέλα';
+      document.getElementById('charts').innerHTML='<div style="text-align:center;padding:60px;color:#4a5a7a"><div style="font-size:3em;margin-bottom:14px">🌍</div><p>Πατήστε Φόρτωση για '+c.name+'</p></div>';
+      setStatus('Πόλη: '+c.name+' — Πατήστε Φόρτωση.');
+    });
+    bar.insertBefore(tab,addBtn);
+  });
+}
+function _removeCity(id){if(_cities.length<=1)return;_cities=_cities.filter(function(c){return c.id!==id;});if(_activeCityId===id)_activeCityId=_cities[0].id;_renderTabs();
+  var ac=getCity();
+  document.getElementById('main-title').textContent='🌤 Καιρός '+ac.name+' — Μετεωρολογικά Μοντέλα';
+  document.title='Καιρός '+ac.name+' — Μετεωρολογικά Μοντέλα';
+}
+var _geoTimer=null;
+function openCityModal(){document.getElementById('city-modal').classList.add('open');document.getElementById('geo-input').value='';document.getElementById('geo-results').innerHTML='<div class="geo-empty">Πληκτρολογήστε τουλάχιστον 2 χαρακτήρες...</div>';setTimeout(function(){document.getElementById('geo-input').focus();},80);}
+function closeCityModal(){document.getElementById('city-modal').classList.remove('open');}
+document.addEventListener('keydown',function(e){if(e.key==='Escape')closeCityModal();});
+function onGeoSearch(val){clearTimeout(_geoTimer);if(val.length<2){document.getElementById('geo-results').innerHTML='<div class="geo-empty">Πληκτρολογήστε τουλάχιστον 2 χαρακτήρες...</div>';return;}document.getElementById('geo-results').innerHTML='<div class="geo-empty">Αναζήτηση...</div>';_geoTimer=setTimeout(function(){_doGeoSearch(val);},350);}
+async function _doGeoSearch(q){
+  try{
+    var r=await fetch('https://geocoding-api.open-meteo.com/v1/search?name='+encodeURIComponent(q)+'&count=8&language=el');
+    var data=await r.json();var cont=document.getElementById('geo-results');
+    if(!data.results||!data.results.length){cont.innerHTML='<div class="geo-empty">Δεν βρέθηκαν αποτελέσματα.</div>';return;}
+    cont.innerHTML='';
+    data.results.forEach(function(res){
+      var sub=[res.admin1,res.country].filter(Boolean).join(', ');
+      var item=document.createElement('div');item.className='geo-item';
+      item.innerHTML='<div class="gi-name">'+res.name+'</div><div class="gi-sub">'+sub+'</div>';
+      item.addEventListener('click',function(){
+        if(_cities.find(function(c){return Math.abs(c.lat-res.latitude)<0.05&&Math.abs(c.lon-res.longitude)<0.05;})){closeCityModal();return;}
+        var city={id:'c'+_cityCounter++,name:res.name,lat:res.latitude,lon:res.longitude,tz:res.timezone||'UTC'};
+        _cities.push(city);_activeCityId=city.id;_renderTabs();closeCityModal();
+        document.getElementById('main-title').textContent='🌤 Καιρός '+city.name+' — Μετεωρολογικά Μοντέλα';
+        document.title='Καιρός '+city.name+' — Μετεωρολογικά Μοντέλα';
+        document.getElementById('charts').innerHTML='<div style="text-align:center;padding:60px;color:#4a5a7a"><div style="font-size:3em;margin-bottom:14px">🌍</div><p>Πατήστε Φόρτωση για '+city.name+'</p></div>';
+        setStatus('Προστέθηκε: '+city.name+' — Πατήστε Φόρτωση.');
+      });
+      cont.appendChild(item);
+    });
+  }catch(e){document.getElementById('geo-results').innerHTML='<div class="geo-empty">Σφάλμα.</div>';}
+}
+var _ALL_MODELS=[
+  {id:'ecmwf_ifs025',name:'ECMWF IFS',color:'#7eb8f7'},
+  {id:'gfs_seamless',name:'GFS (NOAA)',color:'#f7c67e'},
+  {id:'icon_seamless',name:'ICON (DWD)',color:'#7ef7a8'},
+  {id:'meteofrance_seamless',name:'Météo-France',color:'#f77eb8'},
+  {id:'gem_seamless',name:'GEM (Canada)',color:'#bf7ef7'},
+];
+var _activeModels=new Set(_ALL_MODELS.map(function(m){return m.id;}));
+function getActiveModelsList(){return _ALL_MODELS.filter(function(m){return _activeModels.has(m.id);});}
+function _renderChips(){
+  var bar=document.getElementById('models-bar');bar.querySelectorAll('.model-chip').forEach(function(c){c.remove();});
+  _ALL_MODELS.forEach(function(m){
+    var on=_activeModels.has(m.id);
+    var chip=document.createElement('div');chip.className='model-chip'+(on?' mc-on':'');chip.style.setProperty('--mc',m.color);
+    chip.innerHTML='<div class="chip-cb">'+(on?'✓':'')+'</div><div class="chip-dot"></div><span>'+m.name+'</span>';
+    chip.addEventListener('click',function(){
+      if(_activeModels.has(m.id)&&_activeModels.size<=1)return;
+      if(_activeModels.has(m.id))_activeModels.delete(m.id);else _activeModels.add(m.id);
+      _renderChips();
+    });
+    bar.appendChild(chip);
+  });
+}
+document.addEventListener('DOMContentLoaded',function(){_renderTabs();_renderChips();});
+</script>
+
+<script>
+// ATHENS replaced by getCity()
+const MODELS = [
+  { id: 'ecmwf_ifs025', name: 'ECMWF IFS', color: '#7eb8f7' },
+  { id: 'gfs_seamless',  name: 'GFS (NOAA)', color: '#f7c67e' },
+  { id: 'icon_seamless', name: 'ICON (DWD)', color: '#7ef7a8' },
+  { id: 'meteofrance_seamless', name: 'Météo-France', color: '#f77eb8' },
+  { id: 'gem_seamless',  name: 'GEM (Canada)', color: '#bf7ef7' },
+];
+const CMP_COLORS = ['#ff6b6b','#7eb8f7','#f7c67e','#7ef7a8','#f77eb8','#bf7ef7','#f7a07e'];
+let currentMode = 'forecast';
+
+// Per-chart state: chartId -> { defaultDate, currentDate, isDragging, compareYears }
+const chartState = {};
+
+function setMode(mode) {
+  currentMode = mode;
+  document.querySelectorAll('.mode-btn').forEach(b => b.classList.remove('active'));
+  document.getElementById('btn-' + mode).classList.add('active');
+  document.getElementById('forecast-controls').style.display  = mode === 'forecast' ? 'flex' : 'none';
+  document.getElementById('historical-controls').style.display = mode === 'history'  ? 'flex' : 'none';
+  document.getElementById('compare-controls').style.display   = mode === 'compare'  ? 'flex' : 'none';
+}
+
+function setStatus(msg, loading=false) {
+  document.getElementById('status-text').textContent = msg;
+  document.getElementById('spinner').style.display = loading ? 'block' : 'none';
+}
+
+function addDays(ds, n) {
+  const d = new Date(ds + 'T00:00:00'); d.setDate(d.getDate() + n);
+  return d.toISOString().split('T')[0];
+}
+
+function fmtWeek(ds) {
+  const d = new Date(ds+'T00:00:00'), e = new Date(ds+'T00:00:00');
+  e.setDate(e.getDate()+6);
+  return d.toLocaleDateString('el-GR',{day:'numeric',month:'short'}) + ' – ' + e.toLocaleDateString('el-GR',{day:'numeric',month:'short',year:'numeric'});
+}
+
+// ─── API ────────────────────────────────────────────────────────────────────
+async function apiForecast() {
+  const _c = getCity();
+  return Promise.all(getActiveModelsList().map(m =>
+    fetch(`https://api.open-meteo.com/v1/forecast?latitude=${_c.lat}&longitude=${_c.lon}&hourly=temperature_2m,cloudcover,precipitation&models=${m.id}&timezone=${_c.tz}&forecast_days=7`)
+      .then(r=>r.json()).then(data=>({model:m,data}))
+  ));
+}
+
+async function apiHistory(start, end) {
+  const _c = getCity();
+  return fetch(`https://archive-api.open-meteo.com/v1/archive?latitude=${_c.lat}&longitude=${_c.lon}&hourly=temperature_2m,cloudcover,precipitation&start_date=${start}&end_date=${end}&timezone=${_c.tz}`)
+    .then(r=>r.json());
+}
+
+// ─── Chart layout helpers ───────────────────────────────────────────────────
+const BL = {
+  paper_bgcolor:'#1a1f2e', plot_bgcolor:'#131720',
+  font:{color:'#c0c8d8',family:'Segoe UI'},
+  xaxis:{gridcolor:'#2a3050',linecolor:'#2a3050',showticklabels:true,tickformat:'%a %d %b',dtick:86400000,tickangle:0},
+  yaxis:{gridcolor:'#2a3050',linecolor:'#2a3050'},
+  legend:{orientation:'h',y:1.14,x:0.5,xanchor:'center',bgcolor:'rgba(0,0,0,0)'},
+  margin:{t:60,b:28,l:55,r:20},
+  hovermode:'x unified',
+};
+
+function dayShapes(times) {
+  const s=[];let last=null;
+  times.forEach((t,i)=>{ const d=t.slice(0,10); if(d!==last){if(i>0)s.push({type:'line',x0:t,x1:t,y0:0,y1:1,yref:'paper',line:{color:'rgba(120,140,200,0.28)',width:1,dash:'dot'}});last=d;}});
+  return s;
+}
+function dayAnnots(times) {
+  const a=[];const seen=new Set();
+  times.forEach(t=>{ const d=t.slice(0,10); if(!seen.has(d)){seen.add(d);const dt=new Date(d+'T00:00:00');a.push({x:d+'T12:00',y:1.04,yref:'paper',xref:'x',text:dt.toLocaleDateString('el-GR',{weekday:'short',day:'numeric',month:'short'}),showarrow:false,font:{size:10,color:'#8899bb'},xanchor:'center'});}});
+  return a;
+}
+
+// ─── Per-chart nav ─────────────────────────────────────────────────────────
+function buildChartNav(chartId, defaultDate) {
+  chartState[chartId] = { defaultDate, currentDate: defaultDate, isDragging: false, compareYears: null };
+  const nav = document.getElementById('nav-' + chartId);
+  const track = nav.querySelector('.cnav-track');
+  const thumb = nav.querySelector('.cnav-thumb');
+
+  function pctFromDate(ds) {
+    const weeks = Math.round((new Date(ds) - new Date(defaultDate)) / (7*86400000));
+    // range -520..+1
+    return Math.max(0, Math.min(1, (weeks + 520) / 521));
+  }
+  function dateFromPct(p) {
+    const weeks = Math.round(p * 521 - 520);
+    return addDays(defaultDate, weeks * 7);
+  }
+  function updateUI() {
+    const p = pctFromDate(chartState[chartId].currentDate);
+    const pct = p * 100;
+    nav.querySelector('.cnav-fill').style.width = pct + '%';
+    thumb.style.left = 'calc(' + pct + '% - 7px)';
+    nav.querySelector('.cnav-week').textContent = fmtWeek(chartState[chartId].currentDate);
+    const wks = Math.round((new Date(chartState[chartId].currentDate) - new Date(defaultDate))/(7*86400000));
+    const lbl = wks===0 ? '📍 Default' : (wks<0 ? Math.abs(wks)+' εβδ. πίσω' : wks+' εβδ. μπρος');
+    nav.querySelector('.cnav-label').textContent = lbl;
+    nav.querySelector('.cnav-btn.prev1').disabled = false;
+    nav.querySelector('.cnav-btn.next1').disabled = chartState[chartId].currentDate >= addDays(defaultDate, 7);
+  }
+
+  function moveTo(ds, load=true) {
+    const maxDate = addDays(defaultDate, 7);
+    if (ds > maxDate) ds = maxDate;
+    chartState[chartId].currentDate = ds;
+    updateUI();
+    if (load) loadChartWeek(chartId, ds);
+  }
+
+  nav.querySelector('.cnav-btn.prev1').addEventListener('click', ()=> moveTo(addDays(chartState[chartId].currentDate, -7)));
+  nav.querySelector('.cnav-btn.prev4').addEventListener('click', ()=> moveTo(addDays(chartState[chartId].currentDate, -28)));
+  nav.querySelector('.cnav-btn.next1').addEventListener('click', ()=> moveTo(addDays(chartState[chartId].currentDate, 7)));
+  nav.querySelector('.cnav-btn.next4').addEventListener('click', ()=> moveTo(addDays(chartState[chartId].currentDate, 28)));
+  nav.querySelector('.cnav-btn.default-btn').addEventListener('click', ()=> moveTo(defaultDate));
+
+  function handleMove(clientX) {
+    const rect = track.getBoundingClientRect();
+    const p = Math.max(0, Math.min(1, (clientX - rect.left) / rect.width));
+    const ds = dateFromPct(p);
+    chartState[chartId].currentDate = ds;
+    updateUI();
+  }
+  thumb.addEventListener('mousedown', e=>{ chartState[chartId].isDragging=true; e.preventDefault(); });
+  document.addEventListener('mousemove', e=>{ if(chartState[chartId].isDragging) handleMove(e.clientX); });
+  document.addEventListener('mouseup', e=>{ if(chartState[chartId].isDragging){ chartState[chartId].isDragging=false; loadChartWeek(chartId, chartState[chartId].currentDate); } });
+  thumb.addEventListener('touchstart', ()=> chartState[chartId].isDragging=true);
+  document.addEventListener('touchmove', e=>{ if(chartState[chartId].isDragging) handleMove(e.touches[0].clientX); });
+  document.addEventListener('touchend', ()=>{ if(chartState[chartId].isDragging){ chartState[chartId].isDragging=false; loadChartWeek(chartId, chartState[chartId].currentDate); }});
+  track.addEventListener('click', e=>{
+    const rect = track.getBoundingClientRect();
+    const p = Math.max(0, Math.min(1, (e.clientX - rect.left) / rect.width));
+    moveTo(dateFromPct(p));
+  });
+
+  updateUI();
+}
+
+function navHTML(chartId) {
+  return `<div class="chart-nav" id="nav-${chartId}">
+    <button class="cnav-btn prev4" title="-4 εβδ.">◀◀</button>
+    <button class="cnav-btn prev1" title="-1 εβδ.">◀</button>
+    <div class="cnav-track-wrap">
+      <div class="cnav-track">
+        <div class="cnav-fill" style="width:100%"></div>
+        <div class="cnav-thumb"></div>
+      </div>
+    </div>
+    <button class="cnav-btn next1" title="+1 εβδ.">▶</button>
+    <button class="cnav-btn next4" title="+4 εβδ.">▶▶</button>
+    <div class="cnav-week">—</div>
+    <button class="cnav-btn default-btn">⌂ Default</button>
+    <div class="cnav-label"></div>
+  </div>`;
+}
+
+// ─── Load a specific week into a chart ──────────────────────────────────────
+async function loadChartWeek(chartId, weekStart) {
+  const overlay = document.getElementById('ov-' + chartId);
+  overlay.style.display = 'flex';
+  const weekEnd = addDays(weekStart, 6);
+
+  try {
+    const isDefaultWeek = weekStart === chartState[chartId].defaultDate;
+
+    if (currentMode === 'forecast' && isDefaultWeek) {
+      // reload forecast
+      const results = await apiForecast();
+      const varMap = {temp: 'temperature_2m', cloud: 'cloudcover', precip: 'precipitation'};
+      for (const [shortId, key] of Object.entries(varMap)) {
+        if (chartId.endsWith(shortId)) {
+          const times = results[0].data.hourly.time;
+          const isBar = key==='precipitation';
+          const traces = results.map(r => {
+            const vals = r.data.hourly[key];
+            if (isBar) return {x:times,y:vals,name:r.model.name,type:'bar',marker:{color:r.model.color,opacity:0.75}};
+            return {x:times,y:vals,name:r.model.name,type:'scatter',mode:'lines',line:{color:r.model.color,width:2}};
+          });
+          const layout = buildLayout(times, isBar ? 'bar' : 'line', getYLabel(key), getYRange(key), `${getTitlePrefix(key)} — Πρόγνωση 7 ημερών`);
+          Plotly.react(chartId, traces, layout, {responsive:true,displayModeBar:false});
+          updateBadge(chartId, weekStart);
+        }
+      }
+    } else {
+      // Historical ERA5
+      const data = await apiHistory(weekStart, weekEnd);
+      const times = data.hourly.time;
+      const varMap = {temp:'temperature_2m', cloud:'cloudcover', precip:'precipitation'};
+      for (const [shortId, key] of Object.entries(varMap)) {
+        if (chartId.endsWith(shortId)) {
+          const isBar = key==='precipitation';
+          const color = {temp:'#7eb8f7', cloud:'#f7c67e', precip:'#7ef7a8'}[shortId];
+          const vals = data.hourly[key];
+          let trace;
+          if (isBar) trace={x:times,y:vals,type:'bar',marker:{color},name:'ERA5'};
+          else trace={x:times,y:vals,type:'scatter',mode:'lines',line:{color,width:2},fill:'tozeroy',fillcolor:color+'22',name:'ERA5'};
+          const layout = buildLayout(times, isBar?'bar':'line', getYLabel(key), getYRange(key), `${getTitlePrefix(key)} · ERA5 · ${weekStart}`,true);
+          Plotly.react(chartId, [trace], layout, {responsive:true,displayModeBar:false});
+          updateBadge(chartId, weekStart);
+        }
+      }
+    }
+  } catch(e) { console.error(e); }
+  overlay.style.display = 'none';
+}
+
+function updateBadge(chartId, weekStart) {
+  const badge = document.getElementById('badge-' + chartId);
+  if (badge) badge.textContent = fmtWeek(weekStart);
+}
+
+function buildLayout(times, type, yLabel, yrange, title, showXLabels) {
+  const shapes = dayShapes(times);
+  const annots = dayAnnots(times);
+  const xaxis = showXLabels
+    ? {...BL.xaxis, showticklabels:true, tickformat:'%a\n%d %b', dtick:86400000, tickmode:'auto'}
+    : {...BL.xaxis};
+  return {...BL,
+    title:{text:title,font:{size:13},x:0.01},
+    shapes, annotations:annots,
+    xaxis,
+    yaxis:{...BL.yaxis, title:yLabel, range:yrange},
+    ...(type==='bar' ? {barmode:'group'} : {})
+  };
+}
+
+function getYLabel(key) { return {temperature_2m:'Θερμοκρασία °C', cloudcover:'Συννεφιά %', precipitation:'Υετός mm'}[key]; }
+function getYRange(key) { return key==='cloudcover' ? [0,100] : undefined; }
+function getTitlePrefix(key) { return {temperature_2m:'🌡 Θερμοκρασία 2m', cloudcover:'☁ Συννεφιά', precipitation:'🌧 Υετός'}[key]; }
+
+// ─── Create chart cards ──────────────────────────────────────────────────────
+function createChartCard(chartId, title, defaultDate) {
+  const card = document.createElement('div');
+  card.className = 'chart-card';
+  card.innerHTML = `
+    <div class="chart-title">
+      ${title}
+      <span class="chart-week-badge" id="badge-${chartId}">${fmtWeek(defaultDate)}</span>
+    </div>
+    <div style="position:relative;">
+      <div class="chart-div" id="${chartId}"></div>
+      <div class="chart-loading-overlay" id="ov-${chartId}"><div class="mini-spin"></div> Φόρτωση δεδομένων...</div>
+    </div>
+    ${navHTML(chartId)}
+  `;
+  return card;
+}
+
+// ─── Main fetchData ──────────────────────────────────────────────────────────
+async function fetchData() {
+  const btn = document.getElementById('fetch-btn');
+  btn.disabled = true;
+  document.getElementById('charts').innerHTML = '';
+
+  try {
+    if (currentMode === 'forecast') {
+      setStatus('Φόρτωση δεδομένων από 5 μοντέλα...', true);
+      const results = await apiForecast();
+      const today = new Date().toISOString().split('T')[0];
+      const times = results[0].data.hourly.time;
+
+      const chartDefs = [
+        {id:'fc-temp',  key:'temperature_2m', title:'🌡 Θερμοκρασία (°C)'},
+        {id:'fc-cloud', key:'cloudcover',      title:'☁ Συννεφιά (%)'},
+        {id:'fc-precip',key:'precipitation',   title:'🌧 Υετός (mm)'},
+      ];
+
+      const container = document.getElementById('charts');
+      chartDefs.forEach(def => {
+        const card = createChartCard(def.id, def.title, today);
+        container.appendChild(card);
+
+        const isBar = def.key==='precipitation';
+        const traces = results.map(r => {
+          const vals = r.data.hourly[def.key];
+          if (isBar) return {x:times,y:vals,name:r.model.name,type:'bar',marker:{color:r.model.color,opacity:0.75}};
+          return {x:times,y:vals,name:r.model.name,type:'scatter',mode:'lines',line:{color:r.model.color,width:2}};
+        });
+        const layout = buildLayout(times, isBar?'bar':'line', getYLabel(def.key), getYRange(def.key), `${getTitlePrefix(def.key)} — Πρόγνωση 7 ημερών`);
+        if (isBar) layout.barmode = 'group';
+        Plotly.newPlot(def.id, traces, layout, {responsive:true,displayModeBar:false});
+        buildChartNav(def.id, today);
+        // Store mode context
+        chartState[def.id].mode = 'forecast';
+      });
+
+      setStatus(`✅ Δεδομένα φορτώθηκαν · ${new Date().toLocaleTimeString('el-GR')}`);
+
+    } else if (currentMode === 'history') {
+      const start = document.getElementById('hist-start').value;
+      if (!start) { setStatus('⚠️ Επιλέξτε ημερομηνία έναρξης'); btn.disabled=false; return; }
+      const end = addDays(start, 6);
+      setStatus(`Φόρτωση ERA5 (${start} → ${end})...`, true);
+      const data = await apiHistory(start, end);
+      const times = data.hourly.time;
+      const container = document.getElementById('charts');
+
+      const chartDefs = [
+        {id:'h-temp',  key:'temperature_2m', title:'🌡 Θερμοκρασία (°C)', color:'#7eb8f7'},
+        {id:'h-cloud', key:'cloudcover',      title:'☁ Συννεφιά (%)',      color:'#f7c67e'},
+        {id:'h-precip',key:'precipitation',   title:'🌧 Υετός (mm)',        color:'#7ef7a8'},
+      ];
+
+      chartDefs.forEach(def => {
+        const card = createChartCard(def.id, def.title, start);
+        container.appendChild(card);
+        const isBar = def.key==='precipitation';
+        const vals = data.hourly[def.key];
+        let trace;
+        if (isBar) trace={x:times,y:vals,type:'bar',marker:{color:def.color},name:'ERA5'};
+        else trace={x:times,y:vals,type:'scatter',mode:'lines',line:{color:def.color,width:2},fill:'tozeroy',fillcolor:def.color+'22',name:'ERA5'};
+        const layout = buildLayout(times, isBar?'bar':'line', getYLabel(def.key), getYRange(def.key), `${getTitlePrefix(def.key)} · ERA5 · ${start}`,true);
+        Plotly.newPlot(def.id, [trace], layout, {responsive:true,displayModeBar:false});
+        buildChartNav(def.id, start);
+        chartState[def.id].mode = 'history';
+      });
+
+      setStatus(`✅ ERA5 · ${start} έως ${end}`);
+
+    } else if (currentMode === 'compare') {
+      const refStart = document.getElementById('cmp-start').value;
+      const refEnd   = addDays(refStart, 6);
+      const years    = Array.from(document.getElementById('cmp-years').selectedOptions).map(o=>parseInt(o.value));
+      if (!years.length) { setStatus('⚠️ Επιλέξτε τουλάχιστον ένα έτος'); btn.disabled=false; return; }
+      setStatus(`Φόρτωση σύγκρισης ${years.length} ετών...`, true);
+
+      const refMonth = refStart.slice(5);
+      const allFetches = [
+        apiHistory(refStart, refEnd).then(d=>({year:parseInt(refStart.slice(0,4)),data:d,isRef:true})),
+        ...years.map(y=>{ const s=y+'-'+refMonth; return apiHistory(s,addDays(s,6)).then(d=>({year:y,data:d,isRef:false})); })
+      ];
+      const allRes = await Promise.all(allFetches);
+
+      const container = document.getElementById('charts');
+      const chartDefs = [
+        {id:'c-temp',  key:'temperature_2m', title:'🌡 Θερμοκρασία — Σύγκριση ετών'},
+        {id:'c-cloud', key:'cloudcover',      title:'☁ Συννεφιά — Σύγκριση ετών'},
+        {id:'c-precip',key:'precipitation',   title:'🌧 Υετός — Σύγκριση ετών'},
+      ];
+
+      chartDefs.forEach(def => {
+        const card = createChartCard(def.id, def.title, refStart);
+        container.appendChild(card);
+        renderCompareInto(def.id, def.key, allRes, refStart, years);
+        buildChartNav(def.id, refStart);
+        chartState[def.id].mode = 'compare';
+        chartState[def.id].compareYears = years;
+      });
+
+      setStatus(`✅ Σύγκριση εβδομάδας ${refMonth} ανά έτος`);
+    }
+  } catch(e) { setStatus('❌ ' + e.message); }
+  btn.disabled = false;
+}
+
+function renderCompareInto(chartId, key, allRes, refStart, years) {
+  const isBar = key==='precipitation';
+  const traces = allRes.map((r,i) => {
+    if (!r.data||!r.data.hourly) return null;
+    const times = r.data.hourly.time;
+    const vals  = r.data.hourly[key];
+    const refDate=new Date(refStart); const xNorm=times.map(t=>{const off=new Date(t)-new Date(times[0]);return new Date(refDate.getTime()+off).toISOString().slice(0,16);});
+    const color = CMP_COLORS[i%CMP_COLORS.length];
+    const name  = r.year + (r.isRef?' (τρέχον)':'');
+    if (isBar) return {x:xNorm,y:vals,name,type:'bar',marker:{color,opacity:0.75}};
+    return {x:xNorm,y:vals,name,type:'scatter',mode:'lines',line:{color,width:r.isRef?3:1.5,dash:r.isRef?'solid':'dot'}};
+  }).filter(Boolean);
+
+  const dayS = Array.from({length:8},(_,i)=>{const _d=new Date(refStart+'T00:00:00');_d.setDate(_d.getDate()+i);const _iso=_d.toISOString().slice(0,10);return {type:'line',x0:_iso,x1:_iso,y0:0,y1:1,yref:'paper',line:{color:'rgba(120,140,200,0.28)',width:1,dash:'dot'}};});
+  const dayA = Array.from({length:7},(_,i)=>{
+    const dt=new Date(refStart+'T00:00:00'); dt.setDate(dt.getDate()+i);
+    const xMid=new Date(dt.getTime()+43200000).toISOString().slice(0,16); return {x:xMid,y:1.04,yref:'paper',xref:'x',text:dt.toLocaleDateString('el-GR',{weekday:'short',day:'numeric',month:'short'}),showarrow:false,font:{size:10,color:'#8899bb'},xanchor:'center'};
+  });
+  const layout={...BL,
+    title:{text:`${getTitlePrefix(key)} — ίδια εβδομάδα ανά έτος`,font:{size:13},x:0.01},
+    shapes:dayS,annotations:dayA,
+    yaxis:{...BL.yaxis,title:getYLabel(key),range:getYRange(key)},
+    xaxis:{...BL.xaxis,showticklabels:true,tickformat:'%a %d %b',dtick:86400000,tickangle:0,type:'date'},
+    ...(isBar?{barmode:'group'}:{})
+  };
+  Plotly.newPlot(chartId, traces, layout, {responsive:true,displayModeBar:false});
+}
+
+// Override loadChartWeek for compare mode
+const _origLoadChartWeek = loadChartWeek;
+window.loadChartWeek = async function(chartId, weekStart) {
+  if (chartState[chartId] && chartState[chartId].mode === 'compare') {
+    const overlay = document.getElementById('ov-' + chartId);
+    overlay.style.display = 'flex';
+    const refEnd = addDays(weekStart, 6);
+    const years  = chartState[chartId].compareYears || [];
+    const refMonth = weekStart.slice(5);
+    try {
+      const allFetches = [
+        apiHistory(weekStart, refEnd).then(d=>({year:parseInt(weekStart.slice(0,4)),data:d,isRef:true})),
+        ...years.map(y=>{ const s=y+'-'+refMonth; return apiHistory(s,addDays(s,6)).then(d=>({year:y,data:d,isRef:false})); })
+      ];
+      const allRes = await Promise.all(allFetches);
+      const keyMap = {'c-temp':'temperature_2m','c-cloud':'cloudcover','c-precip':'precipitation'};
+      const key = keyMap[chartId];
+      if (key) renderCompareInto(chartId, key, allRes, weekStart, years);
+      updateBadge(chartId, weekStart);
+    } catch(e){ console.error(e); }
+    overlay.style.display = 'none';
+    return;
+  }
+  return _origLoadChartWeek(chartId, weekStart);
+};
+</script>
+</body>
+</html>
