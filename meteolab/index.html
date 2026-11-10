@@ -304,6 +304,78 @@ function ruleText(r){
  const extra=r.extra&&Number.isFinite(Number(r.extra.threshold))?" "+((r.logic||"and")==="or"?"OR":"AND")+" "+one(r.extra.metric,r.extra.op,r.extra.threshold):"";
  return one(r.metric,r.op,r.threshold)+extra+" · "+(r.window||24)+"h"+(Number(r.consecutive||1)>1?" · "+r.consecutive+" consecutive hours":"")+" · cooldown "+(r.cooldownHours||6)+"h";
 }
+function shiftDate(date,delta){const d=new Date(date+"T12:00:00Z");d.setUTCDate(d.getUTCDate()+delta);return d.toISOString().slice(0,10)}
+function historyEndDate(){return shiftDate(new Date().toISOString().slice(0,10),-8)}
+function historyDays(){return historyPeriod==="week"?21:historyPeriod==="month"?90:1095}
+function historyUrl(start,end){
+ const p=new URLSearchParams({latitude:String(state.location.lat),longitude:String(state.location.lon),start_date:start,end_date:end,timezone:"auto",
+ daily:"temperature_2m_mean,precipitation_sum,wind_speed_10m_max,relative_humidity_2m_mean"});
+ return "https://archive-api.open-meteo.com/v1/archive?"+p.toString();
+}
+async function loadHistory(reset){
+ if(!reset&&historyBusy)return;
+ const key=state.location.lat+","+state.location.lon;
+ const oldScroll=$("historyScroll").scrollLeft,oldWidth=$("historyScroll").scrollWidth;
+ const seq=++historySeq;historyBusy=true;historyRequested=true;
+ if(reset){historyRows=[];historyOldest="";historyKey=key}
+ let end=reset?historyEndDate():shiftDate(historyOldest,-1);
+ let start=shiftDate(end,-(reset?historyDays():historyPeriod==="year"?365:historyDays())+1);
+ if(start<"1940-01-01")start="1940-01-01";
+ if(end<"1940-01-01"){historyBusy=false;toast("No earlier archive data");return}
+ $("historyPlace").textContent=state.location.name;
+ $("historyStatus").textContent=state.lang==="el"?"Φόρτωση ιστορικών δεδομένων…":"Loading archived data…";
+ try{
+  const a=await getJson(historyUrl(start,end));
+  if(seq!==historySeq||historyKey!==key)return;
+  const d=a.daily;if(!d||!Array.isArray(d.time)||!d.time.length)throw Error("No archived data returned");
+  const next=d.time.map((date,i)=>({date,temp:d.temperature_2m_mean&&d.temperature_2m_mean[i],rain:d.precipitation_sum&&d.precipitation_sum[i],wind:d.wind_speed_10m_max&&d.wind_speed_10m_max[i],humidity:d.relative_humidity_2m_mean&&d.relative_humidity_2m_mean[i]}));
+  const all=new Map(historyRows.concat(next).map(x=>[x.date,x]));historyRows=[...all.values()].sort((a,b)=>a.date.localeCompare(b.date));
+  historyOldest=historyRows[0].date;
+  renderHistoryChart(reset,oldScroll,oldWidth);
+  $("historyStatus").textContent=(state.lang==="el"?"Ιστορικά δεδομένα: ":"Archived days: ")+historyRows.length+" · ERA5 · Open-Meteo";
+ }catch(e){if(seq===historySeq){$("historyStatus").textContent=(state.lang==="el"?"Αποτυχία ανάκτησης: ":"Archive error: ")+e.message;toast($("historyStatus").textContent)}}
+ finally{if(seq===historySeq)historyBusy=false}
+}
+function historyPlotRows(){
+ if(historyPeriod!=="year")return historyRows;
+ const group=new Map();
+ historyRows.forEach(r=>{const key=r.date.slice(0,7);if(!group.has(key))group.set(key,{date:key+"-01",tempSum:0,humiditySum:0,countT:0,countH:0,rain:0,wind:0});
+  const v=group.get(key);
+  if(r.temp!=null){v.tempSum+=r.temp;v.countT++}
+  if(r.humidity!=null){v.humiditySum+=r.humidity;v.countH++}
+  if(r.rain!=null)v.rain+=r.rain;
+  if(r.wind!=null)v.wind=Math.max(v.wind,r.wind);
+ });
+ return [...group.values()].map(v=>({date:v.date,temp:v.countT?v.tempSum/v.countT:null,rain:v.rain,wind:v.wind,humidity:v.countH?v.humiditySum/v.countH:null}));
+}
+function historySeries(rows){
+ const l=state.chartLayers;return [
+ {type:"line",label:state.lang==="el"?"Μέση °C":"Mean °C",data:rows.map(x=>x.temp),borderColor:"#e9944b",backgroundColor:"#e9944b",pointRadius:0,tension:.18,yAxisID:"temp",hidden:!l.temp},
+ {type:"bar",label:"Rain "+rainUnit(),data:rows.map(x=>rainValue(x.rain)),backgroundColor:"#8dbce896",borderRadius:2,yAxisID:"rain",hidden:!l.rain},
+ {type:"line",label:"Wind Bft",data:rows.map(x=>x.wind==null?null:bft(x.wind)),borderColor:"#2b9b71",backgroundColor:"#2b9b71",pointRadius:0,tension:.16,yAxisID:"wind",hidden:!l.wind},
+ {type:"line",label:"Humidity %",data:rows.map(x=>x.humidity),borderColor:"#9a78d9",backgroundColor:"#9a78d9",pointRadius:0,tension:.16,yAxisID:"humidity",hidden:!l.humidity}
+ ];
+}
+function historyStat(name,value){return '<div class="history-stat"><small>'+safe(name)+'</small><strong>'+safe(value)+'</strong></div>'}
+function renderHistoryChart(reset,oldScroll,oldWidth){
+ if(!historyRows.length)return;
+ renderLayerButtons();
+ const rows=historyPlotRows(),scroller=$("historyScroll"),holder=$("historyPlot");
+ const rate=historyPeriod==="week"?52:historyPeriod==="month"?24:58;
+ holder.style.width=Math.max((scroller.clientWidth||900)*1.4,rows.length*rate)+"px";
+ $("historyPlace").textContent=state.location.name;
+ $("historyRange").textContent=dateFmt(rows[0].date,{month:"short",year:"numeric",day:"numeric"})+" — "+dateFmt(rows[rows.length-1].date,{month:"short",year:"numeric",day:"numeric"});
+ const labels=rows.map(x=>historyPeriod==="year"?dateFmt(x.date,{month:"short",year:"2-digit"}):dateFmt(x.date,{day:"numeric",month:"short"}));
+ if(historyChart){historyChart.destroy();historyChart=null}
+ if(window.Chart)historyChart=new Chart($("historyChart"),{data:{labels,datasets:historySeries(rows)},options:chartOptions()});
+ const temps=rows.map(x=>x.temp).filter(x=>x!=null),humids=rows.map(x=>x.humidity).filter(x=>x!=null),rains=rows.map(x=>x.rain).filter(x=>x!=null),winds=rows.map(x=>x.wind).filter(x=>x!=null);
+ const avg=values=>values.length?values.reduce((a,b)=>a+b,0)/values.length:null;
+ $("historyStats").innerHTML=historyStat(state.lang==="el"?"Μέση θερμοκρασία":"Mean temperature",unit(avg(temps),"°C",1))+historyStat(state.lang==="el"?"Σύνολο υετού":"Total precipitation",showRain(rains.reduce((a,b)=>a+b,0)))+historyStat(state.lang==="el"?"Μέγιστος άνεμος":"Peak wind",winds.length?unit(bft(Math.max(...winds)),"Bft"):"—")+historyStat(state.lang==="el"?"Μέση υγρασία":"Mean humidity",unit(avg(humids),"%",0));
+ $("historyRainLabel").textContent=rainUnit();
+ $("historyTableCaption").textContent=state.lang==="el"?"Πρόσφατα δεδομένα (έως 120 εγγραφές)":"Latest data (max 120 rows)";
+ $("historyTable").innerHTML=rows.slice(-120).reverse().map(x=>'<tr><td>'+safe(dateFmt(x.date,{day:"numeric",month:"short",year:"numeric"}))+'</td><td>'+unit(x.temp,"°C",1)+'</td><td>'+showRain(x.rain)+'</td><td>'+unit(x.wind==null?null:bft(x.wind),"Bft")+'</td><td>'+unit(x.humidity,"%",0)+'</td></tr>').join("");
+ requestAnimationFrame(()=>{if(reset){scroller.scrollLeft=scroller.scrollWidth}else if(oldWidth!=null){scroller.scrollLeft=(oldScroll||0)+Math.max(0,scroller.scrollWidth-oldWidth)}});
+}
 function renderRules(){const target=$("rulesList");$("rulesCount").textContent=state.rules.length;target.innerHTML=state.rules.length?state.rules.map(r=>'<div class="rule-item"><div><strong>'+safe(r.name)+'</strong><small>'+safe(ruleText(r))+" · "+safe(state.zones.find(z=>z.id===r.zone)?.name||state.location.name)+'</small><div style="margin-top:6px"><span class="tag">'+safe(r.enabled?"Enabled / page open only":"Paused")+"</span></div></div><div class=\"row\"><label class=\"fineprint\"><input type=\"checkbox\" "+(r.enabled?"checked":"")+' data-toggle-rule="'+safe(r.id)+'"> ON</label><button class="btn small danger" data-delete-rule="'+safe(r.id)+'">×</button></div></div>').join(""):'<div class="empty">'+safe(state.lang==="el"?"Δεν υπάρχουν κανόνες ακόμα.":"No rules yet.")+"</div>";target.querySelectorAll("[data-toggle-rule]").forEach(input=>input.addEventListener("change",()=>{const r=state.rules.find(x=>x.id===input.dataset.toggleRule);if(r){r.enabled=input.checked;save();renderRules();if(r.enabled)checkRules(false)}}));target.querySelectorAll("[data-delete-rule]").forEach(b=>b.addEventListener("click",()=>{state.rules=state.rules.filter(x=>x.id!==b.dataset.deleteRule);save();renderRules()}))}
 function addRule(fromDraft){
  const r=fromDraft||{name:$("ruleName").value.trim()||"Weather alert",metric:$("ruleMetric").value,threshold:Number($("ruleThreshold").value),op:$("ruleOperator").value,window:Number($("ruleWindow").value),lead:Number($("ruleLead").value),zone:$("ruleZone").value,
