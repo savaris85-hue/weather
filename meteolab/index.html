@@ -319,7 +319,7 @@ function historyUrl(start,end){
  daily:"temperature_2m_mean,precipitation_sum,wind_speed_10m_max,relative_humidity_2m_mean"});
  return "https://archive-api.open-meteo.com/v1/archive?"+p.toString();
 }
-async function loadHistory(reset){
+async function loadHistory(reset,jumpLeft){
  if(!reset&&historyBusy)return;
  const key=state.location.lat+","+state.location.lon;
  const oldScroll=$("historyScroll").scrollLeft,oldWidth=$("historyScroll").scrollWidth;
@@ -338,7 +338,7 @@ async function loadHistory(reset){
   const next=d.time.map((date,i)=>({date,temp:d.temperature_2m_mean&&d.temperature_2m_mean[i],rain:d.precipitation_sum&&d.precipitation_sum[i],wind:d.wind_speed_10m_max&&d.wind_speed_10m_max[i],humidity:d.relative_humidity_2m_mean&&d.relative_humidity_2m_mean[i]}));
   const all=new Map(historyRows.concat(next).map(x=>[x.date,x]));historyRows=[...all.values()].sort((a,b)=>a.date.localeCompare(b.date));
   historyOldest=historyRows[0].date;
-  renderHistoryChart(reset,oldScroll,oldWidth);
+  renderHistoryChart(reset,oldScroll,oldWidth,!!jumpLeft);
   $("historyStatus").textContent=(state.lang==="el"?"Ιστορικά δεδομένα: ":"Archived days: ")+historyRows.length+" · ERA5 · Open-Meteo";
  }catch(e){if(seq===historySeq){$("historyStatus").textContent=(state.lang==="el"?"Αποτυχία ανάκτησης: ":"Archive error: ")+e.message;toast($("historyStatus").textContent)}}
  finally{if(seq===historySeq)historyBusy=false}
@@ -364,12 +364,12 @@ function historySeries(rows){
  ];
 }
 function historyStat(name,value){return '<div class="history-stat"><small>'+safe(name)+'</small><strong>'+safe(value)+'</strong></div>'}
-function renderHistoryChart(reset,oldScroll,oldWidth){
+function renderHistoryChart(reset,oldScroll,oldWidth,jumpLeft){
  if(!historyRows.length)return;
  renderLayerButtons();
  const rows=historyPlotRows(),scroller=$("historyScroll"),holder=$("historyPlot");
  const rate=historyPeriod==="week"?52:historyPeriod==="month"?24:58;
- holder.style.width=Math.max((scroller.clientWidth||900)*1.4,rows.length*rate)+"px";
+ holder.style.width=Math.min(26000,Math.max((scroller.clientWidth||900)*1.4,rows.length*rate))+"px";
  $("historyPlace").textContent=state.location.name;
  $("historyRange").textContent=dateFmt(rows[0].date,{month:"short",year:"numeric",day:"numeric"})+" — "+dateFmt(rows[rows.length-1].date,{month:"short",year:"numeric",day:"numeric"});
  const labels=rows.map(x=>historyPeriod==="year"?dateFmt(x.date,{month:"short",year:"2-digit"}):dateFmt(x.date,{day:"numeric",month:"short"}));
@@ -381,7 +381,7 @@ function renderHistoryChart(reset,oldScroll,oldWidth){
  $("historyRainLabel").textContent=rainUnit();
  $("historyTableCaption").textContent=state.lang==="el"?"Πρόσφατα δεδομένα (έως 120 εγγραφές)":"Latest data (max 120 rows)";
  $("historyTable").innerHTML=rows.slice(-120).reverse().map(x=>'<tr><td>'+safe(dateFmt(x.date,{day:"numeric",month:"short",year:"numeric"}))+'</td><td>'+unit(x.temp,"°C",1)+'</td><td>'+showRain(x.rain)+'</td><td>'+unit(x.wind==null?null:bft(x.wind),"Bft")+'</td><td>'+unit(x.humidity,"%",0)+'</td></tr>').join("");
- requestAnimationFrame(()=>{if(reset){scroller.scrollLeft=scroller.scrollWidth}else if(oldWidth!=null){scroller.scrollLeft=(oldScroll||0)+Math.max(0,scroller.scrollWidth-oldWidth)}});
+ requestAnimationFrame(()=>{if(reset){scroller.scrollLeft=scroller.scrollWidth}else if(oldWidth!=null){scroller.scrollLeft=jumpLeft?70:Math.max(70,(oldScroll||0)+Math.max(0,scroller.scrollWidth-oldWidth)-Math.min(520,Math.max(0,scroller.scrollWidth-oldWidth)*.55))}});
 }
 function renderRules(){const target=$("rulesList");$("rulesCount").textContent=state.rules.length;target.innerHTML=state.rules.length?state.rules.map(r=>'<div class="rule-item"><div><strong>'+safe(r.name)+'</strong><small>'+safe(ruleText(r))+" · "+safe(state.zones.find(z=>z.id===r.zone)?.name||state.location.name)+'</small><div style="margin-top:6px"><span class="tag">'+safe(r.enabled?"Enabled / page open only":"Paused")+"</span></div></div><div class=\"row\"><label class=\"fineprint\"><input type=\"checkbox\" "+(r.enabled?"checked":"")+' data-toggle-rule="'+safe(r.id)+'"> ON</label><button class="btn small danger" data-delete-rule="'+safe(r.id)+'">×</button></div></div>').join(""):'<div class="empty">'+safe(state.lang==="el"?"Δεν υπάρχουν κανόνες ακόμα.":"No rules yet.")+"</div>";target.querySelectorAll("[data-toggle-rule]").forEach(input=>input.addEventListener("change",()=>{const r=state.rules.find(x=>x.id===input.dataset.toggleRule);if(r){r.enabled=input.checked;save();renderRules();if(r.enabled)checkRules(false)}}));target.querySelectorAll("[data-delete-rule]").forEach(b=>b.addEventListener("click",()=>{state.rules=state.rules.filter(x=>x.id!==b.dataset.deleteRule);save();renderRules()}))}
 function addRule(fromDraft){
@@ -540,7 +540,7 @@ async function importData(file){try{if(file.size>2e6)throw Error("File too large
 async function geocode(q){if(q.length<2){$("suggestions").style.display="none";return;}try{const data=await getJson("https://geocoding-api.open-meteo.com/v1/search?"+new URLSearchParams({name:q,count:"6",language:state.lang,format:"json"}));const arr=data.results||[];$("suggestions").innerHTML=arr.map((r,i)=>'<button data-pick="'+i+'">'+safe(r.name)+" · "+safe(r.admin1||r.country||"")+"</button>").join("");$("suggestions").style.display=arr.length?"block":"none";$("suggestions").querySelectorAll("[data-pick]").forEach(btn=>btn.onclick=()=>{const r=arr[Number(btn.dataset.pick)];state.location={name:r.name,lat:r.latitude,lon:r.longitude,country:r.country||""};state.selectedDay=0;historyRequested=false;save();$("placeSearch").value=r.name;$("suggestions").style.display="none";if(map)map.setView([r.latitude,r.longitude],9);fetchForecast()})}catch(e){$("suggestions").style.display="none"}}
 function setup(){document.querySelectorAll("[data-view]").forEach(b=>b.addEventListener("click",()=>switchView(b.dataset.view)));document.querySelectorAll("[data-goto]").forEach(b=>b.addEventListener("click",()=>switchView(b.dataset.goto)));$("goFullMap").onclick=()=>switchView("map");$("language").onchange=e=>{state.lang=e.target.value;save();translate();renderOverview()};$("refreshBtn").onclick=()=>{fetchForecast();if(currentLayer==="radar")fetchRadar()};$("placeSearch").oninput=e=>{clearTimeout(searchTimer);const q=e.target.value.trim();searchTimer=setTimeout(()=>geocode(q),370)};$("placeSearch").onfocus=()=>{if($("suggestions").childElementCount)$("suggestions").style.display="block"};document.addEventListener("click",e=>{if(!e.target.closest(".search"))$("suggestions").style.display="none"});$("modelSelect").value=state.model;$("pinCurrent").onclick=togglePin;for(const [id,key] of [["unitsRain","rain"],["unitsDistance","distance"],["unitsPressure","pressure"]])$(id).onchange=e=>{state.units[key]=e.target.value;save();renderOverview();renderDays();renderForecast();renderZones();if(historyRows.length)renderHistoryChart(false)};$("applyModel").onclick=()=>{state.model=$("modelSelect").value;save();toast("Model: "+modelName());fetchForecast()};$("mapLayer").onchange=e=>setMapLayer(e.target.value);
  document.querySelectorAll("[data-history-period]").forEach(b=>b.onclick=()=>{historyPeriod=b.dataset.historyPeriod;document.querySelectorAll("[data-history-period]").forEach(x=>x.classList.toggle("active",x.dataset.historyPeriod===historyPeriod));historyRequested=false;loadHistory(true)});
- $("historyOlder").onclick=()=>loadHistory(false);
+ $("historyOlder").onclick=()=>loadHistory(false,true);
  $("historyNewer").onclick=()=>{$("historyScroll").scrollLeft=$("historyScroll").scrollWidth};
  $("historyScroll").addEventListener("scroll",()=>{if(selectedView==="history"&&!historyBusy&&historyRows.length&&$("historyScroll").scrollLeft<55)loadHistory(false)});
  $("historyScroll").addEventListener("wheel",e=>{if(e.shiftKey&&e.deltaY){e.preventDefault();$("historyScroll").scrollLeft+=e.deltaY}},{passive:false});$("startDraw").onclick=startDrawing;$("drawZoneBtn").onclick=startDrawing;$("finishDraw").onclick=finishDrawing;$("cancelDraw").onclick=()=>{drawFromRules=false;cancelDrawing()};$("drawRuleZone").onclick=()=>{drawFromRules=true;startDrawing()};$("ruleExtraEnabled").onchange=e=>{$("ruleExtraFields").hidden=!e.target.checked};document.querySelectorAll("[data-example]").forEach(b=>b.onclick=()=>{$("promptInput").value=b.dataset.example;processPrompt()});$("mapMetric").onchange=renderGrid;$("mapDay").onchange=renderGrid;$("mapHour").onchange=renderGrid;$("updateMapForecast").onclick=renderGrid;$("radarRange").oninput=showRadar;$("radarPlay").onclick=radarToggle;$("addRule").onclick=()=>addRule(null);$("evaluateNow").onclick=()=>checkRules(true);$("runPrompt").onclick=processPrompt;$("saveDraft").onclick=()=>{if(promptDraft){if(addRule(promptDraft)){promptDraft=null;$("saveDraft").hidden=true}}};for(const id of ["testNotify","quickTest"])$(id).onclick=testNotify;for(const id of ["allowNotify","browserPerm"])$(id).onclick=requestNotify;$("exportData").onclick=exportData;$("importData").onchange=e=>{if(e.target.files[0])importData(e.target.files[0]);e.target.value=""};$("placeSearch").value=state.location.name;notifyEnabled="Notification"in window&&Notification.permission==="granted";translate();renderOverview();renderZones();renderRules();updateMapDayOpts();icons();if(window.L)initMap();else window.addEventListener("load",initMap,{once:true});fetchForecast();renderPins();renderLayerButtons();setInterval(()=>{if(!document.hidden)checkRules(false)},10*60*1000);}
