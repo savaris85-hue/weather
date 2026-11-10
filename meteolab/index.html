@@ -211,24 +211,168 @@ function updateMapDayOpts(){const current=$("mapDay").value;$("mapDay").innerHTM
 function metricColor(value,metric){let v=Number(value);if(!Number.isFinite(v))return"#91a0ae";let n=0;if(metric==="precipitation")n=Math.min(1,v/8);else if(metric==="temperature_2m")n=Math.min(1,Math.max(0,(v+5)/45));else if(metric==="wind_speed_10m")n=Math.min(1,v/75);else if(metric==="beaufort")n=Math.min(1,v/12);else n=Math.min(1,v/100);const colors=["#b2d5f6","#83b8f2","#66bacc","#f3ca72","#ed9a57","#d75c59"];return colors[Math.min(colors.length-1,Math.floor(n*(colors.length-1)))]}
 async function renderGrid(){if(!map||currentLayer!=="forecast"||!gridGroup)return;const metric=$("mapMetric").value,day=Number($("mapDay").value),hour=Number($("mapHour").value),key=[state.location.lat,state.location.lon,state.model].join("|");gridGroup.clearLayers();$("mapStatus").textContent="Forecast · loading";$("layerInfo").textContent="Open-Meteo · sampled grid · 14-day model forecast";let points=gridCache.get(key);if(!points){const samples=[];for(let y=-2;y<=2;y++)for(let x=-2;x<=2;x++){samples.push({lat:+(state.location.lat+y*.27).toFixed(4),lon:+(state.location.lon+x*.35).toFixed(4)})}const params=new URLSearchParams({latitude:samples.map(x=>x.lat).join(","),longitude:samples.map(x=>x.lon).join(","),hourly:"temperature_2m,precipitation,cloud_cover,wind_speed_10m,relative_humidity_2m",timezone:"auto",forecast_days:"14"});if(state.model!=="best_match")params.set("models",state.model);try{let response=await getJson("https://api.open-meteo.com/v1/forecast?"+params.toString());if(!Array.isArray(response))response=[response];points=samples.map((sample,i)=>({sample,data:response[i]}));gridCache.set(key,points)}catch(e){$("mapStatus").textContent="Forecast unavailable";toast("Forecast map: "+e.message);return}}if(currentLayer!=="forecast"||key!==[state.location.lat,state.location.lon,state.model].join("|"))return;for(const p of points){const obj=p.data;if(!obj||!obj.hourly||!obj.hourly.time)continue;const t=(forecast&&forecast.daily&&forecast.daily.time[day]?forecast.daily.time[day]:obj.hourly.time[0].slice(0,10))+"T"+String(hour).padStart(2,"0")+":00";const index=obj.hourly.time.indexOf(t);const vals=obj.hourly[metric==="beaufort"?"wind_speed_10m":metric];const value=index>=0&&vals?vals[index]:null;if(value===null||value===undefined)continue;const val=metric==="beaufort"?bft(value):value;const dot=L.circleMarker([p.sample.lat,p.sample.lon],{radius:37,color:metricColor(val,metric),fillColor:metricColor(val,metric),weight:0,fillOpacity:.36,opacity:.2});dot.bindTooltip(safe(metric)+": "+unit(val,metric==="temperature_2m"?"°C":metric==="precipitation"?"mm/h":metric==="wind_speed_10m"?"km/h":metric==="beaufort"?"Bft":"%",1),{direction:"top"});dot.addTo(gridGroup)}$("mapStatus").textContent="Forecast · day "+(day+1)}
 function radarToggle(){if(radarTimer){clearInterval(radarTimer);radarTimer=null;$("radarPlay").textContent="▶";return;}if(radarFrames.length<2)return;$("radarPlay").textContent="❚❚";radarTimer=setInterval(()=>{if(currentLayer!=="radar")return;const next=(Number($("radarRange").value)+1)%radarFrames.length;$("radarRange").value=String(next);showRadar()},750)}
-function ruleText(r){const labels={prob:"Rain probability",rain:"Rain",temp:"Temperature",wind:"Wind",beaufort:"Beaufort",humidity:"Humidity",cloud:"Cloud cover"};const units={prob:"%",rain:"mm/h",temp:"°C",wind:"km/h",beaufort:"Bft",humidity:"%",cloud:"%"};return(labels[r.metric]||r.metric)+" "+(r.op==="lte"?"≤":"≥")+" "+r.threshold+" "+(units[r.metric]||"")+" · "+r.window+"h"}
+function ruleText(r){
+ const labels={prob:"Rain probability",rain:"Rain (hourly mean)",temp:"Temperature",wind:"Wind",beaufort:"Beaufort",humidity:"Humidity",cloud:"Cloud cover"};
+ const units={prob:"%",rain:"mm/h",temp:"°C",wind:"km/h",beaufort:"Bft",humidity:"%",cloud:"%"};
+ const one=(m,o,v)=>(labels[m]||m)+" "+(o==="lte"?"≤":"≥")+" "+v+" "+(units[m]||"");
+ const extra=r.extra&&Number.isFinite(Number(r.extra.threshold))?" "+((r.logic||"and")==="or"?"OR":"AND")+" "+one(r.extra.metric,r.extra.op,r.extra.threshold):"";
+ return one(r.metric,r.op,r.threshold)+extra+" · "+(r.window||24)+"h"+(Number(r.consecutive||1)>1?" · "+r.consecutive+" consecutive hours":"")+" · cooldown "+(r.cooldownHours||6)+"h";
+}
 function renderRules(){const target=$("rulesList");$("rulesCount").textContent=state.rules.length;target.innerHTML=state.rules.length?state.rules.map(r=>'<div class="rule-item"><div><strong>'+safe(r.name)+'</strong><small>'+safe(ruleText(r))+" · "+safe(state.zones.find(z=>z.id===r.zone)?.name||state.location.name)+'</small><div style="margin-top:6px"><span class="tag">'+safe(r.enabled?"Enabled / page open only":"Paused")+"</span></div></div><div class=\"row\"><label class=\"fineprint\"><input type=\"checkbox\" "+(r.enabled?"checked":"")+' data-toggle-rule="'+safe(r.id)+'"> ON</label><button class="btn small danger" data-delete-rule="'+safe(r.id)+'">×</button></div></div>').join(""):'<div class="empty">'+safe(state.lang==="el"?"Δεν υπάρχουν κανόνες ακόμα.":"No rules yet.")+"</div>";target.querySelectorAll("[data-toggle-rule]").forEach(input=>input.addEventListener("change",()=>{const r=state.rules.find(x=>x.id===input.dataset.toggleRule);if(r){r.enabled=input.checked;save();renderRules();if(r.enabled)checkRules(false)}}));target.querySelectorAll("[data-delete-rule]").forEach(b=>b.addEventListener("click",()=>{state.rules=state.rules.filter(x=>x.id!==b.dataset.deleteRule);save();renderRules()}))}
-function addRule(fromDraft){const r=fromDraft||{name:$("ruleName").value.trim()||"Weather alert",metric:$("ruleMetric").value,threshold:Number($("ruleThreshold").value),op:$("ruleOperator").value,window:Number($("ruleWindow").value),lead:Number($("ruleLead").value),zone:$("ruleZone").value};if(!Number.isFinite(r.threshold)||r.threshold<-100||r.threshold>9999){toast("Invalid threshold");return;}if(!Number.isInteger(r.lead)||r.lead<0||r.lead>72){toast("Lead time must be in whole hours (0–72)");return;}const rule={...r,id:uid(),enabled:true,created:Date.now(),cooldownHours:6};state.rules.unshift(rule);save();renderRules();toast(state.lang==="el"?"Ο κανόνας αποθηκεύτηκε. Εκτελείται μόνο όσο η σελίδα είναι ανοιχτή.":"Rule saved. Checks run only while the page is open.");checkRules(false)}
+function addRule(fromDraft){
+ const r=fromDraft||{name:$("ruleName").value.trim()||"Weather alert",metric:$("ruleMetric").value,threshold:Number($("ruleThreshold").value),op:$("ruleOperator").value,window:Number($("ruleWindow").value),lead:Number($("ruleLead").value),zone:$("ruleZone").value,
+ consecutive:Number($("ruleConsecutive").value),cooldownHours:Number($("ruleCooldown").value),
+ extra:$("ruleExtraEnabled").checked?{metric:$("ruleExtraMetric").value,threshold:Number($("ruleExtraThreshold").value),op:$("ruleExtraOperator").value}:null,logic:$("ruleLogic").value};
+ const ranges={prob:[0,100],rain:[0,100],temp:[-100,70],wind:[0,250],beaufort:[0,12],humidity:[0,100],cloud:[0,100]};
+ const validPart=p=>p&&ranges[p.metric]&&Number.isFinite(Number(p.threshold))&&p.threshold>=ranges[p.metric][0]&&p.threshold<=ranges[p.metric][1]&&["gte","lte"].includes(p.op);
+ if(!validPart(r)||r.extra&&!validPart(r.extra)){toast(state.lang==="el"?"Μη έγκυρο όριο/μονάδα κανόνα.":"Invalid rule threshold or unit.");return false;}
+ if(!Number.isInteger(Number(r.lead))||r.lead<0||r.lead>72||![12,24,48,72].includes(Number(r.window))){toast("Invalid lead/window");return false;}
+ if(![1,2,3,4].includes(Number(r.consecutive||1))||![3,6,12,24].includes(Number(r.cooldownHours||6))){toast("Invalid duration/cooldown");return false;}
+ if(r.zone&&!state.zones.some(z=>z.id===r.zone)){toast("Geofence is missing");return false;}
+ let zoneId=r.zone||"";
+ if(r.pendingZone){
+   const z=r.pendingZone;
+   if(!z.name||!Array.isArray(z.points)||z.points.length<3||z.points.some(p=>!Array.isArray(p)||p.length!==2||!p.every(Number.isFinite))){toast("Invalid generated geofence");return false;}
+   zoneId=uid();state.zones.push({id:zoneId,name:z.name.slice(0,70),points:z.points});renderMapZones();
+ }
+ const rule={...r,zone:zoneId,id:uid(),enabled:true,created:Date.now(),consecutive:Number(r.consecutive||1),cooldownHours:Number(r.cooldownHours||6)};
+ delete rule.pendingZone;
+ state.rules.unshift(rule);save();renderZones();renderRules();
+ toast(state.lang==="el"?"Ο κανόνας αποθηκεύτηκε. Εκτελείται μόνο όσο η σελίδα είναι ανοιχτή.":"Rule saved. Checks run only while this page is open.");
+ checkRules(false);return true;
+}
 function metricAt(data,metric,index){const h=data&&data.hourly;if(!h)return null;const mapping={prob:"precipitation_probability",rain:"precipitation",temp:"temperature_2m",wind:"wind_speed_10m",beaufort:"wind_speed_10m",humidity:"relative_humidity_2m",cloud:"cloud_cover"};const vals=h[mapping[metric]];let v=vals?vals[index]:null;if(v===null||v===undefined||!Number.isFinite(Number(v)))return null;return metric==="beaufort"?bft(v):Number(v)}
 async function dataForRule(r){if(!r.zone)return forecast;const z=state.zones.find(x=>x.id===r.zone),c=z&&centerZone(z);if(!c)return null;const k=r.zone+"|"+state.model;if(zoneCache.has(k))return zoneCache.get(k);try{const data=await getJson(API(c[0],c[1],state.model,4));zoneCache.set(k,data);return data}catch(e){return null}}
-async function checkRules(manual){if(!forecast){if(manual)toast("Forecast data unavailable");return;}let hits=0;for(const r of state.rules.filter(x=>x.enabled)){const data=await dataForRule(r);if(!data||!data.hourly)continue;const start=nearestHourly(data),max=Math.min(data.hourly.time.length,start+Number(r.window||24));for(let i=start;i<max;i++){const value=metricAt(data,r.metric,i);if(value===null)continue;const ok=r.op==="lte"?value<=r.threshold:value>=r.threshold;if(!ok)continue;const eventTime=data.hourly.time[i];const lead=(new Date(eventTime).getTime()-Date.now())/3600000;if(lead<Number(r.lead||0))continue;const dedup=r.id+"|"+eventTime;const prev=Number(state.lastChecks[dedup]||0);if(Date.now()-prev<6*3600000)break;state.lastChecks[dedup]=Date.now();const zone=state.zones.find(z=>z.id===r.zone);const title=r.name||"Weather alert";const body=ruleText(r)+" · "+(zone?zone.name:state.location.name)+" · "+eventTime.replace("T"," ");deliverAlert(title,body,false);hits++;break;}}const cutoff=Date.now()-3*86400000;for(const k of Object.keys(state.lastChecks))if(state.lastChecks[k]<cutoff)delete state.lastChecks[k];save();if(manual)toast(hits?(state.lang==="el"?"Νέες ειδοποιήσεις: ":"New alerts: ")+hits:(state.lang==="el"?"Δεν εντοπίστηκαν νέες συνθήκες ενεργοποίησης.":"No new matching alert conditions."))}
+function hourMatches(data,r,index){
+ const test=p=>{const value=metricAt(data,p.metric,index);return value!==null&&(p.op==="lte"?value<=p.threshold:value>=p.threshold)};
+ const a=test(r);if(!r.extra)return a;
+ const b=test(r.extra);return r.logic==="or"?a||b:a&&b;
+}
+async function checkRules(manual){
+ if(!forecast){if(manual)toast("Forecast data unavailable");return;}
+ let hits=0;
+ for(const r of state.rules.filter(x=>x.enabled)){
+   const data=await dataForRule(r);if(!data||!data.hourly||!data.hourly.time)continue;
+   const now=Date.now(),cooldown=Number(r.cooldownHours||6)*3600000;
+   if(now-Number(state.lastChecks["cooldown|"+r.id]||0)<cooldown)continue;
+   const start=nearestHourly(data),max=Math.min(data.hourly.time.length,start+Number(r.window||24));
+   const consecutive=Math.max(1,Math.min(4,Number(r.consecutive||1)));
+   for(let i=start;i+consecutive<=max;i++){
+     const eventTime=data.hourly.time[i];
+     if((new Date(eventTime).getTime()-now)/3600000<Number(r.lead||0))continue;
+     let sustained=true;
+     for(let j=0;j<consecutive;j++)if(!hourMatches(data,r,i+j)){sustained=false;break;}
+     if(!sustained)continue;
+     const dedup=r.id+"|"+eventTime;if(state.lastChecks[dedup])break;
+     state.lastChecks[dedup]=now;state.lastChecks["cooldown|"+r.id]=now;
+     const zone=state.zones.find(z=>z.id===r.zone);
+     deliverAlert(r.name||"Weather alert",ruleText(r)+" · "+(zone?zone.name:state.location.name)+" · "+eventTime.replace("T"," "),false);
+     hits++;break;
+   }
+ }
+ const cutoff=Date.now()-7*86400000;
+ for(const k of Object.keys(state.lastChecks))if(state.lastChecks[k]<cutoff)delete state.lastChecks[k];
+ save();
+ if(manual)toast(hits?(state.lang==="el"?"Νέες ειδοποιήσεις: ":"New alerts: ")+hits:(state.lang==="el"?"Δεν εντοπίστηκαν νέες συνθήκες ενεργοποίησης.":"No new matching alert conditions."));
+}
 function deliverAlert(title,body,test){state.alerts.unshift({id:uid(),title,body,at:Date.now(),test:!!test});state.alerts=state.alerts.slice(0,150);save();renderAlerts();renderOverview();if(notifyEnabled&&"Notification"in window&&Notification.permission==="granted"){try{new Notification(title,{body:body,tag:"meteolab-"+(test?"test":title)})}catch(e){}}}
 async function requestNotify(){if(!("Notification"in window)){toast("Notifications unsupported in this browser");return;}try{const p=await Notification.requestPermission();notifyEnabled=p==="granted";toast(notifyEnabled?(state.lang==="el"?"Ενεργοποιήθηκαν τα browser notifications.":"Browser notifications enabled."):"Notification permission not granted")}catch(e){toast("Browser permission unavailable")}}
 function testNotify(){deliverAlert("MeteoLab · TEST",state.lang==="el"?"Αυτή είναι δοκιμαστική ειδοποίηση, όχι πραγματική πρόγνωση.":"This is a test notification, not a real forecast.",true);toast(state.lang==="el"?"Η δοκιμαστική ειδοποίηση καταγράφηκε.":"Test alert saved.")}
 function renderAlerts(){$("alertCount").textContent=state.alerts.length;$("alertsList").innerHTML=state.alerts.length?state.alerts.map(a=>'<div class="alert-item"><div><strong>'+safe(a.title)+(a.test?' <span class="badge">TEST</span>':"")+'</strong><small>'+safe(a.body)+'</small><small>'+new Date(a.at).toLocaleString(state.lang==="el"?"el-GR":"en-GB")+"</small></div></div>").join(""):'<div class="empty">'+safe(state.lang==="el"?"Δεν υπάρχουν ειδοποιήσεις. Μπορείς να δοκιμάσεις την αποστολή από το κουμπί.":"No alerts yet. Use the test button to see how alerts appear.")+"</div>"}
 function dayQueryIndex(text){const lower=text.toLowerCase();if(/μεθαύριο|day after tomorrow/.test(lower))return 2;if(/αύριο|αυριο|tomorrow|avrio/.test(lower))return 1;const match=lower.match(/(?:day|ημέρα|μερα)\s*(\d{1,2})/);if(match)return Math.max(0,Math.min(13,Number(match[1])-1));return 0}
 function answerWeatherQuestion(text){if(!forecast||!forecast.daily)return state.lang==="el"?"Δεν έχω δεδομένα πρόγνωσης αυτή τη στιγμή.":"Forecast data is not available right now.";const i=dayQueryIndex(text),d=forecast.daily,t=d.time[i];if(!t)return state.lang==="el"?"Δεν υπάρχουν δεδομένα για αυτή την ημέρα.":"No data for that day.";const rain=d.precipitation_sum&&d.precipitation_sum[i],prob=d.precipitation_probability_max&&d.precipitation_probability_max[i],max=d.temperature_2m_max&&d.temperature_2m_max[i],min=d.temperature_2m_min&&d.temperature_2m_min[i],wind=d.wind_speed_10m_max&&d.wind_speed_10m_max[i];return(state.lang==="el"?"Πρόγνωση για ":"Forecast for ")+state.location.name+" — "+dateFmt(t)+":\n"+weatherLabel(d.weather_code&&d.weather_code[i])+".\n"+(state.lang==="el"?"Θερμοκρασία: ":"Temperature: ")+unit(min,"°C",1)+" – "+unit(max,"°C",1)+".\n"+(state.lang==="el"?"Συνολικός υετός: ":"Total precipitation: ")+unit(rain,"mm",1)+".\n"+(state.lang==="el"?"Μέγιστη πιθανότητα βροχής: ":"Maximum rain probability: ")+unit(prob,"%")+".\n"+(state.lang==="el"?"Μέγιστος άνεμος: ":"Maximum wind: ")+unit(wind,"km/h")+".\n"+(state.lang==="el"?"Πηγή/μοντέλο: ":"Source/model: ")+modelName()+". "+(state.lang==="el"?"Αυτό είναι περίληψη αριθμητικής πρόγνωσης, όχι εκτίμηση AI.":"This is a numerical forecast summary, not an AI-generated prediction.")}
-function interpretPrompt(text){let lower=text.toLocaleLowerCase();const isRule=/ειδοποι|ενημέρ|ειδοποι|όταν|notify|alert|warn|when|stel|stile|steile|eidop|kanon|rule|me enhmer/.test(lower);if(!isRule)return{answer:answerWeatherQuestion(text),draft:null};let metric="prob",op="gte",threshold=70;if(/μποφόρ|μποφορ|beaufort|bofor|bf\b/.test(lower)){metric="beaufort";threshold=6}else if(/άνεμ|ανεμ|wind|aera|anemo/.test(lower)){metric="wind";threshold=40}else if(/υγρασ|humidity|igras/.test(lower)){metric="humidity";threshold=80}else if(/θερμοκρασ|temperature|temp|zesti|kryo/.test(lower)){metric="temp";threshold=30}else if(/νέφ|νεφ|cloud|nefo/.test(lower)){metric="cloud";threshold=80}else if(/mm|ένταση|ενταση|intensity|precipitation|vyrox|yeto/.test(lower)){metric="rain";threshold=1}const matched=lower.match(/(\d+(?:[.,]\d+)?)\s*(mm\/h|mm|%|°c|c\b|km\/h|χλμ|μποφόρ|bft|bofor)/);if(matched){threshold=Number(matched[1].replace(",","."));if(matched[2]==="%"&&metric==="rain")metric="prob";if(matched[2]==="mm"||matched[2]==="mm/h")metric="rain";if(matched[2]==="km/h"||matched[2]==="χλμ")metric="wind";if(["μποφόρ","bft","bofor"].includes(matched[2]))metric="beaufort";if(matched[2]==="°c")metric="temp"}if(/κάτω|λιγότε|below|less than|under|mikrotero/.test(lower))op="lte";let minutes=lower.match(/(\d+)\s*(?:λεπτ|minutes?|mins?\b)/),hours=lower.match(/(\d+)\s*(?:ώρ|hours?\b|hrs?\b)/);let lead=minutes?Number(minutes[1])/60:hours?Number(hours[1]):0;let blocked=minutes&&lead<1;const zone=state.zones.find(z=>lower.includes(z.name.toLowerCase()))||null;const r={name:text.trim().slice(0,85),metric,threshold,op,window:24,lead:Math.ceil(lead),zone:zone?zone.id:""};const note=blocked?(state.lang==="el"?"Αναφέρεις προειδοποίηση κάτω της 1 ώρας: ΔΕΝ μπορεί να υποστηριχθεί αξιόπιστα από ωριαίες προγνώσεις. Δεν δημιουργώ ενεργό rule 10 λεπτών.":"Lead time below 1 hour cannot be supported by hourly forecasts. A 10-minute nowcast rule cannot be enabled."):(state.lang==="el"?"Ερμήνευσα το αίτημα σε παραμέτρους. Έλεγξε το όριο, την περιοχή και το παράθυρο πριν το αποθηκεύσεις.":"Parsed your request into parameters. Review threshold, location and time window before saving.");return{answer:note+"\n"+ruleText(r)+(zone?" · "+zone.name:""),draft:blocked?null:r}}
-function processPrompt(){const t=$("promptInput").value.trim();if(!t)return;const o=interpretPrompt(t);$("assistantAnswer").hidden=false;$("assistantAnswer").textContent=o.answer;promptDraft=o.draft;$("saveDraft").hidden=!o.draft;if(o.draft){$("ruleName").value=o.draft.name;$("ruleMetric").value=o.draft.metric;$("ruleThreshold").value=o.draft.threshold;$("ruleOperator").value=o.draft.op;$("ruleWindow").value=String(o.draft.window);$("ruleLead").value=String(o.draft.lead);$("ruleZone").value=o.draft.zone}}
+function normalizePrompt(text){
+ return text.toLocaleLowerCase("el").normalize("NFD").replace(/[\u0300-\u036f]/g,"").replace(/ς/g,"σ");
+}
+function parseRuleCondition(text){
+ const t=normalizePrompt(text);
+ const detect=()=>{
+  if(/μποφορ|beaufort|bofor|\bbft\b/.test(t))return"beaufort";
+  if(/ανεμ|αερα|wind|km\/h|χλμ\/ω/.test(t))return"wind";
+  if(/υγρασι|υγρασ|humidity|igras/.test(t))return"humidity";
+  if(/θερμοκρασ|temperature|temp|ζεστ|κρυο/.test(t))return"temp";
+  if(/νεφ|cloud|cloudiness/.test(t))return"cloud";
+  if(/mm\/h|mm\b|εντασ|υετ|precipitation amount|rainfall amount/.test(t))return"rain";
+  return"prob";
+ };
+ let metric=detect();let defaults={prob:70,rain:1,temp:30,wind:40,beaufort:6,humidity:80,cloud:80};
+ let threshold=defaults[metric],match;
+ const patterns=[
+  {kind:"rain",re:/(\d+(?:[.,]\d+)?)\s*mm\s*(?:\/\s*h|\/\s*ωρα)?\b/},
+  {kind:"beaufort",re:/(\d+(?:[.,]\d+)?)\s*(?:μποφορ|bofor|bft|beaufort)\b/},
+  {kind:"wind",re:/(\d+(?:[.,]\d+)?)\s*(?:km\/h|χλμ\/ωρα)\b/},
+  {kind:"temp",re:/(\d+(?:[.,]\d+)?)\s*(?:°\s*c|celsius)\b/},
+  {kind:"prob",re:/(\d+(?:[.,]\d+)?)\s*%/}
+ ];
+ for(const p of patterns){match=t.match(p.re);if(match){metric=p.kind==="prob"?(metric==="humidity"||metric==="cloud"?metric:"prob"):p.kind;threshold=Number(match[1].replace(",","."));break}}
+ const op=/κατω|μικροτερ|λιγοτερ|below|less than|under|not exceed/.test(t)?"lte":"gte";
+ return{metric,threshold,op};
+}
+function interpretPrompt(text){
+ const lower=normalizePrompt(text),isRule=/ειδοποι|ενημερ|οταν|notify|alert|warn|when|stel|stile|steile|eidop|κανον|kanon|rule|me enhmer/.test(lower);
+ if(!isRule)return{answer:answerWeatherQuestion(text),draft:null};
+ const minutes=lower.match(/(\d+)\s*(?:λεπτ|minutes?|mins?\b)/);
+ const leadHours=lower.match(/(\d+)\s*(?:ωρ|hours?\b|hrs?\b)/);
+ const blocked=minutes&&Number(minutes[1])<60;
+ if(blocked)return{answer:state.lang==="el"?"Η πρόγνωση είναι ωριαία: δεν μπορώ να δημιουργήσω επιστημονικά έγκυρο κανόνα άφιξης βροχής σε "+minutes[1]+" λεπτά. Χρειάζεται πραγματικό radar nowcasting.":"Hourly models cannot support a valid "+minutes[1]+"-minute rainfall arrival rule. Real radar nowcasting is required.",draft:null};
+ const timeWindow=lower.match(/(?:επομεν|next|within)\s*(\d+)\s*(?:ωρ|hours?)/);
+ const consecutive=lower.match(/(\d+)\s*(?:συνεχομεν|consecutive)\s*(?:ωρ|hours?)/)||lower.match(/(?:για|for)\s*(\d+)\s*(?:συνεχομεν\s*)?(?:ωρ|hours?)/);
+ const cooldownMatch=lower.match(/(?:ανα\s*|every\s*|cooldown\s*)(\d+)\s*(?:ωρ|hours?)/);
+ let main=lower,extra=null,logic="and";
+ const split=lower.match(/\s+(και|and|or|η)\s+(?=(?:ο\s+|η\s+|τα\s+)?(?:ανεμ|αερα|wind|μποφορ|beaufort|υγρασ|humidity|θερμοκρασ|temperature|νεφ|cloud|πιθανοτ|rain|βροχ|υετ))/);
+ if(split){const a=lower.slice(0,split.index),b=lower.slice(split.index+split[0].length);main=a;extra=parseRuleCondition(b);logic=/^(or|η)$/.test(split[1])?"or":"and";}
+ const primary=parseRuleCondition(main);
+ const savedZone=state.zones.find(z=>lower.includes(normalizePrompt(z.name)))||null;
+ const lead=leadHours?Number(leadHours[1]):0;
+ let duration=consecutive?Number(consecutive[1]):1;if(![1,2,3,4].includes(duration))duration=1;
+ let cd=cooldownMatch?Number(cooldownMatch[1]):6;if(![3,6,12,24].includes(cd))cd=6;
+ let windowHours=timeWindow?Number(timeWindow[1]):24;if(![12,24,48,72].includes(windowHours))windowHours=24;
+ const radius=lower.match(/(?:ακτιν|radius|within)\s*(\d+(?:[.,]\d+)?)\s*(?:χλμ|km)\b/)||lower.match(/(?:γυρω|around)\s+.{0,40}?(\d+(?:[.,]\d+)?)\s*(?:χλμ|km)\b/);
+ const locationMatch=lower.match(/(?:γυρω\s+απο\s+(?:τη\s+|τον\s+|το\s+)?|around\s+|στη\s+|στην\s+|στο\s+|στη\s+περιοχη\s+)([\p{L}][\p{L}\s-]{2,35})/u);
+ let place=locationMatch?locationMatch[1].trim().split(/\s+(?:για|με|και|αν|οταν|if|when|for|radius|ακτιν|σε\s+ακτιν)/)[0].trim():null;
+ if(place&&/(βροχ|ανεμ|πιθανοτ)/.test(place))place=null;
+ const r={name:text.trim().slice(0,85),...primary,extra,logic,window:windowHours,lead:lead,zone:savedZone?savedZone.id:"",consecutive:duration,cooldownHours:cd};
+ const hint=state.lang==="el"?"Προτεινόμενος κανόνας με ωριαία μοντελοποίηση. Έλεγξε τις παραμέτρους πριν την αποθήκευση. Η πρόγνωση είναι αβέβαιη, η πιθανότητα δεν είναι επιβεβαιωμένη αξιοπιστία και οι ειδοποιήσεις τρέχουν μόνο με ανοιχτή σελίδα.":"Hourly scientific rule proposal. Review settings before saving. Forecasts are uncertain, probability is not calibrated alert reliability, and checks only run with the page open.";
+ return{answer:hint+"\n"+ruleText(r)+(savedZone?" · "+savedZone.name:"")+(place&&!savedZone?"\n"+(state.lang==="el"?"Αναζήτηση geofence: ":"Geofence lookup: ")+place:""),draft:r,requestedPlace:!savedZone?place:null,radiusKm:radius?Math.min(50,Math.max(.5,Number(radius[1].replace(",",".")))):null};
+}
+function circlePolygon(lat,lon,rKm){
+ const points=[];
+ for(let i=0;i<36;i++){const a=2*Math.PI*i/36;const dy=rKm*Math.cos(a)/111.32;const dx=rKm*Math.sin(a)/(111.32*Math.max(.15,Math.cos(lat*Math.PI/180)));points.push([Number((lat+dy).toFixed(6)),Number((lon+dx).toFixed(6))]);}
+ return points;
+}
+async function processPrompt(){
+ const t=$("promptInput").value.trim();if(!t)return;
+ const o=interpretPrompt(t);
+ $("assistantAnswer").hidden=false;$("assistantAnswer").textContent=o.answer;promptDraft=o.draft;
+ if(promptDraft&&o.requestedPlace&&o.radiusKm){
+   $("assistantAnswer").textContent+="\n"+(state.lang==="el"?"Αναζήτηση τοποθεσίας για κυκλικό geofence...":"Looking up location for circular geofence...");
+   try{
+     const res=await getJson("https://geocoding-api.open-meteo.com/v1/search?"+new URLSearchParams({name:o.requestedPlace,count:"5",language:state.lang,format:"json"}));
+     const list=res.results||[];const match=list.find(x=>(x.country_code==="GR"||!x.country_code))||list[0];
+     if(match){
+       promptDraft.pendingZone={name:match.name+" · "+o.radiusKm+" km",points:circlePolygon(match.latitude,match.longitude,o.radiusKm)};
+       $("assistantAnswer").textContent+="\n"+(state.lang==="el"?"Προτεινόμενο geofence (θα αποθηκευτεί μόνο αφού εγκρίνεις): ":"Suggested geofence (saved only when you approve): ")+promptDraft.pendingZone.name+".";
+     }else{
+       $("assistantAnswer").textContent+="\n"+(state.lang==="el"?"Η περιοχή δεν βρέθηκε. Σχεδίασέ την στον χάρτη.":"Location not found. Draw it on the map.");
+       promptDraft=null;
+     }
+   }catch(e){$("assistantAnswer").textContent+="\n"+(state.lang==="el"?"Η υπηρεσία τοποθεσιών δεν απάντησε. Σχεδίασε geofence χειροκίνητα.":"Location lookup unavailable. Draw a geofence manually.");promptDraft=null;}
+ }
+ $("saveDraft").hidden=!promptDraft;
+ if(promptDraft){
+  $("ruleName").value=promptDraft.name;$("ruleMetric").value=promptDraft.metric;$("ruleThreshold").value=promptDraft.threshold;
+  $("ruleOperator").value=promptDraft.op;$("ruleWindow").value=String(promptDraft.window);$("ruleLead").value=String(promptDraft.lead);
+  $("ruleConsecutive").value=String(promptDraft.consecutive);$("ruleCooldown").value=String(promptDraft.cooldownHours);
+  $("ruleZone").value=promptDraft.zone||"";
+  $("ruleExtraEnabled").checked=!!promptDraft.extra;$("ruleExtraFields").hidden=!promptDraft.extra;
+  if(promptDraft.extra){$("ruleExtraMetric").value=promptDraft.extra.metric;$("ruleExtraThreshold").value=promptDraft.extra.threshold;$("ruleExtraOperator").value=promptDraft.extra.op;}
+  $("ruleLogic").value=promptDraft.logic;
+ }
+}
 function exportData(){const data=JSON.stringify({version:2,exportedAt:new Date().toISOString(),state},null,2);const a=document.createElement("a");a.href=URL.createObjectURL(new Blob([data],{type:"application/json"}));a.download="meteolab-backup-"+new Date().toISOString().slice(0,10)+".json";a.click();setTimeout(()=>URL.revokeObjectURL(a.href),1500)}
 async function importData(file){try{if(file.size>2e6)throw Error("File too large");const parsed=JSON.parse(await file.text());const value=parsed.state;if(!value||!Array.isArray(value.rules)||!Array.isArray(value.zones)||!Array.isArray(value.alerts))throw Error("Invalid backup");state={...initial,...value,location:{...initial.location,...value.location},rules:value.rules.slice(0,200),zones:value.zones.filter(z=>Array.isArray(z.points)&&z.points.length>=3&&z.points.length<=500).slice(0,100),alerts:value.alerts.slice(0,150),lastChecks:{}};save();translate();renderMapZones();fetchForecast();toast("Backup imported")}catch(e){toast("Import failed: "+e.message)}}
 async function geocode(q){if(q.length<2){$("suggestions").style.display="none";return;}try{const data=await getJson("https://geocoding-api.open-meteo.com/v1/search?"+new URLSearchParams({name:q,count:"6",language:state.lang,format:"json"}));const arr=data.results||[];$("suggestions").innerHTML=arr.map((r,i)=>'<button data-pick="'+i+'">'+safe(r.name)+" · "+safe(r.admin1||r.country||"")+"</button>").join("");$("suggestions").style.display=arr.length?"block":"none";$("suggestions").querySelectorAll("[data-pick]").forEach(btn=>btn.onclick=()=>{const r=arr[Number(btn.dataset.pick)];state.location={name:r.name,lat:r.latitude,lon:r.longitude,country:r.country||""};state.selectedDay=0;save();$("placeSearch").value=r.name;$("suggestions").style.display="none";if(map)map.setView([r.latitude,r.longitude],9);fetchForecast()})}catch(e){$("suggestions").style.display="none"}}
-function setup(){document.querySelectorAll("[data-view]").forEach(b=>b.addEventListener("click",()=>switchView(b.dataset.view)));document.querySelectorAll("[data-goto]").forEach(b=>b.addEventListener("click",()=>switchView(b.dataset.goto)));$("goFullMap").onclick=()=>switchView("map");$("language").onchange=e=>{state.lang=e.target.value;save();translate();renderOverview()};$("refreshBtn").onclick=()=>{fetchForecast();fetchRadar()};$("placeSearch").oninput=e=>{clearTimeout(searchTimer);const q=e.target.value.trim();searchTimer=setTimeout(()=>geocode(q),370)};$("placeSearch").onfocus=()=>{if($("suggestions").childElementCount)$("suggestions").style.display="block"};document.addEventListener("click",e=>{if(!e.target.closest(".search"))$("suggestions").style.display="none"});$("modelSelect").value=state.model;$("applyModel").onclick=()=>{state.model=$("modelSelect").value;save();toast("Model: "+modelName());fetchForecast()};$("mapLayer").onchange=e=>setMapLayer(e.target.value);$("startDraw").onclick=startDrawing;$("drawZoneBtn").onclick=startDrawing;$("finishDraw").onclick=finishDrawing;$("cancelDraw").onclick=()=>{drawFromRules=false;cancelDrawing()};$("drawRuleZone").onclick=()=>{drawFromRules=true;startDrawing()};$("ruleExtraEnabled").onchange=e=>{$("ruleExtraFields").hidden=!e.target.checked};document.querySelectorAll("[data-example]").forEach(b=>b.onclick=()=>{$("promptInput").value=b.dataset.example;processPrompt()});$("mapMetric").onchange=renderGrid;$("mapDay").onchange=renderGrid;$("mapHour").onchange=renderGrid;$("updateMapForecast").onclick=renderGrid;$("radarRange").oninput=showRadar;$("radarPlay").onclick=radarToggle;$("addRule").onclick=()=>addRule(null);$("evaluateNow").onclick=()=>checkRules(true);$("runPrompt").onclick=processPrompt;$("saveDraft").onclick=()=>{if(promptDraft){addRule(promptDraft);promptDraft=null;$("saveDraft").hidden=true}};for(const id of ["testNotify","quickTest"])$(id).onclick=testNotify;for(const id of ["allowNotify","browserPerm"])$(id).onclick=requestNotify;$("exportData").onclick=exportData;$("importData").onchange=e=>{if(e.target.files[0])importData(e.target.files[0]);e.target.value=""};$("placeSearch").value=state.location.name;notifyEnabled="Notification"in window&&Notification.permission==="granted";translate();renderOverview();renderZones();renderRules();updateMapDayOpts();icons();if(window.L)initMap();else window.addEventListener("load",initMap,{once:true});fetchForecast();setInterval(()=>{if(!document.hidden)checkRules(false)},10*60*1000);}
+function setup(){document.querySelectorAll("[data-view]").forEach(b=>b.addEventListener("click",()=>switchView(b.dataset.view)));document.querySelectorAll("[data-goto]").forEach(b=>b.addEventListener("click",()=>switchView(b.dataset.goto)));$("goFullMap").onclick=()=>switchView("map");$("language").onchange=e=>{state.lang=e.target.value;save();translate();renderOverview()};$("refreshBtn").onclick=()=>{fetchForecast();fetchRadar()};$("placeSearch").oninput=e=>{clearTimeout(searchTimer);const q=e.target.value.trim();searchTimer=setTimeout(()=>geocode(q),370)};$("placeSearch").onfocus=()=>{if($("suggestions").childElementCount)$("suggestions").style.display="block"};document.addEventListener("click",e=>{if(!e.target.closest(".search"))$("suggestions").style.display="none"});$("modelSelect").value=state.model;$("applyModel").onclick=()=>{state.model=$("modelSelect").value;save();toast("Model: "+modelName());fetchForecast()};$("mapLayer").onchange=e=>setMapLayer(e.target.value);$("startDraw").onclick=startDrawing;$("drawZoneBtn").onclick=startDrawing;$("finishDraw").onclick=finishDrawing;$("cancelDraw").onclick=()=>{drawFromRules=false;cancelDrawing()};$("drawRuleZone").onclick=()=>{drawFromRules=true;startDrawing()};$("ruleExtraEnabled").onchange=e=>{$("ruleExtraFields").hidden=!e.target.checked};document.querySelectorAll("[data-example]").forEach(b=>b.onclick=()=>{$("promptInput").value=b.dataset.example;processPrompt()});$("mapMetric").onchange=renderGrid;$("mapDay").onchange=renderGrid;$("mapHour").onchange=renderGrid;$("updateMapForecast").onclick=renderGrid;$("radarRange").oninput=showRadar;$("radarPlay").onclick=radarToggle;$("addRule").onclick=()=>addRule(null);$("evaluateNow").onclick=()=>checkRules(true);$("runPrompt").onclick=processPrompt;$("saveDraft").onclick=()=>{if(promptDraft){if(addRule(promptDraft)){promptDraft=null;$("saveDraft").hidden=true}}};for(const id of ["testNotify","quickTest"])$(id).onclick=testNotify;for(const id of ["allowNotify","browserPerm"])$(id).onclick=requestNotify;$("exportData").onclick=exportData;$("importData").onchange=e=>{if(e.target.files[0])importData(e.target.files[0]);e.target.value=""};$("placeSearch").value=state.location.name;notifyEnabled="Notification"in window&&Notification.permission==="granted";translate();renderOverview();renderZones();renderRules();updateMapDayOpts();icons();if(window.L)initMap();else window.addEventListener("load",initMap,{once:true});fetchForecast();setInterval(()=>{if(!document.hidden)checkRules(false)},10*60*1000);}
 if(document.readyState==="loading")document.addEventListener("DOMContentLoaded",setup);else setup();
 })();
 </script>
