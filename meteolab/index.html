@@ -316,18 +316,18 @@ function interpretPrompt(text){
  const blocked=minutes&&Number(minutes[1])<60;
  if(blocked)return{answer:state.lang==="el"?"Η πρόγνωση είναι ωριαία: δεν μπορώ να δημιουργήσω επιστημονικά έγκυρο κανόνα άφιξης βροχής σε "+minutes[1]+" λεπτά. Χρειάζεται πραγματικό radar nowcasting.":"Hourly models cannot support a valid "+minutes[1]+"-minute rainfall arrival rule. Real radar nowcasting is required.",draft:null};
  const timeWindow=lower.match(/(?:επομεν|next|within)\s*(\d+)\s*(?:ωρ|hours?)/);
- const consecutive=lower.match(/(\d+)\s*(?:συνεχομεν|consecutive)\s*(?:ωρ|hours?)/)||lower.match(/(?:για|for)\s*(\d+)\s*(?:συνεχομεν\s*)?(?:ωρ|hours?)/);
+ const consecutive=lower.match(/(\d+)\s*(?:συνεχομεν\p{L}*|consecutive)\s*(?:ωρ\p{L}*|hours?)/)||lower.match(/(?:για|for)\s*(\d+)\s*(?:συνεχομεν\p{L}*\s*)?(?:ωρ\p{L}*|hours?)/);
  const cooldownMatch=lower.match(/(?:ανα\s*|every\s*|cooldown\s*)(\d+)\s*(?:ωρ|hours?)/);
  let main=lower,extra=null,logic="and";
- const split=lower.match(/\s+(και|and|or|η)\s+(?=(?:ο\s+|η\s+|τα\s+)?(?:ανεμ|αερα|wind|μποφορ|beaufort|υγρασ|humidity|θερμοκρασ|temperature|νεφ|cloud|πιθανοτ|rain|βροχ|υετ))/);
- if(split){const a=lower.slice(0,split.index),b=lower.slice(split.index+split[0].length);main=a;extra=parseRuleCondition(b);logic=/^(or|η)$/.test(split[1])?"or":"and";}
+ const split=lower.match(/\s+(και|and|or)\s+(?=(?:ο\s+|η\s+|τα\s+)?(?:ανεμ|αερα|wind|μποφορ|beaufort|υγρασ|humidity|θερμοκρασ|temperature|νεφ|cloud|πιθανοτ|rain|βροχ|υετ))/);
+ if(split){const a=lower.slice(0,split.index),b=lower.slice(split.index+split[0].length);main=a;extra=parseRuleCondition(b);logic=/^(or)$/.test(split[1])?"or":"and";}
  const primary=parseRuleCondition(main);
  const savedZone=state.zones.find(z=>lower.includes(normalizePrompt(z.name)))||null;
  const lead=leadHours?Number(leadHours[1]):0;
  let duration=consecutive?Number(consecutive[1]):1;if(![1,2,3,4].includes(duration))duration=1;
  let cd=cooldownMatch?Number(cooldownMatch[1]):6;if(![3,6,12,24].includes(cd))cd=6;
  let windowHours=timeWindow?Number(timeWindow[1]):24;if(![12,24,48,72].includes(windowHours))windowHours=24;
- const radius=lower.match(/(?:ακτιν|radius|within)\s*(\d+(?:[.,]\d+)?)\s*(?:χλμ|km)\b/)||lower.match(/(?:γυρω|around)\s+.{0,40}?(\d+(?:[.,]\d+)?)\s*(?:χλμ|km)\b/);
+ const radius=lower.match(/(?:ακτιν|radius|within)\s*(\d+(?:[.,]\d+)?)\s*(?:χλμ|km)(?=\s|$|[,.!?])/)||lower.match(/(?:γυρω|around)\s+.{0,40}?(\d+(?:[.,]\d+)?)\s*(?:χλμ|km)\b/);
  const locationMatch=lower.match(/(?:γυρω\s+απο\s+(?:τη\s+|τον\s+|το\s+)?|around\s+|στη\s+|στην\s+|στο\s+|στη\s+περιοχη\s+)([\p{L}][\p{L}\s-]{2,35})/u);
  let place=locationMatch?locationMatch[1].trim().split(/\s+(?:για|με|και|αν|οταν|if|when|for|radius|ακτιν|σε\s+ακτιν)/)[0].trim():null;
  if(place&&/(βροχ|ανεμ|πιθανοτ)/.test(place))place=null;
