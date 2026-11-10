@@ -7,11 +7,11 @@ A free, static, bilingual (Greek/English) weather workspace, accessible at the G
 - Search worldwide locations with Open-Meteo geocoding.
 - Four forecast choices through Open-Meteo: best match, NOAA GFS, ECMWF IFS and DWD ICON (availability varies by location, variables and forecast horizon).
 - Current weather estimates, daily forecasts up to 14 days where provided, hourly table, weather chart.
-- Minimal Leaflet map (OpenStreetMap / CARTO), RainViewer past radar animation, and NASA GIBS daily composite satellite imagery. **Neither radar nor satellite is a 14-day future radar forecast.**
+- Minimal Leaflet map (OpenStreetMap official tiles, with OSM France HOT fallback; no CARTO key), RainViewer past radar animation, and NASA GIBS daily composite satellite imagery. **Neither radar nor satellite is a 14-day future radar forecast.**
 - Sampled model-point forecast overlays for rain, temperature, cloud cover, wind, Beaufort and relative humidity. This is **not a continuous gridded forecast/radar field**.
 - Draw and locally save geofences; rules linked to a geofence evaluate forecast at the simple vertex-mean center, not throughout the polygon.
-- Configurable rule metrics, thresholds, lead times (whole hours), look-ahead and in-app/browser notifications. Checks run **only while the page remains open**.
-- Basic local Greek/English command parser for questions and rule suggestions; it is explicitly not a general LLM.
+- Configurable rule metrics, AND/OR second condition, thresholds, 1–4 consecutive forecast hours, per-rule 3–24 hour cooldown, lead times (whole hours), look-ahead and in-app/browser notifications. Geofences can be drawn from the Rules screen. Checks run **only while the page remains open**.
+- Expanded local Greek/English prompt interpreter for forecast questions and rule suggestions. Supported examples include rain probability plus Beaufort AND checks, multi-hour persistence, and a radius around a geocoded place converted into a 36-vertex polygon on approval. **This is an interpretable rule parser, not a general LLM**; unsupported phrases require manual review.
 - Export/Import local JSON settings; no registration needed.
 
 ## Known limitations / future extensions
@@ -42,5 +42,13 @@ Do not put Telegram tokens, Google OAuth client secrets, Firebase private creden
 
 ## Credits
 
-Open-Meteo; RainViewer; NASA GIBS; OpenStreetMap; CARTO; Leaflet; Chart.js; Lucide.
+Open-Meteo; RainViewer; NASA GIBS; OpenStreetMap Foundation; OSM France; Leaflet; Chart.js; Lucide.
 
+
+## QA performed (2026-11-10)
+
+- Main application JavaScript parsed successfully using V8 syntax validation.
+- Tested representative Greek and English prompt parsing: combined rain probability + Beaufort; consecutive forecast hours; circular radius geofence; rejection of unsupported 10-minute arrival alerts.
+- Verified internal DOM element IDs referenced in the JavaScript exist.
+- Verified AND scientific rule condition matching on synthetic hourly fixture data, and generation of 36 polygon vertices for radius geofences.
+- Live map tile connectivity, browser network behavior, and the GitHub Pages endpoint could **not** be end-to-end verified in the available sandbox, which blocks external web network access; map service errors are therefore not claimed resolved by a live visual test.
