@@ -46,7 +46,7 @@ export function normalizeHourly(api, kind) {
   const h = api && api.hourly;
   if (!h || !Array.isArray(h.time)) return [];
   return h.time.map((point, i) => {
-    const t = typeof point === "number" ? point : Date.parse(point) / 1000;
+    const t = typeof point === "number" ? point : Date.parse(point.endsWith("Z") || /[+-]\d\d:\d\d$/.test(point) ? point : point + "Z") / 1000;
     if (!Number.isFinite(t)) return null;
     const row = { t, kind };
     for (const field of FIELDS) {
