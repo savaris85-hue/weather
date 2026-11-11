@@ -1,0 +1,10 @@
+import test from "node:test";
+import assert from "node:assert/strict";
+import {moveDay, dayISO, splitDateChunks, validateRange, normalizeHourly, mergeHourly, aggregateForView, csvForRows} from "./data.mjs";
+test("leap dates",()=>{assert.equal(moveDay("2024-02-28",1),"2024-02-29");assert.equal(dayISO(Date.UTC(2024,1,29)),"2024-02-29")});
+test("chunks are contiguous",()=>assert.deepEqual(splitDateChunks("2025-01-01","2025-01-10",4),[{start:"2025-01-01",end:"2025-01-04"},{start:"2025-01-05",end:"2025-01-08"},{start:"2025-01-09",end:"2025-01-10"}]));
+test("date validation",()=>{assert.throws(()=>validateRange("2025-04-02","2025-04-01"));assert.throws(()=>validateRange("2025-02-31","2025-03-01"));assert.throws(()=>validateRange("1940-01-01","2025-01-01"))});
+test("API UTC timestamps",()=>{const a=normalizeHourly({hourly:{time:["2025-01-01T00:00"],temperature_2m:[10]}},"history");assert.equal(a[0].t,Date.parse("2025-01-01T00:00:00Z")/1000);assert.equal(a[0].pressure_msl,null)});
+test("forecast supersedes overlap",()=>{const a=normalizeHourly({hourly:{time:["2025-01-01T00:00"],temperature_2m:[10]}},"history");const b=normalizeHourly({hourly:{time:["2025-01-01T00:00"],temperature_2m:[12]}},"forecast");const c=mergeHourly(a,b);assert.equal(c.length,1);assert.equal(c[0].kind,"forecast");assert.equal(c[0].temperature_2m,12)});
+test("daily aggregation",()=>{const rows=normalizeHourly({hourly:{time:["2025-01-01T00:00","2025-01-01T01:00"],precipitation:[2,3],temperature_2m:[10,14]}},"history");const res=aggregateForView(rows,Date.parse("2025-01-01"),Date.parse("2025-03-20"));assert.equal(res.resolution,"daily");assert.equal(res.rows[0].precipitation,5);assert.equal(res.rows[0].temperature_2m,12)});
+test("CSV export",()=>{const a=normalizeHourly({hourly:{time:["2025-01-01T00:00"],temperature_2m:[19]}},"history");const csv=csvForRows(a);assert.match(csv,/time_utc,source/);assert.match(csv,/2025-01-01T00:00:00.000Z,history,19/)});
