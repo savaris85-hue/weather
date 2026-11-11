@@ -213,7 +213,7 @@ async function load(){
     const fstart=start>moveDay(TODAY,-7)?start:moveDay(TODAY,-7);
     const fend=end<currentLimit()?end:currentLimit();
     if(fstart<=fend){
-      const p={...params(fstart,fend),past_days:undefined};
+      const p={...params(fstart,fend),past_days:7,forecast_days:16};
       p.hourly=FIELDS.join(",")+",precipitation_probability";
       const api=await getJSON(qs("https://api.open-meteo.com/v1/forecast",p),ctrl.signal);
       forecast=normalizeHourly(api,"forecast");
