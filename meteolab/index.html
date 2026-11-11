@@ -494,6 +494,86 @@ function renderHistoryChart(reset,oldScroll,oldWidth,jumpLeft){
  $("historyTable").innerHTML=rows.slice(-120).reverse().map(x=>'<tr><td>'+safe(dateFmt(x.date,{day:"numeric",month:"short",year:"numeric"}))+'</td><td>'+unit(x.temp,"°C",1)+'</td><td>'+showRain(x.rain)+'</td><td>'+unit(x.wind==null?null:bft(x.wind),"Bft")+'</td><td>'+unit(x.humidity,"%",0)+'</td></tr>').join("");
  requestAnimationFrame(()=>{if(reset){scroller.scrollLeft=scroller.scrollWidth}else if(oldWidth!=null){scroller.scrollLeft=jumpLeft?70:Math.max(70,(oldScroll||0)+Math.max(0,scroller.scrollWidth-oldWidth)-Math.min(520,Math.max(0,scroller.scrollWidth-oldWidth)*.55))}updateHistoryVisibleRange(rows)});
 }
+
+let comparisonActive="historical";
+function initCompareControls(){
+ const today=new Date().getUTCFullYear();
+ for(const id of ["compareYearA","compareYearB"]){
+   if($(id).options.length)continue;
+   $(id).innerHTML=Array.from({length:today-1940+1},(_,i)=>today-i).map(y=>'<option value="'+y+'">'+y+'</option>').join("");
+ }
+ if(!$("compareYearA").value)$("compareYearA").value=String(today);
+ if(!$("compareYearB").value)$("compareYearB").value=String(today-1);
+ if(!$("compareReference").value)$("compareReference").value=historyEndDate();
+}
+function compareVar(v){return {temp:{title:"Temperature °C",unit:"°C"},rain:{title:"Rain",unit:rainUnit()},humidity:{title:"Humidity %",unit:"%"},wind:{title:"Wind Bft",unit:"Bft"}}[v]||{title:v,unit:""}}
+function compareNum(row,v){if(!row)return null;const value=row[v];if(value==null||!Number.isFinite(Number(value)))return null;if(v==="rain")return rainValue(value);if(v==="wind")return bft(value);return Number(value)}
+function compareYEnd(year,ref){const m=ref.slice(5),day=m.slice(3);const month=Number(m.slice(0,2));const y=Number(year),max=new Date(Date.UTC(y,month,0)).getUTCDate();return y+"-"+m.slice(0,2)+"-"+String(Math.min(Number(day),max)).padStart(2,"0")}
+function removeCompareCharts(){compareCharts.forEach(ch=>{if(ch&&ch.destroy)ch.destroy()});compareCharts=[]}
+function compareChartOptions(title){return {responsive:true,maintainAspectRatio:false,animation:false,plugins:{legend:{position:"bottom",labels:{font:{size:11}}},title:{display:false,text:title}},scales:{x:{grid:{display:false},ticks:{maxTicksLimit:10,maxRotation:0}},y:{grid:{color:"#edf2f8"}}}}}
+async function runHistoricalCompare(){
+ initCompareControls();const a=Number($("compareYearA").value),b=Number($("compareYearB").value),len=Number($("compareLength").value),v=$("compareMetric").value,ref=$("compareReference").value||historyEndDate();
+ if(a===b){$("compareHistoricalStatus").textContent=state.lang==="el"?"Επίλεξε διαφορετικά έτη.":"Choose different years.";return}
+ if(![7,14,30,90].includes(len))return;
+ $("compareHistoricalStatus").textContent=state.lang==="el"?"Φόρτωση δύο ιστορικών περιόδων…":"Loading historical periods…";
+ const endA=compareYEnd(a,ref),endB=compareYEnd(b,ref),max=historyEndDate();
+ if(endA>max||endB>max){$("compareHistoricalStatus").textContent="Selected period not yet available in ERA5; pick an earlier end date.";return}
+ const dates=[[shiftDate(endA,-len+1),endA],[shiftDate(endB,-len+1),endB]];
+ try{
+  const data=await Promise.all(dates.map(([st,en])=>getJson(historyUrl(st,en))));
+  const rows=data.map(x=>{const d=x.daily;if(!d||!d.time||!d.time.length)throw Error("Missing archive period");return d.time.map((dt,i)=>({date:dt,temp:d.temperature_2m_mean?.[i]??null,rain:d.precipitation_sum?.[i]??null,wind:d.wind_speed_10m_max?.[i]??null,humidity:d.relative_humidity_2m_mean?.[i]??null}))});
+  const x=Array.from({length:len},(_,i)=>String(i+1)),one=rows[0].map(r=>compareNum(r,v)),two=rows[1].map(r=>compareNum(r,v));
+  removeCompareCharts();
+  const title=compareVar(v).title;
+  const make=(id,values,label,color)=>new Chart($(id),{type:"line",data:{labels:x,datasets:[{label:label+" · "+title,data:values,borderColor:color,backgroundColor:color,pointRadius:2,tension:.22}]},options:compareChartOptions(title)});
+  compareCharts=[make("compareChartA",one,String(a),"#4084ee"),make("compareChartB",two,String(b),"#e89a55")];
+  compareCharts.push(new Chart($("compareOverlay"),{type:"line",data:{labels:x,datasets:[{label:String(a),data:one,borderColor:"#4084ee",tension:.22,pointRadius:2},{label:String(b),data:two,borderColor:"#e89a55",tension:.22,pointRadius:2}]},options:compareChartOptions("Overlay")}));
+  $("compareLabelA").textContent=a+" · "+dates[0].join(" — ");$("compareLabelB").textContent=b+" · "+dates[1].join(" — ");
+  lastCompareMode="historical";
+  lastCompareRows=x.map((label,i)=>({day:i+1,yearA:a,dateA:rows[0][i]?.date||"",valueA:one[i]??"",yearB:b,dateB:rows[1][i]?.date||"",valueB:two[i]??"",variable:title,unit:compareVar(v).unit}));
+  const mean=arr=>{const valid=arr.filter(Number.isFinite);return valid.length?valid.reduce((sum,x)=>sum+x,0)/valid.length:null};
+  const mA=mean(one),mB=mean(two),delta=mA!=null&&mB!=null?mA-mB:null;
+  $("compareHistStats").innerHTML=historyStat(a+" mean",unit(mA,compareVar(v).unit,1))+historyStat(b+" mean",unit(mB,compareVar(v).unit,1))+historyStat("Difference",unit(delta,compareVar(v).unit,1))+historyStat("Days",String(len));
+  $("compareHistoricalStatus").textContent=state.lang==="el"?"Δύο σειρές ιστορικής επανανάλυσης (ERA5), όχι προγνώσεις.":"Two ERA5 historical reanalysis periods, not forecasts.";
+ }catch(e){$("compareHistoricalStatus").textContent="Comparison unavailable: "+e.message}
+}
+async function runModelCompare(){
+ const names=[...$("compareModelChoices").querySelectorAll("input:checked")].map(el=>el.value);
+ if(names.length<2){$("compareModelStatus").textContent=state.lang==="el"?"Επίλεξε τουλάχιστον δύο μοντέλα.":"Select at least two models.";return}
+ const metric=$("compareModelMetric").value,days=Number($("compareModelDays").value);
+ $("compareModelStatus").textContent="Loading model forecasts…";
+ const hourly="temperature_2m,relative_humidity_2m,precipitation,wind_speed_10m,cloud_cover";
+ const response=await Promise.allSettled(names.map(model=>{
+   const p=new URLSearchParams({latitude:String(state.location.lat),longitude:String(state.location.lon),timezone:"auto",forecast_days:String(days),models:model,hourly:hourly});
+   return getJson("https://api.open-meteo.com/v1/forecast?"+p.toString());
+ }));
+ const datasets=[],colors=["#4084ee","#e89a55","#2ba67f","#956ed2"],series=[];
+ for(let i=0;i<names.length;i++){if(response[i].status!=="fulfilled")continue;
+  const h=response[i].value.hourly;if(!h||!h.time||!Array.isArray(h[metric]))continue;
+  const arr=[];
+  for(let j=0;j<h.time.length;j+=6){const part=h[metric].slice(j,j+6).filter(v=>v!=null&&Number.isFinite(Number(v)));let value=part.length?(metric==="precipitation"?part.reduce((a,b)=>a+b,0):part.reduce((a,b)=>a+b,0)/part.length):null;
+   if(value!=null){if(metric==="wind_speed_10m")value=bft(value);if(metric==="precipitation")value=rainValue(value);}
+   arr.push({time:h.time[j],value:value==null?null:+Number(value).toFixed(2)});
+  }
+  series.push({name:names[i],rows:arr});
+ }
+ if(series.length<2){$("compareModelStatus").textContent="Only "+series.length+" model(s) returned suitable data. Try another pair.";return}
+ const labels=[...new Set(series.flatMap(x=>x.rows.map(r=>r.time)))].sort(),suffix=metric==="wind_speed_10m"?"Bft":metric==="precipitation"?rainUnit():metric==="temperature_2m"?"°C":"%";
+ for(let i=0;i<series.length;i++){const byTime=new Map(series[i].rows.map(x=>[x.time,x.value]));datasets.push({label:series[i].name,data:labels.map(k=>byTime.get(k)??null),borderColor:colors[i%colors.length],pointRadius:0,spanGaps:false,tension:.16,borderWidth:2})}
+ removeCompareCharts();compareCharts=[new Chart($("compareModelsChart"),{type:"line",data:{labels:labels.map(x=>x.replace("T"," ")),datasets},options:compareChartOptions("Forecast comparison · "+suffix)})];
+ lastCompareMode="models";lastCompareRows=labels.map((time,i)=>({time,...Object.fromEntries(datasets.map(ds=>[ds.label,ds.data[i]]))}));
+ $("compareModelStatus").textContent=series.length+" models · "+labels.length+" × 6h intervals · "+state.location.name;
+ $("modelComparisonNotes").textContent="Source: Open-Meteo model products. Missing values are not extrapolated. The selected providers may have different update cycles, resolutions and horizons; this is not a calibrated ensemble.";
+}
+function initCompareHandlers(){
+ document.querySelectorAll("[data-compare-tab]").forEach(btn=>btn.onclick=()=>{comparisonActive=btn.dataset.compareTab;document.querySelectorAll("[data-compare-tab]").forEach(x=>x.classList.toggle("active",x===btn));$("compareHistorical").classList.toggle("active",comparisonActive==="historical");$("compareModels").classList.toggle("active",comparisonActive==="models")});
+ $("runHistoricalCompare").onclick=runHistoricalCompare;
+ $("runModelCompare").onclick=runModelCompare;
+ $("compareCsv").onclick=()=>exportCSV(lastCompareRows,"meteolab-comparison");
+ $("comparePng").onclick=()=>downloadChartPng(comparisonActive==="models"?"compareModelsChart":"compareOverlay","meteolab-comparison");
+ $("comparePdf").onclick=()=>window.print();
+}
+
 function renderRules(){const target=$("rulesList");$("rulesCount").textContent=state.rules.length;target.innerHTML=state.rules.length?state.rules.map(r=>'<div class="rule-item"><div><strong>'+safe(r.name)+'</strong><small>'+safe(ruleText(r))+" · "+safe(state.zones.find(z=>z.id===r.zone)?.name||state.location.name)+'</small><div style="margin-top:6px"><span class="tag">'+safe(r.enabled?"Enabled / page open only":"Paused")+"</span></div></div><div class=\"row\"><label class=\"fineprint\"><input type=\"checkbox\" "+(r.enabled?"checked":"")+' data-toggle-rule="'+safe(r.id)+'"> ON</label><button class="btn small danger" data-delete-rule="'+safe(r.id)+'">×</button></div></div>').join(""):'<div class="empty">'+safe(state.lang==="el"?"Δεν υπάρχουν κανόνες ακόμα.":"No rules yet.")+"</div>";target.querySelectorAll("[data-toggle-rule]").forEach(input=>input.addEventListener("change",()=>{const r=state.rules.find(x=>x.id===input.dataset.toggleRule);if(r){r.enabled=input.checked;save();renderRules();if(r.enabled)checkRules(false)}}));target.querySelectorAll("[data-delete-rule]").forEach(b=>b.addEventListener("click",()=>{state.rules=state.rules.filter(x=>x.id!==b.dataset.deleteRule);save();renderRules()}))}
 function addRule(fromDraft){
  const r=fromDraft||{name:$("ruleName").value.trim()||"Weather alert",metric:$("ruleMetric").value,threshold:Number($("ruleThreshold").value),op:$("ruleOperator").value,window:Number($("ruleWindow").value),lead:Number($("ruleLead").value),zone:$("ruleZone").value,
