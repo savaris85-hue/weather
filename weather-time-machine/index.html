@@ -54,7 +54,7 @@ input,select,button{font:inherit}input,select{width:100%;height:41px;background:
 <label class="check"><input type="checkbox" data-field="wind_speed_10m" checked><span>💨 Wind speed</span></label>
 <label class="check"><input type="checkbox" data-field="cloud_cover"><span>☁ Cloud cover</span></label>
 <label class="check"><input type="checkbox" data-field="wind_direction_10m"><span>🧭 Wind direction</span></label>
-<div class="note"><strong>Πώς χρησιμοποιείται:</strong> Σύρε το γράφημα για zoom, κάνε διπλό κλικ για επαναφορά ή χρησιμοποίησε το range slider στο κάτω μέρος. Για μεγάλα διαστήματα τα ωριαία δεδομένα γίνονται ημερήσια (βροχή = άθροισμα). Το CSV περιλαμβάνει τις ωριαίες εγγραφές.<hr style="border:0;border-top:1px solid #334761"><strong>Data:</strong> Open-Meteo ERA5 / ERA5-Land reanalysis & forecast models. Η αναανάλυση είναι μοντελοποιημένη εκτίμηση, όχι πιστοποιημένες μετρήσεις συγκεκριμένου σταθμού. Τα τελευταία ιστορικά δεδομένα μπορεί να καθυστερούν.</div>
+<div class="note"><strong>Πώς χρησιμοποιείται:</strong> Σύρε το γράφημα για zoom, κάνε διπλό κλικ για επαναφορά ή χρησιμοποίησε το range slider στο κάτω μέρος. Για μεγάλα διαστήματα τα ωριαία δεδομένα γίνονται ημερήσια (βροχή = άθροισμα). Το CSV περιλαμβάνει τις ωριαίες εγγραφές.<hr style="border:0;border-top:1px solid #334761"><strong>Data:</strong> Open-Meteo ERA5 reanalysis & forecast models. Η αναανάλυση είναι μοντελοποιημένη εκτίμηση, όχι πιστοποιημένες μετρήσεις συγκεκριμένου σταθμού. Τα τελευταία ιστορικά δεδομένα μπορεί να καθυστερούν.</div>
 </aside>
 </section>
 <div id="status" role="status" aria-live="polite"></div>
@@ -196,14 +196,14 @@ async function load(){
  try{
   clampDates();state.busy=true;$("#load").disabled=true;status("Downloading and merging weather timeline…");
   const start=$("#start").value,end=$("#end").value;
-  const historicalEnd=moveDay(TODAY,-3);
+  const historicalEnd=moveDay(TODAY,-5);
   const pastEnd=end<historicalEnd?end:historicalEnd;
   let history=[],forecast=[];
   if(start<=pastEnd){
     const chunks=splitDateChunks(start,pastEnd,92);
     let completed=0;
     const out=await limitedMap(chunks,async ch=>{
-      const api=await getJSON(qs("https://archive-api.open-meteo.com/v1/archive",params(ch.start,ch.end)),ctrl.signal);
+      const api=await getJSON(qs("https://archive-api.open-meteo.com/v1/archive",{...params(ch.start,ch.end),models:"era5"}),ctrl.signal);
       completed++;status("Historical periods loaded: "+completed+" / "+chunks.length);
       return normalizeHourly(api,"history");
     },3);
