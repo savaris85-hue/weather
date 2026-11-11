@@ -1,0 +1,255 @@
+<!doctype html>
+<html lang="el">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="theme-color" content="#101b31">
+<title>Weather Time Machine — Historical weather & forecasts</title>
+<link rel="preconnect" href="https://archive-api.open-meteo.com">
+<link rel="preconnect" href="https://api.open-meteo.com">
+<script src="https://cdn.plot.ly/plotly-2.35.2.min.js"></script>
+<style>
+:root{color-scheme:dark;--bg:#0b1220;--panel:#142239;--edge:#293b56;--text:#eff5ff;--muted:#a4b6d1;--blue:#55bafa;--cyan:#5ed9e5;--orange:#ffad62}
+*{box-sizing:border-box}body{margin:0;background:radial-gradient(circle at 20% -20%,#1d385b 0%,#0b1220 56%);color:var(--text);font:14px/1.5 system-ui,-apple-system,Segoe UI,sans-serif}
+.top{padding:23px max(22px,calc((100vw - 1600px)/2));display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:16px;border-bottom:1px solid var(--edge)}
+.brand{display:flex;align-items:center;gap:13px}.sun{height:43px;width:43px;border-radius:16px;background:linear-gradient(140deg,#ffcf66,#ff8248);display:grid;place-items:center;color:#15263e;font-size:27px;box-shadow:0 6px 26px #ff985d44}
+h1{font-size:22px;line-height:1.15;margin:0;letter-spacing:-.5px}.small,.hint{color:var(--muted);font-size:12px}.pill{border:1px solid #426789;padding:6px 12px;border-radius:999px;color:#9cdbf9;background:#122e47;font-size:12px}
+main{max-width:1600px;margin:auto;padding:19px 22px 50px}.panel{background:#142239df;border:1px solid var(--edge);border-radius:17px;box-shadow:0 12px 26px #0002}
+.controls{padding:20px;display:flex;flex-wrap:wrap;gap:12px;align-items:end}.field{min-width:130px;display:grid;gap:5px}.field.place{flex:1;min-width:220px}.field label{font-size:11px;color:var(--muted);font-weight:700;letter-spacing:.08em;text-transform:uppercase}
+input,select,button{font:inherit}input,select{width:100%;height:41px;background:#0d1a2d;border:1px solid #334765;border-radius:9px;padding:8px 11px;color:var(--text)}input:focus,select:focus,button:focus-visible{outline:2px solid var(--blue);outline-offset:2px}button{cursor:pointer;border:1px solid #354b69;background:#1c314f;color:var(--text);border-radius:10px;padding:10px 14px;font-weight:600;transition:background .15s}button:hover{background:#28486e}button.primary{background:#257ac5;border-color:#4baefa}button.primary:hover{background:#3499e8}button:disabled{opacity:.5;cursor:not-allowed}
+.row{display:flex;flex-wrap:wrap;align-items:center;gap:8px}.toolbar{margin:16px 0;display:flex;gap:10px;align-items:center;justify-content:space-between;flex-wrap:wrap}.range button{padding:7px 13px;font-size:12px}.range button.active{border-color:#5cc5fd;color:#a3e4ff;background:#1c4563}
+.metric-grid{display:grid;grid-template-columns:repeat(5,minmax(145px,1fr));gap:13px;margin:16px 0}.metric{padding:15px 17px;min-height:94px}.metric .name{color:var(--muted);font-size:12px}.metric .num{font-size:25px;letter-spacing:-.7px;font-weight:800;margin:5px 0 0}
+.content{display:grid;grid-template-columns:minmax(0,1fr) 265px;gap:15px}.chart-panel{padding:15px 12px;min-width:0}.chart-head{padding:0 12px;display:flex;justify-content:space-between;align-items:start;flex-wrap:wrap;gap:8px}.chart-head h2{font-size:17px;margin:0}.legend{display:flex;gap:14px;flex-wrap:wrap;font-size:12px;color:var(--muted)}.dot{display:inline-block;width:9px;height:9px;border-radius:50%;margin-right:5px}
+#plot{height:690px;width:100%;min-width:0}.sidebar{padding:19px}.sidebar h2{font-size:15px;margin:0 0 12px}.check{display:flex;align-items:center;gap:10px;padding:8px 0;color:#d7e3f6;font-size:13px}.check input{width:17px;height:17px;accent-color:#60c3ff}.check span{flex:1}
+.note{font-size:12px;line-height:1.7;color:var(--muted)}.note strong{color:#e9f2ff}#status{margin-top:12px;min-height:34px;color:#a5daff}.error{color:#ff9a9a!important}.footer{color:#94a8c4;font-size:12px;line-height:1.75;margin-top:15px}.footer a{color:#8bd5ff}
+#suggestions{display:none;position:absolute;z-index:10;background:#203654;border:1px solid #42658b;border-radius:10px;min-width:230px;max-height:220px;overflow:auto;box-shadow:0 12px 35px #0007}#suggestions button{display:block;text-align:left;width:100%;border:0;border-radius:0;background:transparent}.placewrap{position:relative}
+@media(max-width:1040px){.content{grid-template-columns:1fr}.sidebar{display:grid;grid-template-columns:repeat(2,1fr);gap:5px 25px}.sidebar h2,.sidebar .note{grid-column:1/-1}.metric-grid{grid-template-columns:repeat(3,1fr)}}
+@media(max-width:650px){main{padding:12px}.top{padding:18px}.metric-grid{grid-template-columns:repeat(2,1fr)}.controls{padding:12px}.field{flex:1;min-width:120px}#plot{height:580px}.sidebar{grid-template-columns:1fr}.sidebar h2,.sidebar .note{grid-column:auto}}
+</style>
+</head>
+<body>
+<header class="top"><div class="brand"><div class="sun">☀</div><div><h1>Weather Time Machine <span style="font-size:12px;color:#7ed3fa;font-weight:500">BETA</span></h1><div class="small">Explore past weather & future forecasts on one timeline</div></div></div><span class="pill">Independent open-source weather dashboard</span></header>
+<main>
+<section class="panel controls">
+<div class="field place"><label for="place">Τοποθεσία / Location</label><div class="placewrap"><input id="place" value="Athens, Greece" autocomplete="off" aria-label="Search location"><div id="suggestions"></div></div></div>
+<div class="field"><label for="start">Από / Start</label><input type="date" id="start" min="1940-01-01"></div>
+<div class="field"><label for="end">Έως / End</label><input type="date" id="end" min="1940-01-01"></div>
+<div class="field"><label for="unit">Μονάδες</label><select id="unit"><option value="metric">°C · km/h · mm</option><option value="imperial">°F · mph · in</option></select></div>
+<button class="primary" id="load">↻ Φόρτωση δεδομένων</button>
+</section>
+<div class="toolbar"><div class="row range"><button data-days="7">7 days</button><button data-days="30" class="active">30 days</button><button data-days="90">90 days</button><button data-days="365">1 year</button><button data-days="1095">3 years</button><button id="prev">← Past</button><button id="next">Future →</button></div><div class="row"><button id="reset">Reset zoom</button><button id="csv">↓ Export CSV</button></div></div>
+<section class="metric-grid" aria-label="Weather overview">
+<div class="panel metric"><div class="name">Θερμοκρασία · latest</div><div class="num" id="m-temp">—</div><div class="small">2m air temperature</div></div>
+<div class="panel metric"><div class="name">Υγρασία · latest</div><div class="num" id="m-humidity">—</div><div class="small">relative humidity</div></div>
+<div class="panel metric"><div class="name">Άνεμος · latest</div><div class="num" id="m-wind">—</div><div class="small">10m wind speed</div></div>
+<div class="panel metric"><div class="name">Πίεση · latest</div><div class="num" id="m-pressure">—</div><div class="small">sea-level pressure</div></div>
+<div class="panel metric"><div class="name">Βροχή · selected period</div><div class="num" id="m-rain">—</div><div class="small">precipitation total</div></div>
+</section>
+<section class="content">
+<div class="panel chart-panel"><div class="chart-head"><div><h2 id="chart-title">Athens — Weather Timeline</h2><div class="small" id="chart-subtitle">Historical reanalysis + forecast • interactive zoom and pan</div></div><div class="legend"><span><span class="dot" style="background:#52bafa"></span>History</span><span><span class="dot" style="background:#ffad62"></span>Forecast</span><span><span class="dot" style="background:#b084f5"></span>Today</span></div></div><div id="plot" role="img" aria-label="Interactive weather history and forecast chart"></div></div>
+<aside class="panel sidebar"><h2>Γραφήματα / Chart layers</h2>
+<label class="check"><input type="checkbox" data-field="temperature_2m" checked><span>🌡 Temperature</span></label>
+<label class="check"><input type="checkbox" data-field="relative_humidity_2m" checked><span>💧 Humidity</span></label>
+<label class="check"><input type="checkbox" data-field="precipitation" checked><span>🌧 Precipitation</span></label>
+<label class="check"><input type="checkbox" data-field="pressure_msl" checked><span>⏱ Air pressure</span></label>
+<label class="check"><input type="checkbox" data-field="wind_speed_10m" checked><span>💨 Wind speed</span></label>
+<label class="check"><input type="checkbox" data-field="cloud_cover"><span>☁ Cloud cover</span></label>
+<label class="check"><input type="checkbox" data-field="wind_direction_10m"><span>🧭 Wind direction</span></label>
+<div class="note"><strong>Πώς χρησιμοποιείται:</strong> Σύρε το γράφημα για zoom, κάνε διπλό κλικ για επαναφορά ή χρησιμοποίησε το range slider στο κάτω μέρος. Για μεγάλα διαστήματα τα ωριαία δεδομένα γίνονται ημερήσια (βροχή = άθροισμα). Το CSV περιλαμβάνει τις ωριαίες εγγραφές.<hr style="border:0;border-top:1px solid #334761"><strong>Data:</strong> Open-Meteo ERA5 / ERA5-Land reanalysis & forecast models. Η αναανάλυση είναι μοντελοποιημένη εκτίμηση, όχι πιστοποιημένες μετρήσεις συγκεκριμένου σταθμού. Τα τελευταία ιστορικά δεδομένα μπορεί να καθυστερούν.</div>
+</aside>
+</section>
+<div id="status" role="status" aria-live="polite"></div>
+<div class="footer">Powered by <a target="_blank" rel="noopener" href="https://open-meteo.com/">Open-Meteo</a> · Data used under provider terms and attribution requirements · Weather Time Machine is not affiliated with WeatherSpark or WeatherDave. Historical and forecast data have different sources and uncertainties. No API keys or personal data are needed.</div>
+</main>
+<script type="module">
+import { FIELDS, splitDateChunks, validateRange, normalizeHourly, mergeHourly, aggregateForView, csvForRows, moveDay, dayISO } from "./data.mjs";
+const $ = s => document.querySelector(s);
+const TODAY = dayISO(Date.now());
+const defaultCoords = {name:"Athens", country:"Greece", latitude:37.9838, longitude:23.7275, timezone:"Europe/Athens"};
+const state = { place:defaultCoords, rows:[], range:null, controller:null, initial:true, loaded: false, busy:false, visible:new Set(["temperature_2m","relative_humidity_2m","precipitation","pressure_msl","wind_speed_10m"]) };
+const DAY = 86400000;
+const fmt = iso => new Date(iso).toLocaleDateString("el-GR",{day:"numeric",month:"short",year:"numeric"});
+const round = (v,n=1) => Number.isFinite(v)?Number(v).toFixed(n):"—";
+const status = (message, bad=false) => { $("#status").textContent=message; $("#status").className=bad?"error":""; };
+const utcDay = d => Date.parse(d+"T00:00:00Z");
+function currentLimit(){return moveDay(TODAY,15)}
+function clampDates(){
+ const end=$("#end").value,start=$("#start").value;
+ validateRange(start,end);
+ if(end>currentLimit()) throw Error("Η πρόγνωση διατίθεται έως περίπου 16 ημέρες.");
+}
+function setPreset(days){
+ $("#end").value=currentLimit();
+ $("#start").value=moveDay($("#end").value,-days+1);
+ document.querySelectorAll("[data-days]").forEach(b=>b.classList.toggle("active",Number(b.dataset.days)===days));
+}
+setPreset(30);
+const qs=(base,params)=>base+"?"+new URLSearchParams(params);
+function params(start,end){return {latitude:state.place.latitude,longitude:state.place.longitude,hourly:FIELDS.join(","),start_date:start,end_date:end,timezone:"GMT",temperature_unit:"celsius",wind_speed_unit:"kmh",precipitation_unit:"mm"}}
+async function getJSON(url,signal){
+ const r=await fetch(url,{signal});
+ if(!r.ok){let detail="";try{const j=await r.json();detail=j.reason||""}catch{}throw Error("Weather API error "+r.status+(detail?": "+detail:""))}
+ return r.json();
+}
+async function limitedMap(items,worker,n=3){
+ let i=0;const results=new Array(items.length);
+ await Promise.all(Array.from({length:Math.min(n,items.length)},async()=>{while(i<items.length){let index=i++;results[index]=await worker(items[index],index)}}));
+ return results;
+}
+function updatePlace(){
+ $("#chart-title").textContent=state.place.name+", "+(state.place.country||"")+" — Weather Timeline";
+}
+let suggestTimer;
+$("#place").addEventListener("input",()=>{
+ clearTimeout(suggestTimer);
+ suggestTimer=setTimeout(async()=>{
+  const term=$("#place").value.trim();
+  if(term.length<2){$("#suggestions").style.display="none";return}
+  try{
+    const json=await getJSON(qs("https://geocoding-api.open-meteo.com/v1/search",{name:term,count:6,language:"en",format:"json"}));
+    const results=json.results||[];
+    const box=$("#suggestions");box.replaceChildren();
+    results.forEach(loc=>{
+      const btn=document.createElement("button");
+      btn.textContent=[loc.name,loc.admin1,loc.country].filter(Boolean).join(", ");
+      btn.addEventListener("click",()=>{state.place={name:loc.name,country:loc.country,latitude:loc.latitude,longitude:loc.longitude,timezone:loc.timezone};$("#place").value=btn.textContent;box.style.display="none";updatePlace();load();});
+      box.append(btn);
+    });
+    box.style.display=results.length?"block":"none";
+  }catch(e){if(e.name!=="AbortError")status("Location search unavailable: "+e.message,true)}
+ },350);
+});
+document.addEventListener("click",e=>{if(!e.target.closest(".placewrap"))$("#suggestions").style.display="none"});
+function val(row,field){
+ let v=row?.[field];if(!Number.isFinite(v))return null;
+ if($("#unit").value==="imperial"){
+   if(field==="temperature_2m")v=v*9/5+32;
+   if(field==="wind_speed_10m")v=v*.621371;
+   if(field==="precipitation")v=v/25.4;
+ }
+ return v;
+}
+function label(field){
+ const imperial=$("#unit").value==="imperial";
+ return {
+ temperature_2m:"Temperature (°"+(imperial?"F":"C")+")",
+ relative_humidity_2m:"Relative humidity (%)",
+ precipitation:"Precipitation ("+(imperial?"in":"mm")+")",
+ pressure_msl:"Air pressure (hPa)",
+ wind_speed_10m:"Wind speed ("+(imperial?"mph":"km/h")+")",
+ cloud_cover:"Cloud cover (%)",
+ wind_direction_10m:"Wind direction (°)"
+ }[field];
+}
+function metrics(){
+ const now=Math.floor(Date.now()/1000),before=state.rows.filter(r=>r.t<=now),last=before.at(-1)||state.rows[0];
+ $("#m-temp").textContent=last?round(val(last,"temperature_2m"))+"°"+($("#unit").value==="imperial"?"F":"C"):"—";
+ $("#m-humidity").textContent=last?round(last.relative_humidity_2m,0)+"%":"—";
+ $("#m-wind").textContent=last?round(val(last,"wind_speed_10m"))+($("#unit").value==="imperial"?" mph":" km/h"):"—";
+ $("#m-pressure").textContent=last?round(last.pressure_msl,0)+" hPa":"—";
+ const rainfall=state.rows.reduce((a,r)=>a+(Number.isFinite(r.precipitation)?r.precipitation:0),0);
+ $("#m-rain").textContent=round($("#unit").value==="imperial"?rainfall/25.4:rainfall,1)+($("#unit").value==="imperial"?" in":" mm");
+}
+function plot(){
+ if(typeof Plotly==="undefined"){status("Δεν φορτώθηκε το Plotly. Έλεγξε τη σύνδεση στο Internet.",true);return}
+ const fields=FIELDS.filter(f=>state.visible.has(f));
+ if(!fields.length){$("#plot").replaceChildren();status("Επίλεξε τουλάχιστον ένα γράφημα.");return}
+ const rows=state.rows;
+ const from=utcDay($("#start").value);
+ const to=utcDay(moveDay($("#end").value,1))-1000;
+ const {rows:display,resolution}=aggregateForView(rows,from,to);
+ const axes=["y","y2","y3","y4","y5","y6","y7"];
+ const hist=display.filter(r=>r.kind==="history"),pred=display.filter(r=>r.kind==="forecast");
+ const colors={temperature_2m:"#fa8b6e",relative_humidity_2m:"#5ed9e5",precipitation:"#619af9",pressure_msl:"#e1b66f",wind_speed_10m:"#b68afb",cloud_cover:"#aebdd1",wind_direction_10m:"#4fdbb8"};
+ const traces=[];
+ fields.forEach((field,i)=>{
+  const axis=axes[i];
+  for(const [source,sourceRows,color] of [["history",hist,"#57bafa"],["forecast",pred,"#ffad62"]]){
+   traces.push({type:field==="precipitation"?"bar":"scatter",mode:field==="precipitation"?undefined:"lines",name:(source==="history"?"History · ":"Forecast · ")+label(field),showlegend:false,
+    x:sourceRows.map(r=>new Date(r.t*1000).toISOString()),y:sourceRows.map(r=>val(r,field)),yaxis:axis,
+    marker:{color:source==="history"?colors[field]:color,opacity:.7},
+    line:{color:source==="history"?colors[field]:color,width:1.8,dash:source==="forecast"?"dot":"solid"},
+    hovertemplate:"%{x|%d %b %Y %H:%M} UTC<br>%{y:.1f}<extra>"+(source==="history"?"Reanalysis":"Forecast")+"</extra>"});
+  }
+ });
+ const n=fields.length,gap=.028,space=(1-(n-1)*gap)/n;
+ const layout={
+  autosize:true,height:window.innerWidth<650?580:690,
+  paper_bgcolor:"rgba(0,0,0,0)",plot_bgcolor:"rgba(0,0,0,0)",
+  font:{color:"#b9cce4",family:"system-ui,sans-serif",size:11},
+  margin:{l:79,r:24,t:25,b:70},hovermode:"x unified",dragmode:"zoom",barmode:"overlay",
+  xaxis:{type:"date",range:[new Date(from).toISOString(),new Date(to).toISOString()],gridcolor:"#263854",linecolor:"#45607e",tickformat:resolution==="daily"?"%b %Y":"%d %b",rangeslider:{visible:true,thickness:.07,bgcolor:"#12263d",bordercolor:"#354e70"},rangeselector:{visible:false}},
+  shapes:[{type:"line",xref:"x",yref:"paper",x0:new Date().toISOString(),x1:new Date().toISOString(),y0:0,y1:1,line:{color:"#b084f5",width:1.5,dash:"dash"}}],
+  annotations:[{xref:"paper",yref:"paper",x:1,y:1.028,xanchor:"right",showarrow:false,text:resolution==="daily"?"Daily summary":"Hourly values",font:{size:11,color:"#8dafd1"}}],
+  showlegend:false
+ };
+ fields.forEach((field,i)=>{
+  const key=i===0?"yaxis":"yaxis"+(i+1);
+  const top=1-i*(space+gap);
+  layout[key]={domain:[Math.max(0,top-space),top],title:{text:label(field),font:{size:11,color:"#b4cde7"},standoff:5},gridcolor:"#263854",zeroline:false,showline:false,tickfont:{size:10}};
+ });
+ $("#chart-subtitle").textContent=fmt($("#start").value)+" – "+fmt($("#end").value)+" · "+(resolution==="hourly"?"Hourly":"Daily")+" resolution · all timestamps UTC";
+ Plotly.react("plot",traces,layout,{responsive:true,displaylogo:false,modeBarButtonsToRemove:["lasso2d","select2d","toImage"],scrollZoom:true});
+}
+async function load(){
+ if(state.controller)state.controller.abort();
+ const ctrl=new AbortController();state.controller=ctrl;
+ try{
+  clampDates();state.busy=true;$("#load").disabled=true;status("Downloading and merging weather timeline…");
+  const start=$("#start").value,end=$("#end").value;
+  const historicalEnd=moveDay(TODAY,-3);
+  const pastEnd=end<historicalEnd?end:historicalEnd;
+  let history=[],forecast=[];
+  if(start<=pastEnd){
+    const chunks=splitDateChunks(start,pastEnd,92);
+    let completed=0;
+    const out=await limitedMap(chunks,async ch=>{
+      const api=await getJSON(qs("https://archive-api.open-meteo.com/v1/archive",params(ch.start,ch.end)),ctrl.signal);
+      completed++;status("Historical periods loaded: "+completed+" / "+chunks.length);
+      return normalizeHourly(api,"history");
+    },3);
+    history=out.flat();
+  }
+  if(end>=moveDay(TODAY,-7)){
+    const fstart=start>moveDay(TODAY,-7)?start:moveDay(TODAY,-7);
+    const fend=end<currentLimit()?end:currentLimit();
+    if(fstart<=fend){
+      const p={...params(fstart,fend),past_days:undefined};
+      p.hourly=FIELDS.join(",")+",precipitation_probability";
+      const api=await getJSON(qs("https://api.open-meteo.com/v1/forecast",p),ctrl.signal);
+      forecast=normalizeHourly(api,"forecast");
+    }
+  }
+  if(ctrl.signal.aborted)return;
+  state.rows=mergeHourly(history,forecast);
+  state.loaded=true;updatePlace();metrics();plot();
+  if(!state.rows.length)status("Δεν βρέθηκαν δεδομένα γι' αυτή την περίοδο.",true);
+  else status(state.rows.length.toLocaleString("en-US")+" hourly records · "+history.length.toLocaleString("en-US")+" history + "+forecast.length.toLocaleString("en-US")+" forecast · source colors distinguish data provenance");
+ }catch(e){if(e.name!=="AbortError")status("Could not load data: "+e.message,true)}
+ finally{if(state.controller===ctrl){state.busy=false;$("#load").disabled=false}}
+}
+$("#load").addEventListener("click",load);
+$("#unit").addEventListener("change",()=>{if(state.loaded){metrics();plot()}});
+document.querySelectorAll("input[data-field]").forEach(c=>c.addEventListener("change",()=>{
+ if(c.checked)state.visible.add(c.dataset.field);else state.visible.delete(c.dataset.field);
+ if(state.loaded)plot();
+}));
+document.querySelectorAll("button[data-days]").forEach(b=>b.addEventListener("click",()=>{setPreset(Number(b.dataset.days));load()}));
+for(const [id,delta] of [["prev",-1],["next",1]])$("#"+id).addEventListener("click",()=>{
+ const start=$("#start").value,end=$("#end").value;
+ const len=Math.round((utcDay(end)-utcDay(start))/DAY)+1;
+ const shift=delta*len;
+ const newStart=moveDay(start,shift),newEnd=moveDay(end,shift);
+ if(newStart<"1940-01-01"||newEnd>currentLimit()){status("Reached available time limits.",true);return}
+ $("#start").value=newStart;$("#end").value=newEnd;load();
+});
+$("#reset").addEventListener("click",()=>{if(state.loaded)plot()});
+$("#csv").addEventListener("click",()=>{
+ if(!state.rows.length){status("No data to export yet.",true);return}
+ const blob=new Blob([csvForRows(state.rows)],{type:"text/csv;charset=utf-8"});
+ const url=URL.createObjectURL(blob),a=document.createElement("a");
+ a.href=url;a.download="weather-time-machine-"+$("#start").value+"-"+$("#end").value+".csv";document.body.append(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(url),3000);
+});
+load();
+</script>
+</body>
+</html>
