@@ -439,6 +439,41 @@ function historySeries(rows){
  {type:"line",label:"Humidity %",data:rows.map(x=>x.humidity),borderColor:"#9a78d9",backgroundColor:"#9a78d9",pointRadius:0,tension:.16,yAxisID:"humidity",hidden:!l.humidity}
  ];
 }
+
+function updateHistoryVisibleRange(rows){
+ if(!rows||!rows.length)return;
+ const pane=$("historyScroll"),holder=$("historyPlot");
+ const width=holder.clientWidth||Math.max(1,rows.length*historyPixelsPerPoint),vis=pane.clientWidth||900;
+ const start=Math.max(0,Math.min(rows.length-1,Math.floor((pane.scrollLeft||0)/width*rows.length)));
+ const end=Math.max(start,Math.min(rows.length-1,Math.ceil(((pane.scrollLeft||0)+vis)/width*rows.length)-1));
+ $("historyRange").textContent=dateFmt(rows[start].date,{day:"numeric",month:"short",year:"numeric"})+" — "+dateFmt(rows[end].date,{day:"numeric",month:"short",year:"numeric"});
+}
+function updateZoomState(){
+ forecastZoomDays=Math.min(14,Math.max(3,Math.round(forecastZoomDays)));
+ forecastZoomStart=Math.min(14-forecastZoomDays,Math.max(0,Math.round(forecastZoomStart)));
+ for(const ch of [chartA,chartB]){if(!ch||!ch.options?.scales?.x)continue;ch.options.scales.x.min=forecastZoomStart;ch.options.scales.x.max=forecastZoomStart+forecastZoomDays-1;ch.update("none")}
+}
+function refreshChartZoomControls(){
+ document.querySelectorAll("[data-zoom-chart]").forEach(group=>{
+  const historical=group.dataset.zoomChart==="history",val=historical?historyPixelsPerPoint:forecastZoomDays;
+  group.innerHTML='<span class="muted">'+safe(state.lang==="el"?"Χρονική κλίμακα":"Time scale")+'</span><button class="btn small" data-less>−</button><input class="zoom-slider" type="range" min="'+(historical?18:3)+'" max="'+(historical?130:14)+'" value="'+val+'"><button class="btn small" data-more>+</button><button class="btn small" data-back>◀</button><button class="btn small" data-forward>▶</button><button class="btn small" data-reset>↺</button>';
+  const slider=group.querySelector("input"),apply=x=>{if(historical){historyPixelsPerPoint=Math.max(18,Math.min(130,Math.round(x)));if(historyRows.length)renderHistoryChart(false)}else{forecastZoomDays=Math.max(3,Math.min(14,Math.round(x)));updateZoomState()}slider.value=String(historical?historyPixelsPerPoint:forecastZoomDays)};
+  slider.oninput=()=>apply(Number(slider.value));
+  group.querySelector("[data-more]").onclick=()=>apply(historical?historyPixelsPerPoint+8:forecastZoomDays-1);
+  group.querySelector("[data-less]").onclick=()=>apply(historical?historyPixelsPerPoint-8:forecastZoomDays+1);
+  group.querySelector("[data-back]").onclick=()=>{if(historical)$("historyScroll").scrollLeft-=Math.max(180,$("historyScroll").clientWidth*.6);else{forecastZoomStart--;updateZoomState()}};
+  group.querySelector("[data-forward]").onclick=()=>{if(historical)$("historyScroll").scrollLeft+=Math.max(180,$("historyScroll").clientWidth*.6);else{forecastZoomStart++;updateZoomState()}};
+  group.querySelector("[data-reset]").onclick=()=>{forecastZoomStart=0;apply(historical?52:14)};
+ });
+}
+function hookHistoryDragging(){
+ const box=$("historyScroll");let dragging=false,startX=0,startLeft=0;
+ box.addEventListener("pointerdown",e=>{if(e.button!==0)return;dragging=true;startX=e.clientX;startLeft=box.scrollLeft});
+ window.addEventListener("pointerup",()=>dragging=false);
+ window.addEventListener("pointermove",e=>{if(dragging)box.scrollLeft=startLeft-(e.clientX-startX)});
+ box.addEventListener("wheel",e=>{if(e.ctrlKey){e.preventDefault();historyPixelsPerPoint=Math.max(18,Math.min(130,historyPixelsPerPoint+(e.deltaY<0?8:-8)));renderHistoryChart(false)}},{passive:false});
+}
+
 function historyStat(name,value){return '<div class="history-stat"><small>'+safe(name)+'</small><strong>'+safe(value)+'</strong></div>'}
 function renderHistoryChart(reset,oldScroll,oldWidth,jumpLeft){
  if(!historyRows.length)return;
