@@ -36,8 +36,8 @@ A free, static, bilingual (Greek/English) weather workspace, accessible at the G
 - All fourteen daily forecast cards show weather illustrations with soft animation. Additional visual cards show rain, clouds, pressure and UV values and animate their indicator bars.
 - Subtle animations are added to the existing Chart.js weather charts; users who prefer reduced motion don't receive these animations.
 - A natural-language **weather chat** is available on the overview, grounded in the selected Open-Meteo city and model. With no AI model loaded it uses the existing deterministic forecast summarizer.
-- **Optional free local LLM:** button to explicitly download WebLLM Qwen2.5-0.5B on the user's device (first download can require 0.5–1.5 GB and significant GPU RAM; WebGPU + HTTPS required). Inference takes place locally with **no API key, backend, subscription, or user account**; model downloads may be cached. If WebGPU or a model load fails, the deterministic answer remains available. Actual end-to-end WebGPU inference has not been tested in this environment and is not guaranteed for all clients.
-- The local LLM is provided a bounded, structured extract of real Open-Meteo forecasts (current, 14-day daily, and matching hourly values) and is instructed not to invent missing data, promise alert delivery, or claim live radar nowcasting. LLM outputs can nonetheless be inaccurate; check the actual charts for decisions.
+- **Hosted cloud LLM (updated v0.7):** the WebGPU/WebLLM download and local AI runtime have been removed. Instead, the chat connects (on explicit click) to Puter.js hosted AI. After Puter account sign-in, the app retrieves the currently available catalogue and prioritizes :free variants and DeepSeek. Models without :free use the account's monthly allowance and may consume purchased credits when the allowance is exhausted; the app never performs a purchase or upgrade. Puter account free allowances, model availability and limits can change. Browser-based weather answers still work without sign-in.
+- The remote cloud LLM is provided a bounded, structured extract of real Open-Meteo forecasts (current, 14-day daily, and matching hourly values) and is instructed not to invent missing data, promise alert delivery, or claim live radar nowcasting. LLM outputs can nonetheless be inaccurate; check the actual charts for decisions.
 - Rule-builder prompt assistant remains deterministic and cannot autonomously activate an alert. Existing user-saved rules continue evaluating while the page is open only.
 
 ## Known limitations / future extensions
@@ -94,5 +94,13 @@ Open-Meteo; RainViewer; NASA GIBS; OpenStreetMap Foundation; OSM France; Leaflet
 - All literal ID-based JavaScript DOM references are present and there are no duplicate HTML IDs.
 - Confirmed that the map navigation button and map libraries are absent from the active UI; saved geofence data and existing rules are not removed.
 - Confirmed weather icon rendering helper, animated CSS and browser reduced-motion rule are present.
-- Confirmed local LLM download is opt-in and there is no embedded secret or API key.
-- **Browser visual QA, WebGPU model download and real network/weather endpoint E2E tests remain outstanding**; these cannot be claimed tested from source-only validation.
+- Confirmed cloud AI Puter authentication requires an explicit user action, there is no embedded secret or API key, and no WebGPU or local model download.
+- **Browser visual QA, real Puter sign-in/cloud model API calls and real network/weather endpoint E2E tests remain outstanding**; mocked account/catalogue/response tests cannot replace live testing.
+
+## v0.7 — Cloud AI replacement
+
+The Weather Assistant no longer uses a local LLM or downloads an on-device model. Click **Connect online AI** to sign into Puter. The model selector lists currently available :free model variants first, preferring DeepSeek when a free variant exists. DeepSeek's usual API is paid; a provider-free variant is not guaranteed, and Puter's standard DeepSeek service can consume monthly allowance/purchased credits. The default fallback is always the free deterministic Open-Meteo forecast responder whenever cloud access is unavailable.
+
+**Costs and privacy:** the Puter platform requires user authentication. Each account receives limited free monthly usage. When no free model variant exists, regular hosted model calls can consume that allowance and—if already purchased—account credits. The MeteoLab UI has no billing/top-up action. Cloud AI receives the currently selected city's weather forecast context and the user's question; don't send sensitive information as a prompt. Only enable cloud AI if you accept Puter's terms and metering.
+
+QA: checked both scripts' syntax and DOM references; executed simulated sign-in, model-catalogue ranking (prefer free DeepSeek), chat request and normalized response handling. Actual Puter sign-in/network calls were not performed in a live browser.
