@@ -63,7 +63,7 @@
 <main class="main">
  <header class="topbar">
   <div><div class="eyebrow">WEATHER INTELLIGENCE / METEOLAB</div><h1 id="pageTitle">Επισκόπηση καιρού</h1><div class="today-summary" id="statusText">Loading forecast...</div></div>
-  <div class="top-actions"><div class="search"><span class="search-icon"><i data-lucide="search" width="17"></i></span><input class="input" id="placeSearch" aria-label="Search location" placeholder="Πόλη ή περιοχή"><div class="suggestions" id="suggestions"></div></div><button class="btn small" id="pinCurrent" title="Pin location"><i data-lucide="pin" width="15"></i><span id="pinCurrentLabel">Pin</span></button><select id="language" aria-label="Language" style="max-width:80px"><option value="el">EL</option><option value="en">EN</option></select><button class="btn" id="refreshBtn" title="Refresh"><i data-lucide="refresh-cw" width="17"></i></button></div>
+  <div class="top-actions"><div class="search"><span class="search-icon"><i data-lucide="search" width="17"></i></span><input class="input" id="placeSearch" aria-label="Search location" placeholder="Πόλη ή περιοχή"><div class="suggestions" id="suggestions"></div></div><button class="btn small" id="pinCurrent" title="Pin location"><i data-lucide="pin" width="15"></i><span id="pinCurrentLabel">Pin</span></button><select id="language" aria-label="Language" style="max-width:80px"><option value="el">EL</option><option value="en">EN</option></select><select id="globalExport" aria-label="Export"><option value="">Export ▾</option><option value="csv">CSV</option><option value="png">Chart PNG</option><option value="pdf">Print / PDF</option><option value="json">Backup JSON</option></select><button class="btn" id="refreshBtn" title="Refresh"><i data-lucide="refresh-cw" width="17"></i></button></div>
  </header>
  <div id="pinnedBar" class="pinbar"></div>
 
@@ -86,7 +86,7 @@
   <div class="card chartbox"><div class="flex-between"><span class="mini-title" data-t="trend14">Θερμοκρασία & βροχόπτωση · 14 ημέρες</span><span class="badge" id="chartModel">—</span></div><div class="chart-layer-list" data-chart-controls="overview"></div><div class="chart-zoom-tools" data-zoom-chart="overview"></div><div class="chartcanvas"><canvas id="forecastChart" aria-label="14 day weather chart"></canvas></div></div>
 
  <div class="section-head"><div><h2 data-t="advancedDashboard">Ανάλυση καιρού · BI</h2><p data-t="advancedDescription">Ενδεικτικοί κίνδυνοι, επιπλέον μεταβλητές και θερμικός χάρτης ανά ώρα</p></div><button class="btn small" id="dashboardExportCsv">CSV</button></div>
- <div class="card panel"><div class="analytics-metrics" id="dashboardAdvanced"></div></div>
+ <div class="card panel"><div class="analytics-metrics" id="dashboardAdvanced"></div><p class="fineprint" id="dashboardSourceStatus"></p></div>
  <div class="card panel" style="margin-top:14px"><div class="flex-between"><div><h3 data-t="heatmapTitle">Ωριαίος θερμικός χάρτης · έως 14 ημέρες</h3><p class="muted" data-t="heatmapExplain">Ενδεικτική χρωματική ένταση της επιλεγμένης μεταβλητής, όχι radar.</p></div><select id="heatmapMetric"><option value="temperature_2m">°C</option><option value="relative_humidity_2m">Humidity %</option><option value="precipitation">Rain</option><option value="wind_speed_10m">Wind Bft</option><option value="cloud_cover">Clouds %</option></select></div><div class="scroll-x" style="padding:15px 0"><div id="weatherHeatmap" class="heatmap-grid"></div></div></div>
  </section>
 
@@ -495,6 +495,7 @@ function renderHistoryChart(reset,oldScroll,oldWidth,jumpLeft){
  requestAnimationFrame(()=>{if(reset){scroller.scrollLeft=scroller.scrollWidth}else if(oldWidth!=null){scroller.scrollLeft=jumpLeft?70:Math.max(70,(oldScroll||0)+Math.max(0,scroller.scrollWidth-oldWidth)-Math.min(520,Math.max(0,scroller.scrollWidth-oldWidth)*.55))}updateHistoryVisibleRange(rows)});
 }
 
+let enrichedCurrent=null,enrichedDaily=null,enrichedPending=0;
 let comparisonActive="historical";
 function initCompareControls(){
  const today=new Date().getUTCFullYear();
@@ -565,6 +566,101 @@ async function runModelCompare(){
  $("compareModelStatus").textContent=series.length+" models · "+labels.length+" × 6h intervals · "+state.location.name;
  $("modelComparisonNotes").textContent="Source: Open-Meteo model products. Missing values are not extrapolated. The selected providers may have different update cycles, resolutions and horizons; this is not a calibrated ensemble.";
 }
+
+function exportCSV(rows,name){
+ if(!Array.isArray(rows)||!rows.length){toast(state.lang==="el"?"Δεν υπάρχουν δεδομένα για εξαγωγή.":"No data available to export.");return}
+ const keys=[...new Set(rows.flatMap(x=>Object.keys(x||{})))];
+ const quote=value=>'"'+String(value==null?"":value).replace(/"/g,'""')+'"';
+ const txt="\uFEFF"+keys.map(quote).join(",")+"\r\n"+rows.map(r=>keys.map(k=>quote(r[k])).join(",")).join("\r\n");
+ downloadBlob(new Blob([txt],{type:"text/csv;charset=utf-8"}),name+".csv");
+}
+function downloadBlob(blob,filename){
+ const url=URL.createObjectURL(blob),anchor=document.createElement("a");anchor.href=url;anchor.download=filename;document.body.appendChild(anchor);anchor.click();anchor.remove();setTimeout(()=>URL.revokeObjectURL(url),2000);
+}
+function downloadChartPng(id,name){
+ const el=$(id);if(!el||!el.toDataURL){toast("Chart unavailable");return}
+ try{const a=document.createElement("a");a.download=name+".png";a.href=el.toDataURL("image/png");a.click()}catch(e){toast("PNG export failed: "+e.message)}
+}
+function currentViewRows(){
+ if(selectedView==="history")return historyPlotRows().map(r=>({date:r.date,temperature_C:r.temp,rain_mm:r.rain,wind_Bft:r.wind==null?null:bft(r.wind),humidity_pct:r.humidity}));
+ if(selectedView==="compare")return lastCompareRows;
+ if(!forecast||!forecast.daily)return[];
+ const d=forecast.daily;
+ return d.time.map((date,i)=>({date,location:state.location.name,model:modelName(),temp_max_C:d.temperature_2m_max?.[i],temp_min_C:d.temperature_2m_min?.[i],rain_mm:d.precipitation_sum?.[i],rain_probability_pct:d.precipitation_probability_max?.[i],wind_max_Bft:d.wind_speed_10m_max?.[i]==null?null:bft(d.wind_speed_10m_max[i]),humidity_pct:forecastHumidity(d)[i]}));
+}
+function setupExports(){
+ $("globalExport").onchange=e=>{const val=e.target.value;e.target.value="";
+  if(val==="csv")exportCSV(currentViewRows(),"meteolab-"+selectedView+"-"+new Date().toISOString().slice(0,10));
+  if(val==="png"){const target=selectedView==="history"?"historyChart":selectedView==="compare"?(comparisonActive==="models"?"compareModelsChart":"compareOverlay"):selectedView==="forecast"?"forecastChart2":"forecastChart";downloadChartPng(target,"meteolab-"+selectedView)}
+  if(val==="pdf")window.print();
+  if(val==="json")exportData();
+ };
+ $("dashboardExportCsv").onclick=()=>exportCSV(currentViewRows(),"meteolab-dashboard");
+}
+function summaryMetric(label,value,comment){
+ return '<div class="analytics-metric"><small>'+safe(label)+'</small><strong>'+safe(value)+'</strong><span class="mini-note">'+safe(comment||"")+'</span></div>';
+}
+function renderDashboard(){
+ const target=$("dashboardAdvanced");
+ if(!target)return;
+ const c=forecast?.current,dc=enrichedCurrent,dd=enrichedDaily,d=forecast?.daily;
+ if(!c){target.innerHTML='<div class="muted">'+safe(D("loading"))+'</div>';return}
+ const labels=state.lang==="el"?["Σημείο δρόσου","Ριπές ανέμου","Διεύθυνση ανέμου","Δείκτης UV","Μέγιστος UV","Ανατολή","Δύση","Διάρκεια ημέρας","Ηλιοφάνεια","Πίεση","Νέφωση","Μέση υγρασία 14ημέρου","Ημέρες βροχής","Συνολικός υετός","Ημερήσια ακτινοβολία","Αίσθηση θερμοκρασίας"]:
+ ["Dew point","Wind gusts","Wind direction","UV index","Peak UV","Sunrise","Sunset","Daylight","Sunshine","Pressure","Cloud cover","14-day humidity mean","Rainy days","Total precipitation","Solar radiation","Feels like"];
+ const validNum=v=>v===null||v===undefined?"—":Number.isFinite(Number(v))?Number(v):"—";
+ const hum=d?forecastHumidity(d).filter(x=>x!=null):[],average=hum.length?hum.reduce((a,b)=>a+b,0)/hum.length:null;
+ const rainDays=d?d.precipitation_sum.filter(x=>x!=null&&x>=1).length:0,totalRain=d?d.precipitation_sum.filter(x=>x!=null).reduce((a,b)=>a+Number(b),0):null;
+ const vals=[
+ unit(dc?.dew_point_2m,"°C",1),
+ unit(dc?.wind_gusts_10m==null?null:bft(dc.wind_gusts_10m),"Bft"),
+ dc?.wind_direction_10m==null?"—":Math.round(dc.wind_direction_10m)+"°",
+ unit(dc?.uv_index,"",1),unit(dd?.uv_index_max?.[0],"",1),
+ d?.sunrise?.[0]?.slice(11,16)||"—",d?.sunset?.[0]?.slice(11,16)||"—",
+ dd?.daylight_duration?.[0]==null?"—":unit(dd.daylight_duration[0]/3600,"h",1),
+ dd?.sunshine_duration?.[0]==null?"—":unit(dd.sunshine_duration[0]/3600,"h",1),
+ showPressure(c.pressure_msl),unit(c.cloud_cover,"%"),unit(average,"%"),
+ unit(rainDays,state.lang==="el"?"ημέρες":"days"),showRain(totalRain),
+ dd?.shortwave_radiation_sum?.[0]==null?"—":unit(dd.shortwave_radiation_sum[0],"MJ/m²",1),
+ unit(c.apparent_temperature,"°C",1)
+ ];
+ target.innerHTML=labels.map((label,i)=>summaryMetric(label,vals[i],i<5?"Open-Meteo model":i>10?"Derived / model":"Weather API")).join("");
+ $("dashboardSourceStatus").textContent=dc?"Extended variables: Open-Meteo Best Match; main forecast: "+modelName():"Extended variables loading/unavailable. No measurements are claimed.";
+ renderWeatherHeatmap();
+}
+function renderWeatherHeatmap(){
+ const root=$("weatherHeatmap"),h=forecast?.hourly;if(!root||!h?.time?.length)return;
+ const metric=$("heatmapMetric").value||"temperature_2m",dates=[...new Set(h.time.map(x=>x.slice(0,10)))].slice(0,14);
+ const look=new Map(h.time.map((x,i)=>[x.slice(0,10)+"|"+Number(x.slice(11,13)),i]));
+ const vals=h[metric];if(!vals){root.innerHTML="Unavailable";return}
+ const entries=dates.flatMap(date=>Array.from({length:24},(_,hour)=>{const i=look.get(date+"|"+hour),raw=i===undefined?null:vals[i],v=metric==="wind_speed_10m"?(raw==null?null:bft(raw)):raw;return v}));
+ const nonNull=entries.filter(v=>v!=null&&Number.isFinite(Number(v)));const lo=nonNull.length?Math.min(...nonNull):0,hi=nonNull.length?Math.max(...nonNull):100;
+ const colors=["#eaf3ff","#c7e0f7","#93c0ef","#69b6ba","#e2ce7c","#efb05f","#dd795c"];
+ let html='<div class="heatlabel">h/day</div>'+dates.map(date=>'<div class="heatlabel">'+safe(date.slice(5))+'</div>').join("");
+ for(let hour=0;hour<24;hour++){
+  html+='<div class="heatlabel">'+String(hour).padStart(2,"0")+'</div>';
+  for(const date of dates){
+   const i=look.get(date+"|"+hour),value=i===undefined?null:vals[i],v=metric==="wind_speed_10m"?(value==null?null:bft(value)):value;
+   const t=v==null?null:Math.max(0,Math.min(1,(v-lo)/(hi-lo||1)));
+   const color=t===null?"#f1f4f8":colors[Math.min(6,Math.floor(t*6))];
+   const unitName=metric==="wind_speed_10m"?"Bft":metric==="temperature_2m"?"°C":metric==="precipitation"?rainUnit():"%";
+   const display=v==null?"N/A":metric==="precipitation"?showRain(v):unit(v,unitName,0);
+   html+='<div class="heatcell" style="background:'+color+'" title="'+safe(date+" "+hour+":00 · "+display)+'"></div>';
+  }
+ }
+ root.innerHTML=html;
+}
+async function loadEnrichedOverview(){
+ const id=++enrichedPending,loc={...state.location};
+ enrichedCurrent=null;enrichedDaily=null;
+ try{
+  const p=new URLSearchParams({latitude:String(loc.lat),longitude:String(loc.lon),timezone:"auto",forecast_days:"14",current:"dew_point_2m,wind_gusts_10m,wind_direction_10m,uv_index",daily:"uv_index_max,daylight_duration,sunshine_duration,shortwave_radiation_sum"});
+  const a=await getJson("https://api.open-meteo.com/v1/forecast?"+p.toString());
+  if(id!==enrichedPending)return;
+  enrichedCurrent=a.current||null;enrichedDaily=a.daily||null;
+ }catch(e){console.warn("Optional extended parameters not available",e)}
+ if(id===enrichedPending)renderDashboard();
+}
+
 function initCompareHandlers(){
  document.querySelectorAll("[data-compare-tab]").forEach(btn=>btn.onclick=()=>{comparisonActive=btn.dataset.compareTab;document.querySelectorAll("[data-compare-tab]").forEach(x=>x.classList.toggle("active",x===btn));$("compareHistorical").classList.toggle("active",comparisonActive==="historical");$("compareModels").classList.toggle("active",comparisonActive==="models")});
  $("runHistoricalCompare").onclick=runHistoricalCompare;
