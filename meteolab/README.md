@@ -1,4 +1,4 @@
-# MeteoLab Web v0.5
+# MeteoLab Web v0.6
 
 A free, static, bilingual (Greek/English) weather workspace, accessible at the GitHub Pages path **/weather/meteolab/** when GitHub Pages is configured to publish the repository root from the main branch.
 
@@ -28,6 +28,17 @@ A free, static, bilingual (Greek/English) weather workspace, accessible at the G
 - **BI dashboard:** 16 weather and derived indicators, alongside daily/hourly forecasts and a 14-day × 24-hour heatmap with 5 variables. The optional extended current values are requested separately so failure does not break the main forecast.
 - **Exports:** CSV for the current forecast, historical timeline, comparisons and heatmap; PNG for Chart.js graphs; print dialog for **Save as PDF**, using print CSS. This is a browser print-to-PDF workflow, not a server-generated PDF attachment.
 - **Source limitations:** the free static deployment does not deliver background notifications, working Google OAuth or a hosted LLM. Google, Telegram and 24/7 push require secure infrastructure and account authorization. Archive reanalysis is not an observed local weather station series; comparing it with live forecasts does not prove model skill.
+
+## New in v0.6 — animated, map-free weather workspace
+
+- Maps, radar overlays, map tiles and geofence drawing are **temporarily removed from the visible UI**. The app no longer initializes Leaflet or loads the OpenFreeMap/OSM tile libraries at startup. **Existing saved geofences remain in local storage and previously configured geofence rules are retained.** Creating new map polygons is disabled until the map editor returns.
+- A custom animated weather hero replaces the failing map, with moving clouds, sunlight, rain and snow, live numerically sourced temperature, weather conditions, sunrise/sunset and feels-like temperature. The graphics are original SVG/CSS and include a `prefers-reduced-motion` fallback.
+- All fourteen daily forecast cards show weather illustrations with soft animation. Additional visual cards show rain, clouds, pressure and UV values and animate their indicator bars.
+- Subtle animations are added to the existing Chart.js weather charts; users who prefer reduced motion don't receive these animations.
+- A natural-language **weather chat** is available on the overview, grounded in the selected Open-Meteo city and model. With no AI model loaded it uses the existing deterministic forecast summarizer.
+- **Optional free local LLM:** button to explicitly download WebLLM Qwen2.5-0.5B on the user's device (first download can require 0.5–1.5 GB and significant GPU RAM; WebGPU + HTTPS required). Inference takes place locally with **no API key, backend, subscription, or user account**; model downloads may be cached. If WebGPU or a model load fails, the deterministic answer remains available. Actual end-to-end WebGPU inference has not been tested in this environment and is not guaranteed for all clients.
+- The local LLM is provided a bounded, structured extract of real Open-Meteo forecasts (current, 14-day daily, and matching hourly values) and is instructed not to invent missing data, promise alert delivery, or claim live radar nowcasting. LLM outputs can nonetheless be inaccurate; check the actual charts for decisions.
+- Rule-builder prompt assistant remains deterministic and cannot autonomously activate an alert. Existing user-saved rules continue evaluating while the page is open only.
 
 ## Known limitations / future extensions
 
@@ -76,3 +87,12 @@ Open-Meteo; RainViewer; NASA GIBS; OpenStreetMap Foundation; OSM France; Leaflet
 - Tested historical comparison with two 7-day ERA5 response fixtures, and forecast model comparisons with three 7-day hourly fixtures sampled at six-hour intervals. Both comparisons produced aligned datasets.
 - Tested BI card generation (16 cards), heatmap generation, historical range labeling after scrolling, pinned locations, humidity and Beaufort chart/table outputs.
 - User should hard-reload public GitHub Pages after deployment to avoid older cached inline JavaScript.
+
+## v0.6 QA (2026-11-11)
+
+- Main inline JavaScript and new separate `ai-local.js` pass syntax compilation.
+- All literal ID-based JavaScript DOM references are present and there are no duplicate HTML IDs.
+- Confirmed that the map navigation button and map libraries are absent from the active UI; saved geofence data and existing rules are not removed.
+- Confirmed weather icon rendering helper, animated CSS and browser reduced-motion rule are present.
+- Confirmed local LLM download is opt-in and there is no embedded secret or API key.
+- **Browser visual QA, WebGPU model download and real network/weather endpoint E2E tests remain outstanding**; these cannot be claimed tested from source-only validation.
