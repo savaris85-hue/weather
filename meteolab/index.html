@@ -435,7 +435,7 @@ function chartDatasets(d,humidity){
 }
 function chartOptions(){
  const a=state.chartLayers;
- return {responsive:true,maintainAspectRatio:false,animation:false,plugins:{legend:{position:"bottom",labels:{usePointStyle:true,boxWidth:9,font:{size:10}}},tooltip:{mode:"index",intersect:false}},scales:{
+ return {responsive:true,maintainAspectRatio:false,animation:window.matchMedia?.("(prefers-reduced-motion: reduce)")?.matches?false:{duration:650,easing:"easeOutCubic"},interaction:{mode:"index",intersect:false},plugins:{legend:{position:"bottom",labels:{usePointStyle:true,boxWidth:9,font:{size:10}}},tooltip:{mode:"index",intersect:false}},scales:{
  x:{grid:{display:false},ticks:{maxRotation:0,autoSkip:true,maxTicksLimit:12,font:{size:10}}},
  temp:{type:"linear",position:"left",display:!!a.temp,grid:{color:"#edf1f7"},title:{display:!!a.temp,text:"°C"}},
  rain:{type:"linear",position:"right",display:!!a.rain,grid:{drawOnChartArea:false},beginAtZero:true,title:{display:!!a.rain,text:rainUnit()}},
@@ -644,7 +644,7 @@ function compareVar(v){return {temp:{title:"Temperature °C",unit:"°C"},rain:{t
 function compareNum(row,v){if(!row)return null;const value=row[v];if(value==null||!Number.isFinite(Number(value)))return null;if(v==="rain")return rainValue(value);if(v==="wind")return bft(value);return Number(value)}
 function compareYEnd(year,ref){const m=ref.slice(5),day=m.slice(3);const month=Number(m.slice(0,2));const y=Number(year),max=new Date(Date.UTC(y,month,0)).getUTCDate();return y+"-"+m.slice(0,2)+"-"+String(Math.min(Number(day),max)).padStart(2,"0")}
 function removeCompareCharts(){compareCharts.forEach(ch=>{if(ch&&ch.destroy)ch.destroy()});compareCharts=[]}
-function compareChartOptions(title){return {responsive:true,maintainAspectRatio:false,animation:false,plugins:{legend:{position:"bottom",labels:{font:{size:11}}},title:{display:false,text:title}},scales:{x:{grid:{display:false},ticks:{maxTicksLimit:10,maxRotation:0}},y:{grid:{color:"#edf2f8"}}}}}
+function compareChartOptions(title){return {responsive:true,maintainAspectRatio:false,animation:window.matchMedia?.("(prefers-reduced-motion: reduce)")?.matches?false:{duration:500,easing:"easeOutCubic"},plugins:{legend:{position:"bottom",labels:{font:{size:11}}},title:{display:false,text:title}},scales:{x:{grid:{display:false},ticks:{maxTicksLimit:10,maxRotation:0}},y:{grid:{color:"#edf2f8"}}}}}
 async function runHistoricalCompare(){
  initCompareControls();const a=Number($("compareYearA").value),b=Number($("compareYearB").value),len=Number($("compareLength").value),v=$("compareMetric").value,ref=$("compareReference").value||historyEndDate();
  if(a===b){$("compareHistoricalStatus").textContent=state.lang==="el"?"Επίλεξε διαφορετικά έτη.":"Choose different years.";return}
