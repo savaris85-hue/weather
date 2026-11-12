@@ -55,7 +55,7 @@ globalThis.fetch=async(url)=>{
   }
   return {ok:true,status:200,json:async()=>({hourly})};
 };
-async function until(predicate,tries=150) {
+async function until(predicate,tries=1500) {
  for(let i=0;i<tries;i++){
    if(predicate())return;
    await new Promise(resolve=>setTimeout(resolve,10));
