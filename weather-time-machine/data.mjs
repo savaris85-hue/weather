@@ -118,6 +118,7 @@ export function aggregateForView(allRows, startMs, endMs, maxHourlyPoints = 3600
     const rain = group.map(x => x.precipitation).filter(Number.isFinite);
     out.precipitation = rain.length ? rain.reduce((a, b) => a + b, 0) : null;
     out.precipitation_probability = mean(group, "precipitation_probability");
+    out.uv_index = mean(group, "uv_index");
     const angles = group.map(x => x.wind_direction_10m).filter(Number.isFinite);
     if (angles.length) {
       const s = angles.reduce((a, d) => a + Math.sin(d * Math.PI / 180), 0);
