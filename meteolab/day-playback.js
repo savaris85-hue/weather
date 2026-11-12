@@ -106,12 +106,13 @@ function bind(w){
 function selectDay(i,focus=false){
  if(!data?.daily?.time?.length)return;
  selected=Math.max(0,Math.min(Math.min(data.daily.time.length,14)-1,Number(i)||0));index=0;playing=true;
+ window.MeteoSelectForecastDay?.(selected);
  render();
  if(focus){const box=$("dayPlaybackOverview");if(box&&box.getClientRects().length)box.scrollIntoView({behavior:"smooth",block:"center"})}
 }
 function update(payload){
  if(!payload?.forecast)return;data=payload.forecast;lang=payload.lang||lang;town=payload.location?.name||town;
- selected=Math.min(selected,Math.max(0,(data.daily?.time?.length||1)-1));index=0;render();
+ if(Number.isInteger(payload.selectedDay))selected=payload.selectedDay;selected=Math.min(selected,Math.max(0,(data.daily?.time?.length||1)-1));index=0;render();
 }
 function start(){if(playingStarted)return;playingStarted=true;
  window.addEventListener("meteolab:forecast",e=>update(e.detail));
