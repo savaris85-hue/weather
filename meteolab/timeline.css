@@ -38,3 +38,35 @@
 #view-timeline .tl-chart{min-height:390px}
 @media(max-width:600px){.tl-date-ribbon{height:45px;gap:4px;padding-right:10px}.tl-date-title{flex-basis:35px;font-size:9px}.tl-date-tick{font-size:10px}.tl-layer-height{margin-left:0}}
 @media print{.tl-date-ribbon{position:static!important;background:white;color:black;box-shadow:none;border-color:#888}.tl-date-tick{color:black;text-shadow:none}.tl-date-title{color:#333}}
+
+/* v1.2: gray date strip during vertical scrolling, clear mobile timeline */
+.tl-date-ribbon{transition:background-color .25s,border-color .25s,box-shadow .25s}
+.tl-date-ribbon.tl-scrolled{background:#253246;border-color:#66748c;box-shadow:0 -7px 24px #0c1226d0,0 3px 13px #0d16259c}
+.tl-date-ribbon.tl-scrolled .tl-date-tick{color:#c5cad1;text-shadow:0 1px 1px #152033}
+.tl-date-ribbon.tl-scrolled .tl-date-title{color:#aeb7c5}
+.tl-date-ribbon.tl-scrolled .tl-date-track{border-color:#8291a5}
+@media(max-width:760px){
+ #view-timeline .tl-shell{display:flex;flex-direction:column;width:100%;min-width:0;gap:10px}
+ #view-timeline .tl-main,#view-timeline .tl-sidebar{width:100%;min-width:0;max-width:100%}
+ #view-timeline .tl-main{padding:12px 9px!important}
+ #view-timeline .tl-sidebar{order:-1;position:static}
+ #view-timeline .tl-toolbar{gap:8px}
+ #view-timeline .tl-toolbar-right{display:flex;gap:4px;max-width:100%;overflow-x:auto}
+ #view-timeline .tl-toolbar button{min-width:30px}
+ #view-timeline .tl-chart{width:100%;height:auto;min-height:410px}
+ #view-timeline .tl-header{gap:8px}
+ #view-timeline .tl-header h2{font-size:18px}
+ #view-timeline .tl-date-ribbon{position:sticky;bottom:0;z-index:100}
+ #view-timeline .tl-date-tick{font-size:10px}
+ #view-timeline .tl-date-title{font-size:9px}
+ #view-timeline .tl-icon-row{width:100%;overflow:hidden}
+ #view-timeline .tl-sidebar #tlLayerControls{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:2px}
+ #view-timeline .tl-layer{gap:5px}
+ #view-timeline .tl-layer-height{gap:2px}
+ #view-timeline .tl-layer-height button{padding:1px 4px!important}
+}
+@media(max-width:420px){
+ #view-timeline .tl-sidebar #tlLayerControls{grid-template-columns:1fr}
+ #view-timeline .tl-date-ribbon{height:48px}
+ #view-timeline .tl-header .tl-top-actions button{padding:7px!important}
+}
