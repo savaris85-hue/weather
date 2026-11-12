@@ -590,7 +590,8 @@ function updateNavigatorDates(){
   if(!state.rows.length)return;
   const points=state.rows.map(row=>row.t*1000).filter(Number.isFinite);
   if(!points.length)return;
-  const min=Math.min(...points),max=Math.max(...points);
+  let min=Infinity,max=-Infinity;
+  for(const t of points){if(t<min)min=t;if(t>max)max=t;}
   $("#nav-loaded-range").textContent="Φορτωμένο: "+friendlyUTC(min)+" – "+friendlyUTC(max);
   const ticks=$("#nav-date-ticks");
   ticks.replaceChildren();
