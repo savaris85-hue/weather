@@ -69,3 +69,25 @@ In the weather repository, GitHub Settings → Pages → Build and deployment �
 ## License
 
 The original authored code is MIT-licensed. Plotly, Leaflet, map tiles and Open-Meteo APIs/data have their own licences and terms.
+
+
+## WeatherDave-inspired v3: climate interpretation and readability
+
+The pale gray lines are **not simply the previous year's forecast**. They are historical climate statistics by calendar day and hour. This implementation independently calculates, from real Open-Meteo ERA5 hourly reanalysis:
+- mean value by the same month/day/hour over the previous selectable **10, 20 or 44 years**;
+- the **10th and 90th percentiles**, shown as a pale gray uncertainty/reference envelope;
+- optional last-year same-calendar-date dotted comparison line (separate control).
+
+No climate values are invented; missing sample years remain missing. Historical baseline is requested only for visible windows of up to 32 days to protect API rate limits. A maximum of 3 concurrent requests are made; data are cached during a session. Default is 20 years for responsiveness; switch to 44 years in the Graphs panel for a WeatherDave-scale reference. Climate comparison is not displayed for the non-station historical precipitation probability layer or when insufficient reference records exist.
+
+The present time is highlighted by an **orange vertical line**, the current UTC calendar day by a **purple background**, and the next 14 days by a warm-tinted background distinct from the past. Recent historical ERA5 is dark and forecast is red by default. Daily two-row Greek date labels are at the **top**, aligned with the plot for easy reading. The left-hand row labels are horizontal and larger. The bottom overview shows *only temperature* so it is no longer a spaghetti-like combination of every chart.
+
+In the Graphs panel: adjustable row heights, three color presets and custom history/forecast/climate line colors; settings save to the local browser. Temperatures stay in °C and winds in Beaufort.
+
+## Optional radar (personal / educational)
+
+The left map has a switchable RainViewer past-radar overlay and Play / Previous / Next controls. Frames are limited to about the **past two hours**, with timestamps shown in UTC. Since 2026 the public RainViewer API no longer supplies satellite infrared/nowcast imagery, and limits free radar tiles to zoom level 7 with the Universal Blue scheme. The map correctly degrades to the OpenStreetMap base map if radar is unavailable. The free API may be used only under RainViewer's personal/educational/small-community terms, with visible attribution: https://www.rainviewer.com/api.html . Do not mistake recorded radar for a future rain forecast.
+
+## Verification
+
+GitHub Actions runs Node.js unit tests, mocked browser startup checks, API smoke requests for ERA5 and all selectable forecast models, and Playwright Chromium browser interaction tests. These do not establish that arbitrary third-party providers will always be available; runtime errors are surfaced rather than hiding failures. The original independent code is MIT-licensed; third-party data services retain their own usage restrictions.
