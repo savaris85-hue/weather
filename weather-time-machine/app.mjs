@@ -343,13 +343,13 @@ function plotLines(rows,field,axis,history=true) {
   const src=history?"history":"forecast";
   const arr=rows.filter(row=>row.kind===src);
   const isBars=["precipitation","precipitation_probability"].includes(field);
-  const color=history?state.colors.history:state.colors.forecast;
+  const color=lineColor(field,history);
   return {
     type:isBars?"bar":"scatter",mode:isBars?undefined:"lines",xaxis:"x",yaxis:axis,
     x:arr.map(row=>new Date(row.t*1000).toISOString()),
     y:arr.map(row=>Number.isFinite(yValue(row,field))?yValue(row,field):null),
-    line:{color,width:history?1.8:2.35,shape:"linear"},
-    marker:{color:field==="precipitation"?"#508cdb":color,opacity:.85},
+    line:{color,width:history?1.5:state.forecastWeight,shape:"linear"},
+    marker:{color,opacity:history?.6:1},
     opacity:history?.95:1,showlegend:false,name:(history?"ERA5":"Forecast")+" · "+labelFor(field),
     hovertemplate:"%{x|%a %d %b %Y %H:%M} UTC<br>%{y:.1f}<extra>"+(history?"Ιστορικό ERA5":"Πρόγνωση")+"</extra>"
   };
@@ -363,7 +363,7 @@ function symbolicTrace(rows,field,axis,history=true) {
     x:selected.map(row=>new Date(row.t*1000).toISOString()),
     y:selected.map(()=>.55),
     text:selected.map(row=>isWind?windArrow(row.wind_direction_10m):weatherIcon(row.weather_code)),
-    textfont:{size:isWind?16:19,color:history?state.colors.history:state.colors.forecast},
+    textfont:{size:isWind?16:19,color:lineColor(isWind?"wind_direction_10m":"icons",history)},
     name:isWind?"Wind direction":"Weather icons",
     customdata:selected.map(row=>isWind?Math.round(row.wind_direction_10m)+"° from":String(row.weather_code)),
     hovertemplate:"%{x|%a %d %b %Y %H:%M} UTC<br>%{customdata}<extra>"+(history?"ERA5":"Forecast")+"</extra>"
@@ -375,7 +375,7 @@ function arrayForPlot() {
 }
 function climateKey(){
   return [state.place.latitude,state.place.longitude,iso(state.view[0]),iso(state.view[1]),
-    state.climateYears].join("|");
+    state.climateYears,state.climateYearFrom,state.climateYearTo].join("|");
 }
 function scheduleClimate(force=false){
   clearTimeout(state.climateTimer);
@@ -404,16 +404,23 @@ function scheduleClimate(force=false){
     renderChart();
     return;
   }
-  label.textContent="Φόρτωση ιστορικής κλιματικής σύγκρισης ("+state.climateYears+" έτη)…";
+  label.textContent="Φόρτωση ιστορικής κλιματικής σύγκρισης ("+(state.climateYears==="custom"?state.climateYearFrom+"–"+state.climateYearTo:state.climateYears+" έτη")+")…";
   state.climateTimer=setTimeout(()=>loadClimate(key,from,to),force?30:650);
 }
 async function loadClimate(key,from,to){
   if(state.climateController)state.climateController.abort();
   const ctrl=new AbortController();state.climateController=ctrl;
   const viewYear=new Date(state.view[0]).getUTCFullYear();
-  const windows=historicalSamplesWindows(from,to,state.climateYears,viewYear);
-  if(windows.length<5) {
-    $("#climate-status").textContent="Δεν υπάρχουν αρκετά προηγούμενα χρόνια για ασφαλή σύγκριση.";
+  let windows=[];
+  try{
+    windows=state.climateYears==="custom"?
+      historicalSamplesCustomRange(from,to,state.climateYearFrom,state.climateYearTo):
+      historicalSamplesWindows(from,to,state.climateYears,viewYear);
+  }catch(error){
+    $("#climate-status").textContent=error.message;return;
+  }
+  if(windows.length<1) {
+    $("#climate-status").textContent="Δεν υπάρχουν διαθέσιμα προηγούμενα έτη για σύγκριση.";
     return;
   }
   const results=[];
@@ -436,8 +443,8 @@ async function loadClimate(key,from,to){
         "Υπολογισμός κλίματος ERA5: "+completed+"/"+windows.length+" έτη…";
     },3);
     if(ctrl.signal.aborted||key!==climateKey())return;
-    if(results.length<5) {
-      $("#climate-status").textContent="Ανεπαρκή δεδομένα κλίματος ("+results.length+" έτη). Δοκίμασε λιγότερα έτη.";
+    if(results.length<1) {
+      $("#climate-status").textContent="Δεν βρέθηκαν ιστορικά δεδομένα για τα επιλεγμένα έτη.";
       return;
     }
     const summary=calculateClimateSummary(results,from,to);
@@ -445,7 +452,7 @@ async function loadClimate(key,from,to){
     state.climateCache.set(key,summary);
     if(state.climateCache.size>4)state.climateCache.delete(state.climateCache.keys().next().value);
     state.climateKey=key;state.climate=summary;
-    $("#climate-status").textContent="Γκρίζα: πραγματικός μέσος ERA5 + 10–90% από "+
+    $("#climate-status").textContent=(summary.years===1?"Γκρίζα: 1 ιστορικό έτος, χωρίς στατιστικό εύρος: ":"Γκρίζα: μέσος ERA5 + 10–90% από ")+
       summary.years+" έτη ("+summary.yearRange?.join("–")+")"+
       (failed?" · "+failed+" αστοχίες φόρτωσης":"");
     await renderChart();
@@ -486,7 +493,8 @@ function bandTraces(layer,axis){
 function niceDays(from,to) {
   const span=(to-from)/DAY;
   if(span>45)return null;
-  const step=span<=17?1:span<=28?2:4;
+  const smallScreen=(controls.plot.clientWidth||window.innerWidth)<650;
+  const step=smallScreen?(span<=8?1:span<=17?3:span<=28?4:7):(span<=17?1:span<=28?2:4);
   const start=Math.floor(from/DAY)*DAY;
   const values=[],labels=[];
   const days=["Κυρ","Δευ","Τρι","Τετ","Πεμ","Παρ","Σαβ"];
@@ -534,12 +542,12 @@ async function drawOverview(){
   const trace={type:"scatter",mode:"lines",name:"Temperature overview",showlegend:false,
     x:full.map(row=>new Date(row.t*1000).toISOString()),
     y:full.map(row=>row.temperature_2m),
-    line:{color:state.colors.forecast,width:1.4},hoverinfo:"skip"};
+    line:{color:lineColor("temperature_2m",false),width:1.4},hoverinfo:"skip"};
   state.overviewPlotting=true;
   try{
     await Plotly.react($("#overview"),[trace],{
       height:128,autosize:true,paper_bgcolor:"#f9fbfe",plot_bgcolor:"#f9fbfe",
-      font:{size:11,color:"#57708b"},margin:{l:160,r:22,t:2,b:6},
+      font:{size:11,color:"#57708b"},margin:{l:Math.round(chartGutter().gutter)+20,r:18,t:2,b:6},
       showlegend:false,dragmode:"pan",
       xaxis:{type:"date",range:state.view.map(ms=>new Date(ms).toISOString()),
         showticklabels:false,gridcolor:"#e7edf5",showgrid:false,
@@ -552,6 +560,32 @@ async function drawOverview(){
       state.overviewBound=true;
     }
   }finally{state.overviewPlotting=false}
+}
+function chartGutter(){
+  const width=controls.plot.clientWidth||window.innerWidth||1200;
+  const mobile=width<650;
+  const gutter=Math.min(width*.38,mobile?113:198);
+  const domain=Math.min(.42,gutter/Math.max(250,width-35));
+  return {mobile,gutter,domain};
+}
+function labelText(layer,mobile){
+  const names={
+    precipitation_probability:mobile?"Πιθανότητα<br>βροχής":"Πιθανότητα<br>βροχής",
+    rain_cumulative:"Αθροιστική<br>βροχή",
+    relative_humidity_2m:"Σχετική υγρασία",
+    wind_direction_10m:"Διεύθυνση<br>ανέμου",
+    wind_speed_10m:"Ένταση ανέμου",
+    wind_gusts_10m:"Ριπές ανέμου",
+    shortwave_radiation:"Ηλιακή<br>ακτινοβολία",
+    temperature_2m:"Θερμοκρασία",
+    dew_point_2m:"Σημείο δρόσου",
+    pressure_msl:"Ατμοσφαιρική<br>πίεση",
+    cloud_cover:"Νεφοκάλυψη",
+    precipitation:"Βροχόπτωση",
+    uv_index:"Δείκτης UV",
+    icons:"Καιρός"
+  };
+  return names[layer.id]||layer.label.split(" · ")[0];
 }
 async function renderChart(){
   if(typeof Plotly==="undefined") {
@@ -566,17 +600,18 @@ async function renderChart(){
   const n=layers.length,gap=.014,size=(1-(n-1)*gap)/n;
   const from=state.view[0],to=state.view[1];
   const dayTicks=niceDays(from,to);
+  const {mobile,gutter,domain}=chartGutter();
   const layout={
     autosize:true,height:Math.max(580,145+n*state.rowHeight),
     paper_bgcolor:"#fff",plot_bgcolor:"#fff",
     font:{size:12,color:"#2b3e58",family:"system-ui, Arial"},
-    margin:{l:160,r:22,t:64,b:38},dragmode:"pan",hovermode:"x unified",
+    margin:{l:mobile?9:16,r:mobile?5:18,t:mobile?70:64,b:35},dragmode:"pan",hovermode:"x unified",
     bargap:.18,barmode:"overlay",showlegend:false,annotations:[],
     xaxis:{
-      type:"date",anchor:"y",side:"top",
+      type:"date",anchor:"y",side:"top",domain:[domain,1],
       range:state.view.map(ms=>new Date(ms).toISOString()),
       gridcolor:"#e4eaf4",tickformat:resolution==="hourly"?"%a %d %b":"%b %Y",
-      showgrid:true,tickfont:{size:12,color:"#24446d"},ticks:"outside",
+      showgrid:true,tickfont:{size:mobile?10:12,color:"#24446d"},ticks:"outside",
       ticklen:6,tickcolor:"#a6b7cc",tickangle:0,
       rangeslider:{visible:false}
     },
@@ -609,12 +644,11 @@ async function renderChart(){
     if(["cloud_cover","relative_humidity_2m","precipitation_probability"].includes(layer.id))spec.range=[0,100];
     if(layer.id==="wind_speed_10m"||layer.id==="wind_gusts_10m")spec.range=[0,12];
     layout[key]=spec;
-    const short=layer.label.split(" · ")[0];
     layout.annotations.push({
-      xref:"paper",yref:"paper",x:-.115,y:top-.002,
+      xref:"paper",yref:"paper",x:.008,y:top-.003,
       xanchor:"left",yanchor:"top",showarrow:false,align:"left",
-      text:"<b>"+short+"</b>"+(layer.unit?"<br>"+layer.unit:""),
-      font:{size:13,color:"#1b3555"}
+      text:"<b>"+labelText(layer,mobile)+"</b>"+(layer.unit?"<br>"+layer.unit:""),
+      font:{size:mobile?10:13,color:lineColor(layer.id,false)}
     });
   });
   $("#chart-title").textContent=state.place.name+" · Ιστορικό + "+modelConfig().label;
@@ -623,7 +657,7 @@ async function renderChart(){
   $("#period-summary").textContent="Πορτοκαλί: τώρα · Μοβ: σήμερα · Γκρίζο: κλιματικό ιστορικό";
   for(const kind of ["history","forecast","climate"]){
     const swatch=$("#legend-"+kind);
-    if(swatch)swatch.style.background=state.colors[kind];
+    if(swatch)swatch.style.background=kind==="climate"?state.colors.climate:lineColor("temperature_2m",kind==="history");
   }
   state.plotting=true;
   try{
