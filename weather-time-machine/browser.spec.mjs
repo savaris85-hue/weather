@@ -101,7 +101,7 @@ test("actual Chromium computes historical percentiles and user-configurable colo
   const hasOceanLine=await page.locator("#plot").evaluate(el=>
     el.data.some(s=>s.line?.color==="#009eae"));
   expect(hasOceanLine).toBeTruthy();
-  await page.locator("#height-slider").fill("144");
+  await page.locator("#height-slider").evaluate(el=>{el.value="144";el.dispatchEvent(new Event("input",{bubbles:true}));});
   await expect(page.locator("#plot")).toHaveAttribute("role","img");
   await page.locator("#save-layout").click();
   await page.screenshot({path:testInfo.outputPath("weather-v3-climate-colors.png"),fullPage:true});
