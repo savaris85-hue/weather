@@ -106,3 +106,20 @@ test("actual Chromium computes historical percentiles and user-configurable colo
   await page.locator("#save-layout").click();
   await page.screenshot({path:testInfo.outputPath("weather-v3-climate-colors.png"),fullPage:true});
 });
+
+test("RainViewer past-radar controls show UTC frame times without pretending to forecast",async({page})=>{
+  await page.route("https://api.rainviewer.com/public/weather-maps.json",async route=>{
+    await route.fulfill({status:200,contentType:"application/json",headers:{"access-control-allow-origin":"*"},
+      body:JSON.stringify({host:"https://tilecache.rainviewer.com",
+        radar:{past:[{time:1794400000,path:"/v2/radar/1794400000"},
+          {time:1794400600,path:"/v2/radar/1794400600"}]}})});
+  });
+  await setup(page);
+  await page.locator("#radar-toggle").check();
+  await expect(page.locator("#radar-time")).toContainText("UTC");
+  await expect(page.locator("#radar-next")).toBeEnabled();
+  await page.locator("#radar-prev").click();
+  await expect(page.locator("#radar-time")).toContainText("UTC");
+  await page.locator("#radar-toggle").uncheck();
+  await expect(page.locator("#radar-time")).toHaveText("Radar ανενεργό");
+});
