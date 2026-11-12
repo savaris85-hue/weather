@@ -1,0 +1,1107 @@
+<!doctype html>
+<html lang="el">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <title>MeteoLab Scenic Weather Workstation</title>
+  <style>
+    :root{
+      --bg:#0b1220;
+      --panel:#101b31;
+      --panel-2:#152340;
+      --panel-3:#1b2d50;
+      --line:#31486d;
+      --soft:#9cb4d6;
+      --text:#edf5ff;
+      --accent:#79b4ff;
+      --sun:#ffd66f;
+      --rain:#7fc9ff;
+      --warm:#f4a261;
+      --cool:#74c7ec;
+      --ok:#7ae582;
+      --shadow:0 18px 60px rgba(0,0,0,.28);
+    }
+    *{box-sizing:border-box}
+    html,body{margin:0;padding:0;background:linear-gradient(180deg,#0b1220,#0e172a 65%,#0b1220);color:var(--text);font-family:Inter,ui-sans-serif,system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif}
+    body{min-height:100vh}
+    button,input,select{font:inherit}
+    .app{max-width:1600px;margin:0 auto;padding:18px}
+    .topbar{display:flex;align-items:center;gap:14px;flex-wrap:wrap;justify-content:space-between;background:rgba(19,31,56,.8);border:1px solid rgba(112,146,202,.25);backdrop-filter:blur(14px);padding:14px 16px;border-radius:20px;box-shadow:var(--shadow);position:sticky;top:10px;z-index:30}
+    .brand{display:flex;align-items:center;gap:12px}
+    .brand-logo{width:44px;height:44px;border-radius:14px;background:linear-gradient(135deg,#6aa7ff,#92d2ff);display:grid;place-items:center;color:#0b1b37;font-weight:900;box-shadow:0 12px 24px rgba(100,163,255,.35)}
+    .brand h1{margin:0;font-size:1.18rem;line-height:1.05}
+    .brand small{display:block;color:var(--soft);font-weight:600;letter-spacing:.08em}
+    .toolbar{display:flex;gap:10px;flex-wrap:wrap;align-items:center}
+    .searchbar{display:flex;align-items:center;gap:8px;background:var(--panel-2);padding:8px 10px;border:1px solid var(--line);border-radius:14px;min-width:min(100%,480px)}
+    .searchbar input{flex:1;background:transparent;border:0;color:var(--text);outline:none;min-width:120px}
+    .searchbar button,.pill-btn,.tab-btn,.icon-btn,.seg-btn,.ghost-btn{border:1px solid var(--line);background:linear-gradient(180deg,#243d69,#1b3052);color:#eaf3ff;border-radius:12px;padding:10px 14px;cursor:pointer;transition:.2s transform,.2s background,.2s opacity,.2s border-color}
+    .searchbar button:hover,.pill-btn:hover,.tab-btn:hover,.icon-btn:hover,.seg-btn:hover,.ghost-btn:hover{transform:translateY(-1px);border-color:#7ba9ff;background:linear-gradient(180deg,#2b4a7d,#20395f)}
+    .seg-btn{padding:8px 12px;font-weight:700}
+    .seg-btn.active,.tab-btn.active{background:linear-gradient(180deg,#4c7dd4,#31599d);border-color:#a8c6ff}
+    .nav-tabs{display:flex;gap:8px;flex-wrap:wrap}
+    .tab-btn{font-weight:800}
+    .layout{display:grid;grid-template-columns:340px minmax(0,1fr);gap:18px;margin-top:18px}
+    .sidebar,.mainpanel section,.card{background:linear-gradient(180deg,var(--panel),var(--panel-2));border:1px solid rgba(112,146,202,.18);border-radius:22px;box-shadow:var(--shadow)}
+    .sidebar{padding:18px;position:sticky;top:98px;height:calc(100vh - 120px);overflow:auto}
+    .side-title{margin:0 0 8px;font-size:1.1rem}
+    .muted{color:var(--soft)}
+    .small{font-size:.9rem}
+    .mini{font-size:.78rem}
+    .divider{height:1px;background:linear-gradient(90deg,transparent,#2d4467,transparent);margin:16px 0}
+    .quick-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+    .stat-chip{background:linear-gradient(180deg,#1b2e4f,#162643);border:1px solid var(--line);border-radius:16px;padding:12px}
+    .stat-chip b{display:block;font-size:1.3rem;margin-top:4px}
+    .scene-prefs{display:grid;gap:10px}
+    label{display:grid;gap:6px;font-size:.92rem;color:#d6e7ff}
+    input[type="date"],select,.plain-input{background:#0f1b31;border:1px solid var(--line);color:var(--text);border-radius:12px;padding:10px 12px;outline:none}
+    input[type="range"]{width:100%;accent-color:#ffd66f}
+    .mainpanel{min-width:0}
+    section{display:none;padding:18px}
+    section.active{display:block}
+    .hero-header{display:flex;align-items:flex-start;justify-content:space-between;gap:16px;flex-wrap:wrap;margin-bottom:14px}
+    .hero-header h2{margin:0;font-size:1.7rem}
+    .hero-header p{margin:6px 0 0;color:var(--soft)}
+    .scene-card{overflow:hidden;padding:0}
+    .scene-wrap{position:relative;aspect-ratio:16/9;min-height:420px;background:linear-gradient(180deg,#4a75bf,#9fcbff);border-bottom:1px solid rgba(255,255,255,.08)}
+    .scene-overlay{position:absolute;inset:0;pointer-events:none}
+    .scene-controls-toggle{position:absolute;top:14px;right:14px;display:flex;align-items:center;gap:10px;z-index:7}
+    .clock-badge,.sun-badge,.sunset-badge{background:rgba(14,29,55,.48);backdrop-filter:blur(10px);border:1px solid rgba(218,231,255,.22);color:#fff;border-radius:14px;padding:8px 12px;font-weight:800;box-shadow:0 10px 20px rgba(0,0,0,.12)}
+    .clock-badge{font-size:1rem;min-width:76px;text-align:center}
+    .scene-gear{width:40px;height:40px;border-radius:14px;border:1px solid rgba(218,231,255,.22);background:rgba(14,29,55,.46);color:#fff;cursor:pointer;font-size:1.05rem}
+    .scene-gear:hover{background:rgba(42,72,122,.8)}
+    .scene-titlebox{position:absolute;left:22px;top:18px;z-index:6;max-width:calc(100% - 220px)}
+    .scene-titlebox .eyebrow{font-size:.72rem;letter-spacing:.18em;font-weight:900;color:#d6e7ff;margin-bottom:6px}
+    .scene-titlebox h3{margin:0;font-size:2rem}
+    .scene-titlebox .subtitle{margin-top:5px;color:#e8f3ffcc}
+    .sun-arc{position:absolute;left:9%;right:9%;top:17%;height:32%;border-top:2px dashed rgba(255,246,196,.7);border-radius:50% 50% 0 0;z-index:2}
+    .arc-point{position:absolute;width:14px;height:14px;border-radius:50%;background:#fff6c2;box-shadow:0 0 0 5px rgba(255,230,155,.15),0 0 22px rgba(255,238,166,.75);border:2px solid rgba(255,255,255,.8);z-index:5;transform:translate(-50%,-50%)}
+    .celestial{position:absolute;width:58px;height:58px;border-radius:50%;background:radial-gradient(circle at 35% 35%,#fff9c0,#ffd36d 70%);box-shadow:0 0 0 10px rgba(255,225,123,.12),0 0 60px rgba(255,223,138,.45);z-index:4;transform:translate(-50%,-50%);transition:left .9s ease,top .9s ease,background .6s ease, box-shadow .6s ease}
+    .celestial.moon{background:radial-gradient(circle at 36% 35%,#ffffff,#d9e7ff 65%);box-shadow:0 0 0 10px rgba(207,224,255,.12),0 0 45px rgba(202,221,255,.36)}
+    .night .stars{opacity:.9}
+    .stars{position:absolute;inset:0;opacity:0;transition:opacity .7s;background-image:radial-gradient(circle at 9% 19%,#fff 0 1.2px,transparent 2px),radial-gradient(circle at 26% 35%,#fff 0 1px,transparent 2px),radial-gradient(circle at 70% 15%,#fff 0 1.3px,transparent 2px),radial-gradient(circle at 83% 29%,#fff 0 1px,transparent 2px),radial-gradient(circle at 62% 42%,#fff 0 1px,transparent 2px),radial-gradient(circle at 91% 18%,#fff 0 1px,transparent 2px)}
+    .cloud-layer{position:absolute;inset:0;overflow:hidden}
+    .cloud{position:absolute;width:150px;height:48px;background:rgba(246,251,255,.78);border-radius:40px;filter:drop-shadow(0 12px 18px rgba(25,51,95,.15));animation:cloudDrift var(--dur,20s) ease-in-out infinite alternate;opacity:var(--alpha,.7)}
+    .cloud:before,.cloud:after{content:"";position:absolute;border-radius:50%;background:inherit}
+    .cloud:before{width:62px;height:62px;left:18px;top:-28px}.cloud:after{width:76px;height:76px;right:22px;top:-36px}
+    .rain-layer{position:absolute;inset:0;overflow:hidden;pointer-events:none}
+    .drop{position:absolute;top:-8%;width:2px;height:18px;background:rgba(194,233,255,.88);border-radius:10px;transform:rotate(14deg);animation:rainFall var(--rd,1.2s) linear infinite;opacity:.7}
+    .ground{position:absolute;left:0;right:0;bottom:0;height:34%;background:linear-gradient(180deg,#5d9150,#3a6f3a 55%,#254d2a);z-index:1}
+    .ground.winter{background:linear-gradient(180deg,#a8b9c9,#dde6ef 65%,#bbc7d2)}
+    .ground.summer{background:linear-gradient(180deg,#9dbe64,#6ea24b 60%,#4b7834)}
+    .hills{position:absolute;left:-2%;right:-2%;bottom:26%;height:22%;background:radial-gradient(80% 90% at 20% 100%,rgba(41,87,53,.55),transparent 56%),radial-gradient(70% 100% at 50% 100%,rgba(42,91,57,.7),transparent 54%),radial-gradient(65% 95% at 80% 100%,rgba(36,78,52,.58),transparent 58%);z-index:1}
+    .sea{position:absolute;left:0;right:0;bottom:0;height:35%;background:linear-gradient(180deg,#73bce5,#2f7bb5 35%,#16548a 80%);overflow:hidden;z-index:1}
+    .wave{position:absolute;left:-10%;right:-10%;height:15%;border-radius:50%;border-top:2px solid rgba(255,255,255,.22);animation:waveRun var(--wd,5s) linear infinite}
+    .boat{position:absolute;bottom:18%;width:110px;height:52px;z-index:4;animation:boatSway 4.8s ease-in-out infinite}
+    .boat .hull{position:absolute;left:12px;right:10px;bottom:0;height:18px;background:#6d4529;border-radius:0 0 18px 18px;transform:skewX(-20deg)}
+    .boat .mast{position:absolute;left:52px;bottom:15px;width:3px;height:28px;background:#f4f4f4}
+    .boat .sail{position:absolute;left:55px;bottom:18px;width:0;height:0;border-left:0 solid transparent;border-right:28px solid transparent;border-bottom:34px solid #f8f8ff;transform-origin:left bottom}
+    .tree{position:absolute;bottom:19%;left:10%;width:120px;height:190px;z-index:4}
+    .tree .trunk{position:absolute;bottom:0;left:47px;width:26px;height:90px;background:linear-gradient(180deg,#8d5b34,#61371d);border-radius:10px}
+    .tree .crown{position:absolute;left:0;top:0;width:120px;height:110px;background:radial-gradient(circle at 35% 30%,#7fcf7d,#498e47 70%);border-radius:46% 54% 46% 54% / 55% 46% 54% 45%;box-shadow:0 12px 28px rgba(22,58,25,.12)}
+    .tree .leaf{position:absolute;width:18px;height:10px;background:linear-gradient(180deg,#d3ef87,#86c75f);border-radius:100% 10% 100% 10%;opacity:.95;animation:leafFly var(--lfd,6s) linear infinite;transform-origin:center}
+    .leaf.autumn{background:linear-gradient(180deg,#ffd284,#dd8a4a)}
+    .scene-people{position:absolute;right:8%;bottom:12%;display:flex;gap:20px;align-items:flex-end;z-index:5}
+    .person{position:relative;width:48px;height:118px;animation:personBob 4s ease-in-out infinite}
+    .person .head{position:absolute;left:12px;top:0;width:24px;height:24px;border-radius:50%;background:#ffd0b1}
+    .person .body{position:absolute;left:10px;top:22px;width:28px;height:48px;border-radius:15px 15px 12px 12px;background:var(--cloth,#4c91ff)}
+    .person .leg{position:absolute;top:68px;width:9px;height:42px;background:#22314d;border-radius:12px}
+    .person .leg.l1{left:13px}.person .leg.l2{left:26px}
+    .person .arm{position:absolute;top:28px;width:10px;height:34px;background:var(--cloth,#4c91ff);border-radius:10px;transform-origin:top center}
+    .person .arm.a1{left:3px;transform:rotate(18deg)}.person .arm.a2{right:3px;transform:rotate(-18deg)}
+    .person .umbrella{position:absolute;left:-30px;top:4px;width:86px;height:48px;border-radius:86px 86px 0 0;background:linear-gradient(180deg,#ff7aa8,#c83d6d);border:2px solid rgba(255,255,255,.5)}
+    .person .umbrella:after{content:"";position:absolute;left:42px;top:42px;width:3px;height:56px;background:#dde9ff}
+    .person .hood{position:absolute;left:8px;top:14px;width:32px;height:22px;border-radius:18px 18px 10px 10px;background:#23385f}
+    .person .shirt{position:absolute;left:7px;top:18px;width:34px;height:18px;border-radius:12px;background:#fff6cf;border:2px solid rgba(255,255,255,.35)}
+    .person .scarf{position:absolute;left:15px;top:28px;width:22px;height:10px;background:#ffdca7;border-radius:8px}
+    .city-skyline,.village,.mountains{position:absolute;left:0;right:0;bottom:12%;z-index:2;pointer-events:none}
+    .city-skyline{height:30%}
+    .building{position:absolute;bottom:0;background:linear-gradient(180deg,#334d76,#18253d);border-radius:8px 8px 0 0;box-shadow:inset 0 0 0 1px rgba(255,255,255,.04)}
+    .building:after{content:"";position:absolute;inset:10px 8px;background:repeating-linear-gradient(180deg,transparent 0 10px,rgba(255,235,161,.16) 10px 13px),repeating-linear-gradient(90deg,transparent 0 12px,rgba(255,235,161,.18) 12px 16px)}
+    .village{height:24%}
+    .house{position:absolute;bottom:0;width:90px;height:56px;background:#f6f0e8;border-radius:10px 10px 0 0;box-shadow:0 8px 12px rgba(0,0,0,.08)}
+    .house:before{content:"";position:absolute;left:-8px;right:-8px;top:-24px;height:26px;background:#b65b4a;clip-path:polygon(50% 0,100% 100%,0 100%)}
+    .house:after{content:"";position:absolute;left:34px;bottom:0;width:18px;height:26px;background:#9b6b44;border-radius:4px 4px 0 0}
+    .mountains{height:38%}
+    .mountain{position:absolute;bottom:0;width:0;height:0;border-left:130px solid transparent;border-right:130px solid transparent;border-bottom:220px solid rgba(58,88,104,.9)}
+    .mountain:after{content:"";position:absolute;left:-42px;top:54px;width:0;height:0;border-left:42px solid transparent;border-right:42px solid transparent;border-bottom:54px solid rgba(240,246,255,.82)}
+    .scene-panel{display:flex;align-items:center;gap:8px;flex-wrap:wrap;padding:12px 14px;background:linear-gradient(180deg,#10203a,#11233f);border-top:1px solid rgba(255,255,255,.06)}
+    .metric-pill{display:flex;align-items:center;gap:7px;background:#172b4a;border:1px solid rgba(140,173,224,.2);padding:10px 12px;border-radius:14px;color:#f0f6ff;font-weight:700}
+    .metric-pill .icon{opacity:.9}
+    .metric-pill strong{font-size:.98rem}
+    .scene-panel .rightgrow{margin-left:auto;display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+    .scene-ctrls{display:none;gap:10px;align-items:center;padding:14px;background:linear-gradient(180deg,#11203a,#0f1c33);border-top:1px solid rgba(255,255,255,.06)}
+    .scene-ctrls.open{display:flex;flex-wrap:wrap}
+    .scene-ctrls .clockline{display:grid;grid-template-columns:repeat(24,minmax(0,1fr));width:100%;gap:2px}
+    .tick{padding:6px 2px 0;border-top:1px dashed rgba(140,173,224,.35);font-size:.72rem;text-align:center;color:#a8c5ef;cursor:pointer}
+    .tick.active{color:#ffde8a;border-top:2px solid #ffd66f;font-weight:800}
+    .chart-card{padding:16px}
+    .chart-head{display:flex;align-items:center;justify-content:space-between;gap:16px;flex-wrap:wrap;margin-bottom:10px}
+    .chartbox{position:relative;background:linear-gradient(180deg,#0d1830,#122042);border:1px solid rgba(115,154,216,.2);border-radius:20px;padding:12px;overflow:hidden}
+    .chartbox svg{display:block;width:100%;height:auto}
+    .chart-legend{display:flex;gap:10px;flex-wrap:wrap}.legend{display:flex;align-items:center;gap:6px;color:#dcecff;font-size:.88rem}.legend i{width:12px;height:12px;border-radius:999px;display:inline-block}
+    .days-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(135px,1fr));gap:12px;margin-top:16px}
+    .day-tile{background:linear-gradient(180deg,#1c3257,#1a2844);border:1px solid rgba(115,154,216,.18);border-radius:18px;padding:14px;cursor:pointer;transition:.18s transform,.18s border-color,.18s box-shadow;box-shadow:0 12px 26px rgba(0,0,0,.12)}
+    .day-tile:hover{transform:translateY(-2px);border-color:#8db5ff}.day-tile.active{background:linear-gradient(180deg,#335ea4,#27467b);border-color:#ffe3a1;box-shadow:0 0 0 2px rgba(255,220,140,.22)}
+    .day-tile .wx{font-size:1.7rem;margin:10px 0 8px;display:block}.day-tile strong{font-size:1.15rem}.day-tile .temps{margin-top:8px;font-weight:800}
+    .table-wrap{overflow:auto}
+    table{width:100%;border-collapse:collapse;font-variant-numeric:tabular-nums}
+    th,td{padding:10px 12px;border-bottom:1px solid rgba(124,160,217,.16);text-align:left;white-space:nowrap}
+    th{font-size:.8rem;letter-spacing:.05em;text-transform:uppercase;color:#b8ccef;background:#182a47;position:sticky;top:0}
+    tr:nth-child(even) td{background:rgba(255,255,255,.02)}
+    tr:hover td{background:rgba(121,180,255,.07)}
+    .section-grid{display:grid;grid-template-columns:1.35fr .95fr;gap:18px}
+    .story{display:grid;gap:14px}
+    .insight{background:linear-gradient(180deg,#182b49,#12203a);padding:14px;border-radius:18px;border:1px solid rgba(124,160,217,.14)}
+    .insight h4{margin:0 0 6px}.insight p{margin:0;color:#d5e6ff}
+    .footer-note{margin-top:18px;color:#95afd3;text-align:center;font-size:.88rem}
+    .footer-note b{color:#edf5ff}
+    .status{padding:12px 14px;border-radius:16px;background:#132440;border:1px solid rgba(124,160,217,.16);color:#dcecff}
+    .badge{display:inline-flex;align-items:center;gap:6px;background:#173057;border:1px solid rgba(136,176,237,.22);padding:7px 10px;border-radius:999px;font-size:.8rem;color:#eaf3ff}
+    .empty{padding:22px;border:1px dashed rgba(145,177,230,.32);border-radius:18px;color:#bdd0ee;text-align:center}
+    .loading{opacity:.6;pointer-events:none}
+    .error{background:#3a1720;border-color:#6f2d3b;color:#ffe4ea}
+    @keyframes cloudDrift{to{transform:translateX(28px)}}
+    @keyframes rainFall{0%{transform:translateY(-10%) rotate(14deg);opacity:0}15%{opacity:.75}100%{transform:translateY(125%) rotate(14deg);opacity:0}}
+    @keyframes waveRun{from{transform:translateX(-2%)}to{transform:translateX(2%)}}
+    @keyframes boatSway{0%,100%{transform:translateY(0) rotate(-3deg)}50%{transform:translateY(-5px) rotate(3deg)}}
+    @keyframes leafFly{0%{transform:translate(0,0) rotate(0deg);opacity:0}10%{opacity:1}100%{transform:translate(var(--dx,180px),120px) rotate(260deg);opacity:0}}
+    @keyframes personBob{0%,100%{transform:translateY(0)}50%{transform:translateY(-3px)}}
+    @media (max-width:1200px){.layout{grid-template-columns:1fr}.sidebar{position:relative;top:auto;height:auto}.section-grid{grid-template-columns:1fr}.scene-wrap{min-height:360px}}
+    @media (max-width:760px){.app{padding:10px}.topbar{top:6px}.scene-wrap{aspect-ratio:4/3;min-height:320px}.scene-titlebox{max-width:calc(100% - 120px)}.scene-titlebox h3{font-size:1.4rem}.scene-panel{padding:10px}.metric-pill{padding:8px 10px}.scene-people{right:3%;transform:scale(.84);transform-origin:bottom right}.tree{left:4%;transform:scale(.84);transform-origin:bottom left}.hero-header h2{font-size:1.35rem}}
+  </style>
+</head>
+<body>
+  <div class="app">
+    <header class="topbar">
+      <div class="brand">
+        <div class="brand-logo">☼</div>
+        <div>
+          <small>METEOLAB · SCENIC WEATHER</small>
+          <h1>Weather Timeline & Scenic Studio</h1>
+        </div>
+      </div>
+      <div class="toolbar">
+        <div class="searchbar">
+          <span>🔎</span>
+          <input id="searchInput" placeholder="Αναζήτηση πόλης ή περιοχής (π.χ. Ελληνικό, Αθήνα, Πήλιο)" />
+          <button id="searchBtn">Φόρτωση</button>
+        </div>
+        <div class="nav-tabs">
+          <button class="tab-btn active" data-view="overview">Επισκόπηση</button>
+          <button class="tab-btn" data-view="timeline">Timeline</button>
+          <button class="tab-btn" data-view="scenic">Scenic Lab</button>
+        </div>
+      </div>
+    </header>
+
+    <div class="layout">
+      <aside class="sidebar">
+        <h3 class="side-title">Έλεγχος περιοχής & σκηνικού</h3>
+        <div class="status" id="statusBox">Έτοιμο για φόρτωση δεδομένων.</div>
+        <div class="divider"></div>
+        <div class="quick-grid" id="summaryQuick">
+          <div class="stat-chip"><span class="muted small">Θερμοκρασία</span><b id="quickTemp">—</b></div>
+          <div class="stat-chip"><span class="muted small">Άνεμος</span><b id="quickWind">—</b></div>
+          <div class="stat-chip"><span class="muted small">Βροχή</span><b id="quickRain">—</b></div>
+          <div class="stat-chip"><span class="muted small">Υγρασία</span><b id="quickHumidity">—</b></div>
+        </div>
+        <div class="divider"></div>
+        <div class="scene-prefs">
+          <label>Τύπος scenic τοπίου (γενική προτίμηση)
+            <select id="defaultSceneType">
+              <option value="auto">Auto</option>
+              <option value="city">Πόλη</option>
+              <option value="sea">Θάλασσα</option>
+              <option value="mountain">Βουνό</option>
+              <option value="village">Χωριό</option>
+            </select>
+          </label>
+          <label>Scenic mode
+            <select id="scenicSceneType">
+              <option value="auto">Auto</option>
+              <option value="city">Πόλη</option>
+              <option value="sea">Θάλασσα</option>
+              <option value="mountain">Βουνό</option>
+              <option value="village">Χωριό</option>
+            </select>
+          </label>
+          <label>Scenic source
+            <select id="scenicSourceMode">
+              <option value="auto">Auto (forecast ή ιστορικό)</option>
+              <option value="forecast">Forecast</option>
+              <option value="history">Ιστορικό</option>
+            </select>
+          </label>
+          <label>Scenic ημερομηνία
+            <input id="scenicDate" type="date" />
+          </label>
+          <div style="display:flex;gap:8px;flex-wrap:wrap">
+            <button class="pill-btn" id="scenicPrevDay">◀ Προηγούμενη</button>
+            <button class="pill-btn" id="scenicNextDay">Επόμενη ▶</button>
+          </div>
+          <label>Scenic ώρα
+            <input id="scenicHour" type="range" min="0" max="23" step="1" value="12" />
+          </label>
+        </div>
+        <div class="divider"></div>
+        <div class="insight">
+          <h4>Τι κάνει αυτό το prototype</h4>
+          <p>Χρησιμοποιεί ανοιχτά δεδομένα Open‑Meteo για forecast και ιστορικό. Το scenic animation είναι οπτική απεικόνιση του καιρού, όχι φωτορεαλιστικό radar.</p>
+        </div>
+        <div class="insight">
+          <h4>Developed by Antonis Savaris</h4>
+          <p>Scenic concept, animated timeline και weather workstation prototype.</p>
+        </div>
+      </aside>
+
+      <main class="mainpanel">
+        <section id="view-overview" class="active">
+          <div class="hero-header">
+            <div>
+              <h2>Επισκόπηση καιρού</h2>
+              <p id="overviewMeta">Φόρτωσε μια περιοχή για να δεις εντυπωσιακή οπτικοποίηση και forecast 14 ημερών.</p>
+            </div>
+            <span class="badge" id="locationBadge">📍 —</span>
+          </div>
+          <div class="card scene-card" id="overviewSceneCard"></div>
+          <div class="days-grid" id="daysGrid"></div>
+          <div class="card chart-card" style="margin-top:16px">
+            <div class="chart-head">
+              <div>
+                <h3 style="margin:0">Εντυπωσιακό timeline 24 ωρών</h3>
+                <div class="muted small">Θερμοκρασία, υγρασία, βροχή, άνεμος, ανατολή και δύση</div>
+              </div>
+              <div class="chart-legend">
+                <span class="legend"><i style="background:#f2a65a"></i> Θερμοκρασία</span>
+                <span class="legend"><i style="background:#78c7ff"></i> Υγρασία</span>
+                <span class="legend"><i style="background:#94d2ff"></i> Βροχή</span>
+                <span class="legend"><i style="background:#d8c8ff"></i> Άνεμος / Bft</span>
+              </div>
+            </div>
+            <div class="chartbox" id="overviewChartBox"></div>
+          </div>
+          <div class="section-grid" style="margin-top:16px">
+            <div class="card chart-card">
+              <h3 style="margin-top:0">Αναλυτικός ωριαίος πίνακας</h3>
+              <div class="table-wrap"><table id="overviewTable"></table></div>
+            </div>
+            <div class="story">
+              <div class="insight" id="overviewInsight1"></div>
+              <div class="insight" id="overviewInsight2"></div>
+              <div class="insight" id="overviewInsight3"></div>
+            </div>
+          </div>
+        </section>
+
+        <section id="view-timeline">
+          <div class="hero-header">
+            <div>
+              <h2>Timeline forecast / historical</h2>
+              <p>Μετάβαση σε παρελθόν ή μέλλον ανά ημέρα, σε ορθογώνιο γράφημα και κοινό template πινάκων.</p>
+            </div>
+            <div style="display:flex;gap:8px;flex-wrap:wrap">
+              <button class="pill-btn" id="timelinePrevDay">◀ Ημέρα</button>
+              <button class="pill-btn" id="timelineNextDay">Ημέρα ▶</button>
+              <input class="plain-input" type="date" id="timelineDate" />
+            </div>
+          </div>
+          <div class="card chart-card">
+            <div class="chart-head">
+              <div>
+                <h3 style="margin:0">Μεγάλο timeline σκηνής & δεδομένων</h3>
+                <div class="muted small" id="timelineMeta">—</div>
+              </div>
+            </div>
+            <div class="chartbox" id="timelineChartBox"></div>
+          </div>
+          <div class="card chart-card" style="margin-top:16px">
+            <h3 style="margin-top:0">Πίνακας ημερήσιας/ωριαίας σύνοψης</h3>
+            <div class="table-wrap"><table id="timelineTable"></table></div>
+          </div>
+        </section>
+
+        <section id="view-scenic">
+          <div class="hero-header">
+            <div>
+              <h2>Scenic Lab</h2>
+              <p>Διάλεξε τοπίο, ημερομηνία, forecast ή ιστορικό και δες ένα εντυπωσιακό σκηνικό που αλλάζει με τον καιρό.</p>
+            </div>
+            <span class="badge" id="scenicBadge">🎬 Scenic mode</span>
+          </div>
+          <div class="card scene-card" id="scenicSceneCard"></div>
+          <div class="section-grid" style="margin-top:16px">
+            <div class="card chart-card">
+              <div class="chart-head">
+                <div>
+                  <h3 style="margin:0">Scenic timeline</h3>
+                  <div class="muted small">Αλλαγή ώρας, εποχής, ανέμου, βροχής και ορατού impact στο τοπίο</div>
+                </div>
+              </div>
+              <div class="chartbox" id="scenicChartBox"></div>
+            </div>
+            <div class="story">
+              <div class="insight" id="scenicInsight1"></div>
+              <div class="insight" id="scenicInsight2"></div>
+              <div class="insight" id="scenicInsight3"></div>
+            </div>
+          </div>
+        </section>
+        <div class="footer-note">MeteoLab Scenic Prototype · <b>Developed by Antonis Savaris</b> · Open weather data powered by Open‑Meteo.</div>
+      </main>
+    </div>
+  </div>
+
+<script>
+(()=>{
+  const $ = id => document.getElementById(id);
+  const fmt = new Intl.DateTimeFormat('el-GR',{weekday:'short', day:'numeric', month:'short'});
+  const fmtFull = new Intl.DateTimeFormat('el-GR',{weekday:'long', day:'numeric', month:'long', year:'numeric'});
+  const state = {
+    query: localStorage.getItem('meteolab-query') || 'Elliniko',
+    location: null,
+    forecast: null,
+    historyCache: {},
+    selectedDay: 0,
+    selectedHour: new Date().getHours(),
+    timelineDate: null,
+    scenicDate: null,
+    scenicHour: new Date().getHours(),
+    scenicSourceMode: localStorage.getItem('meteolab-scenic-source') || 'auto',
+    defaultSceneType: localStorage.getItem('meteolab-default-scene') || 'auto',
+    scenicSceneType: localStorage.getItem('meteolab-scenic-scene') || 'auto',
+    view: 'overview',
+    overviewControlsOpen: false,
+    scenicControlsOpen: false,
+    busy: false,
+  };
+
+  const weatherText = code => {
+    if(code >= 95) return 'Καταιγίδα';
+    if(code >= 80) return 'Μπόρες';
+    if(code >= 71 && code <= 77) return 'Χιονόπτωση';
+    if(code >= 61 && code <= 67) return 'Βροχή';
+    if(code >= 51 && code <= 57) return 'Ψιχάλες';
+    if(code === 45 || code === 48) return 'Ομίχλη';
+    if(code === 3) return 'Νεφώσεις';
+    if(code === 2) return 'Μερική νέφωση';
+    if(code === 1) return 'Λίγες νεφώσεις';
+    return 'Αίθριος';
+  };
+  const weatherIcon = (code,isDay=1) => {
+    if(code >= 95) return '⛈️';
+    if(code >= 80 || (code >= 61 && code <= 67) || (code>=51 && code<=57)) return '🌧️';
+    if(code >= 71 && code <= 77) return '❄️';
+    if(code === 45 || code === 48) return '🌫️';
+    if(code === 3) return '☁️';
+    if(code === 2) return isDay ? '⛅' : '☁️';
+    if(code === 1) return isDay ? '🌤️' : '🌙';
+    return isDay ? '☀️' : '🌙';
+  };
+  const clamp = (v,min,max)=>Math.max(min,Math.min(max,v));
+  const bft = kmh => kmh == null ? null : Math.min(12, Math.max(0, Math.round(Math.pow((Number(kmh) / 3.6) / 0.836, 2/3))));
+  const dirLabel = deg => ['Β','ΒΑ','Α','ΝΑ','Ν','ΝΔ','Δ','ΒΔ'][Math.round((deg % 360) / 45) % 8];
+  const seasonOf = dateStr => {
+    const d = new Date(dateStr+'T12:00:00');
+    const m = d.getMonth()+1;
+    if([12,1,2].includes(m)) return 'winter';
+    if([3,4,5].includes(m)) return 'spring';
+    if([6,7,8].includes(m)) return 'summer';
+    return 'autumn';
+  };
+  const dayLabel = dateStr => fmt.format(new Date(dateStr+'T12:00:00'));
+  const parseHM = hm => {
+    const [h,m] = hm.split(':').map(Number);
+    return h*60+m;
+  };
+  const minsToHM = mins => String(Math.floor(mins/60)).padStart(2,'0')+':'+String(mins%60).padStart(2,'0');
+  const humanScene = type => ({auto:'Auto',city:'Πόλη',sea:'Θάλασσα',mountain:'Βουνό',village:'Χωριό'})[type] || type;
+
+
+  function buildFallbackForecast(loc){
+    const base = new Date();
+    base.setHours(0,0,0,0);
+    const hourly = {time:[],temperature_2m:[],apparent_temperature:[],precipitation_probability:[],precipitation:[],cloud_cover:[],relative_humidity_2m:[],wind_speed_10m:[],wind_direction_10m:[],weather_code:[],is_day:[]};
+    const daily = {time:[],weather_code:[],temperature_2m_max:[],temperature_2m_min:[],precipitation_sum:[],sunrise:[],sunset:[]};
+    for(let d=0; d<14; d++){
+      const date = new Date(base); date.setDate(base.getDate()+d);
+      const ds = date.toISOString().slice(0,10);
+      daily.time.push(ds);
+      const sunrise = `07:${String((d*3)%20).padStart(2,'0')}`;
+      const sunset = `17:${String((15+d*2)%50).padStart(2,'0')}`;
+      daily.sunrise.push(ds+'T'+sunrise);
+      daily.sunset.push(ds+'T'+sunset);
+      let tmax=-1e9,tmin=1e9,sumRain=0,codeDay=1;
+      for(let h=0; h<24; h++){
+        const stamp = `${ds}T${String(h).padStart(2,'0')}:00`;
+        const seasonal = 18 + 4*Math.sin((d/14)*Math.PI*2) + 3*Math.sin((h-7)/24*Math.PI*2);
+        const rainPulse = (d%5===2 && h>11 && h<18) ? 0.6 + Math.sin((h-11)/6*Math.PI)*1.8 : ((d%7===4 && h<8) ? 0.25 : 0);
+        const cloud = clamp(20 + rainPulse*30 + 35*Math.max(0, Math.sin((d+2)/3)), 0, 100);
+        const code = rainPulse > 1.4 ? 63 : rainPulse > 0.35 ? 61 : cloud > 65 ? 3 : cloud > 35 ? 2 : 1;
+        const temp = seasonal - rainPulse*1.2;
+        const wind = clamp(8 + 15*Math.abs(Math.sin((d+h)/9)) + (d%6===1 ? 8 : 0), 4, 36);
+        const dir = (110 + d*19 + h*12) % 360;
+        const hum = clamp(45 + cloud*0.45 + rainPulse*8, 30, 98);
+        const isDay = h>=7 && h<18 ? 1 : 0;
+        hourly.time.push(stamp);
+        hourly.temperature_2m.push(Number(temp.toFixed(1)));
+        hourly.apparent_temperature.push(Number((temp - wind/45).toFixed(1)));
+        hourly.precipitation_probability.push(Math.round(clamp(rainPulse*38 + cloud*0.4, 0, 100)));
+        hourly.precipitation.push(Number(rainPulse.toFixed(1)));
+        hourly.cloud_cover.push(Math.round(cloud));
+        hourly.relative_humidity_2m.push(Math.round(hum));
+        hourly.wind_speed_10m.push(Number(wind.toFixed(1)));
+        hourly.wind_direction_10m.push(Math.round(dir));
+        hourly.weather_code.push(code);
+        hourly.is_day.push(isDay);
+        tmax = Math.max(tmax, temp); tmin = Math.min(tmin, temp); sumRain += rainPulse; if(h===12) codeDay = code;
+      }
+      daily.temperature_2m_max.push(Number(tmax.toFixed(1)));
+      daily.temperature_2m_min.push(Number(tmin.toFixed(1)));
+      daily.precipitation_sum.push(Number(sumRain.toFixed(1)));
+      daily.weather_code.push(codeDay);
+    }
+    const ci = new Date().getHours();
+    const idx = ci;
+    const current = {
+      temperature_2m: hourly.temperature_2m[idx],
+      relative_humidity_2m: hourly.relative_humidity_2m[idx],
+      precipitation: hourly.precipitation[idx],
+      wind_speed_10m: hourly.wind_speed_10m[idx],
+      wind_direction_10m: hourly.wind_direction_10m[idx],
+      weather_code: hourly.weather_code[idx],
+      is_day: hourly.is_day[idx],
+      apparent_temperature: hourly.apparent_temperature[idx],
+    };
+    return {latitude:loc.latitude, longitude:loc.longitude, timezone:loc.timezone || 'Europe/Athens', current, hourly, daily, __demo:true};
+  }
+
+  function buildFallbackArchive(loc,dateStr){
+    const date = new Date(dateStr+'T00:00:00');
+    const seed = (date.getDate() + date.getMonth()*3) % 11;
+    const hourly = {time:[],temperature_2m:[],apparent_temperature:[],precipitation_probability:[],precipitation:[],cloud_cover:[],relative_humidity_2m:[],wind_speed_10m:[],wind_direction_10m:[],weather_code:[]};
+    for(let h=0; h<24; h++){
+      const stamp = `${dateStr}T${String(h).padStart(2,'0')}:00`;
+      const temp = 14 + 5*Math.sin((h-5)/24*Math.PI*2) + seed*0.4;
+      const cloud = clamp(30 + 40*Math.sin((h+seed)/7), 5, 100);
+      const rain = (seed%3===0 && h>13 && h<18) ? 0.4 + Math.abs(Math.sin(h))*0.8 : 0;
+      const code = rain > 0.9 ? 63 : rain > 0.2 ? 61 : cloud > 65 ? 3 : cloud > 35 ? 2 : 1;
+      const wind = clamp(7 + Math.abs(Math.cos((h+seed)/4))*14, 3, 28);
+      const hum = clamp(48 + cloud*0.45, 35, 98);
+      hourly.time.push(stamp);
+      hourly.temperature_2m.push(Number(temp.toFixed(1)));
+      hourly.apparent_temperature.push(Number((temp - wind/40).toFixed(1)));
+      hourly.precipitation_probability.push(Math.round(clamp(rain*55 + cloud*0.35, 0, 100)));
+      hourly.precipitation.push(Number(rain.toFixed(1)));
+      hourly.cloud_cover.push(Math.round(cloud));
+      hourly.relative_humidity_2m.push(Math.round(hum));
+      hourly.wind_speed_10m.push(Number(wind.toFixed(1)));
+      hourly.wind_direction_10m.push(Math.round((seed*24 + h*17) % 360));
+      hourly.weather_code.push(code);
+    }
+    return {latitude:loc.latitude, longitude:loc.longitude, timezone:loc.timezone || 'Europe/Athens', hourly};
+  }
+
+  function setStatus(msg, type='normal'){
+    const box = $('statusBox');
+    box.className = 'status' + (type==='error' ? ' error' : '');
+    box.textContent = msg;
+  }
+  function setBusy(flag){
+    state.busy = flag;
+    document.body.classList.toggle('loading', flag);
+  }
+
+  async function timedFetch(url, ms=2800){
+    const ctl = new AbortController();
+    const t = setTimeout(()=>ctl.abort(), ms);
+    try{ return await fetch(url,{signal:ctl.signal}); }
+    finally{ clearTimeout(t); }
+  }
+
+  async function geocode(q){
+    const url = `https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(q)}&count=1&language=el&format=json`;
+    try{
+      const res = await timedFetch(url);
+      const data = await res.json();
+      if(!data.results || !data.results.length) throw new Error('Δεν βρέθηκε περιοχή');
+      const r = data.results[0];
+      return {name:r.name, country:r.country, admin1:r.admin1 || '', latitude:r.latitude, longitude:r.longitude, timezone:r.timezone};
+    }catch(err){
+      throw new Error('Δεν ήταν δυνατή η αναζήτηση αυτής της περιοχής. Έλεγξε τη σύνδεση και δοκίμασε ξανά.');
+    }
+  }
+
+  async function fetchForecast(loc){
+    const params = new URLSearchParams({
+      latitude: loc.latitude,
+      longitude: loc.longitude,
+      timezone: loc.timezone || 'auto',
+      forecast_days: '14',
+      hourly: 'temperature_2m,apparent_temperature,precipitation_probability,precipitation,cloud_cover,relative_humidity_2m,wind_speed_10m,wind_direction_10m,weather_code,is_day',
+      daily: 'weather_code,temperature_2m_max,temperature_2m_min,precipitation_sum,sunrise,sunset',
+      current: 'temperature_2m,relative_humidity_2m,precipitation,wind_speed_10m,wind_direction_10m,weather_code,is_day,apparent_temperature'
+    });
+    const url = `https://api.open-meteo.com/v1/forecast?${params.toString()}`;
+    try{
+      const res = await timedFetch(url);
+      if(!res.ok) throw new Error('Αποτυχία φόρτωσης forecast');
+      return await res.json();
+    }catch(err){
+      return buildFallbackForecast(loc);
+    }
+  }
+
+  async function fetchHistoryForDate(loc,dateStr){
+    const cacheKey = `${loc.latitude}|${loc.longitude}|${dateStr}`;
+    if(state.historyCache[cacheKey]) return state.historyCache[cacheKey];
+    const params = new URLSearchParams({
+      latitude: loc.latitude,
+      longitude: loc.longitude,
+      timezone: loc.timezone || 'auto',
+      start_date: dateStr,
+      end_date: dateStr,
+      hourly: 'temperature_2m,apparent_temperature,precipitation_probability,precipitation,cloud_cover,relative_humidity_2m,wind_speed_10m,wind_direction_10m,weather_code'
+    });
+    const url = `https://archive-api.open-meteo.com/v1/archive?${params.toString()}`;
+    try{
+      const res = await timedFetch(url);
+      if(!res.ok) throw new Error('Αποτυχία φόρτωσης ιστορικών δεδομένων');
+      const json = await res.json();
+      state.historyCache[cacheKey] = json;
+      return json;
+    }catch(err){
+      throw new Error('Τα ιστορικά στοιχεία δεν διατίθενται τώρα. Δεν παρουσιάζονται συνθετικά δεδομένα ως πραγματικές μετρήσεις.');
+    }
+  }
+
+  function getDailyForecast(index){
+    if(!state.forecast) return null;
+    const d = state.forecast.daily;
+    return {
+      date: d.time[index],
+      max: d.temperature_2m_max[index],
+      min: d.temperature_2m_min[index],
+      rain: d.precipitation_sum[index],
+      code: d.weather_code[index],
+      sunrise: d.sunrise[index].slice(11,16),
+      sunset: d.sunset[index].slice(11,16),
+    };
+  }
+
+  function hourlyRowsFrom(dataset, dateStr, isForecast=true){
+    const h = dataset.hourly;
+    const out = [];
+    h.time.forEach((time, i) => {
+      if(time.slice(0,10) !== dateStr) return;
+      out.push({
+        idx: out.length,
+        time: time.slice(11,16),
+        temp: h.temperature_2m[i],
+        feel: h.apparent_temperature?.[i] ?? h.temperature_2m[i],
+        rainChance: h.precipitation_probability?.[i] ?? 0,
+        rain: h.precipitation?.[i] ?? 0,
+        cloud: h.cloud_cover?.[i] ?? 0,
+        humidity: h.relative_humidity_2m?.[i] ?? 0,
+        wind: h.wind_speed_10m?.[i] ?? 0,
+        windDir: h.wind_direction_10m?.[i] ?? 0,
+        code: h.weather_code?.[i] ?? 0,
+        isDay: isForecast ? (h.is_day?.[i] ?? ((parseInt(time.slice(11,13),10) >= 7 && parseInt(time.slice(11,13),10) < 19) ? 1 : 0)) : ((parseInt(time.slice(11,13),10) >= 7 && parseInt(time.slice(11,13),10) < 19) ? 1 : 0),
+      });
+    });
+    return out;
+  }
+
+  function currentOverviewRows(){
+    if(!state.forecast) return [];
+    const daily = getDailyForecast(state.selectedDay);
+    return hourlyRowsFrom(state.forecast, daily.date, true);
+  }
+
+  function getSunTimes(dateStr){
+    const forecastDaily = state.forecast?.daily;
+    if(forecastDaily){
+      const i = forecastDaily.time.indexOf(dateStr);
+      if(i >= 0) return {sunrise: forecastDaily.sunrise[i].slice(11,16), sunset: forecastDaily.sunset[i].slice(11,16)};
+    }
+    return {sunrise:'07:00', sunset:'19:00'};
+  }
+
+  function seasonClothes(temp, rain, wind){
+    if(rain > 0.8 || wind > 25) return 'umbrella';
+    if(temp < 8) return 'hood';
+    if(temp < 14) return 'scarf';
+    if(temp > 24) return 'shirt';
+    return 'normal';
+  }
+
+  function resolveSceneType(baseType, locName=''){
+    if(baseType && baseType !== 'auto') return baseType;
+    const q = locName.toLowerCase();
+    if(/λιμάνι|παραλία|μαρίνα|πειραι|γλυφάδα|ελληνικό|βούλα|ποσειδων|νησ|θάλασσ|παραθαλάσσ/.test(q)) return 'sea';
+    if(/χωρι|ναυπ|μέτσοβ|ζαγορ|νήσος|νησί|χωριό/.test(q)) return 'village';
+    if(/όλυμ|παρνασσ|πήλιο|βουν|ορειν/.test(q)) return 'mountain';
+    return 'city';
+  }
+
+  function buildClouds(cloud){
+    const count = clamp(Math.round(cloud / 22), 1, 5);
+    let html = '';
+    for(let i=0;i<count;i++){
+      const left = 5 + i * 19 + (i%2)*4;
+      const top = 12 + (i%3)*10;
+      const alpha = clamp(.25 + cloud / 110, .26, .95);
+      html += `<div class="cloud" style="left:${left}%;top:${top}%;--dur:${16 + i*2}s;--alpha:${alpha}"></div>`;
+    }
+    return html;
+  }
+
+  function buildRain(rain){
+    if(rain < 0.15) return '';
+    const count = clamp(Math.round(10 + rain * 8), 12, 44);
+    let html = '';
+    for(let i=0;i<count;i++){
+      html += `<div class="drop" style="left:${(i*29)%101}%;animation-delay:-${(i*0.11).toFixed(2)}s;--rd:${(0.85 + (i%4)*0.12).toFixed(2)}s"></div>`;
+    }
+    return html;
+  }
+
+  function buildLeaves(season, windDir, wind){
+    const amount = clamp(Math.round(wind / 5), 2, 12);
+    const dx = (windDir > 180 ? -1 : 1) * clamp(90 + wind*4, 110, 280);
+    let html = '';
+    for(let i=0;i<amount;i++){
+      const cls = season === 'autumn' ? 'leaf autumn' : 'leaf';
+      html += `<span class="${cls}" style="left:${38 + (i%3)*12}px;top:${18 + (i%5)*12}px;--dx:${dx}px;animation-delay:-${(i*0.45).toFixed(2)}s;--lfd:${(4 + (i%4)).toFixed(2)}s"></span>`;
+    }
+    return html;
+  }
+
+  function buildLandscape(sceneType, season, windDir, wind){
+    if(sceneType === 'sea'){
+      const dir = windDir > 180 ? 'scaleX(-1)' : 'scaleX(1)';
+      return `
+        <div class="sea">
+          <div class="wave" style="top:10%;--wd:${(5 - Math.min(wind/30,2)).toFixed(2)}s"></div>
+          <div class="wave" style="top:28%;--wd:${(6 - Math.min(wind/35,2)).toFixed(2)}s"></div>
+          <div class="wave" style="top:46%;--wd:${(4.5 - Math.min(wind/40,1.8)).toFixed(2)}s"></div>
+          <div class="boat" style="left:${windDir > 180 ? '62%' : '18%'};transform:${dir}"><div class="mast"></div><div class="sail"></div><div class="hull"></div></div>
+        </div>`;
+    }
+    if(sceneType === 'mountain'){
+      return `
+        <div class="ground ${season}"></div>
+        <div class="mountains">
+          <div class="mountain" style="left:5%"></div>
+          <div class="mountain" style="left:32%;border-bottom-color:rgba(75,102,120,.95)"></div>
+          <div class="mountain" style="left:58%;border-bottom-color:rgba(58,88,104,.86)"></div>
+        </div>`;
+    }
+    if(sceneType === 'village'){
+      return `
+        <div class="ground ${season}"></div>
+        <div class="hills"></div>
+        <div class="village">
+          <div class="house" style="left:12%"></div>
+          <div class="house" style="left:28%;transform:scale(.85)"></div>
+          <div class="house" style="left:68%;transform:scale(1.05)"></div>
+        </div>`;
+    }
+    return `
+      <div class="ground ${season}"></div>
+      <div class="hills"></div>
+      <div class="city-skyline">
+        <div class="building" style="left:8%;width:68px;height:90px"></div>
+        <div class="building" style="left:18%;width:84px;height:132px"></div>
+        <div class="building" style="left:31%;width:74px;height:108px"></div>
+        <div class="building" style="left:44%;width:95px;height:154px"></div>
+        <div class="building" style="left:60%;width:88px;height:124px"></div>
+        <div class="building" style="left:73%;width:72px;height:102px"></div>
+      </div>`;
+  }
+
+  function buildPeople(temp, rain, wind, season){
+    const style = seasonClothes(temp, rain, wind);
+    const peopleCount = temp > 20 ? 2 : 1;
+    let html = '';
+    for(let i=0;i<peopleCount;i++){
+      const cloth = temp > 26 ? '#fff1b6' : temp < 10 ? '#5f8fe8' : (i === 0 ? '#ff8f70' : '#4c91ff');
+      html += `<div class="person" style="--cloth:${cloth}">
+          <div class="head"></div>
+          ${style === 'umbrella' && i === 0 ? '<div class="umbrella"></div>' : ''}
+          ${style === 'hood' ? '<div class="hood"></div>' : ''}
+          ${style === 'shirt' ? '<div class="shirt"></div>' : ''}
+          ${style === 'scarf' ? '<div class="scarf"></div>' : ''}
+          <div class="arm a1"></div><div class="arm a2"></div>
+          <div class="body"></div>
+          <div class="leg l1"></div><div class="leg l2"></div>
+        </div>`;
+    }
+    return html;
+  }
+
+  function renderSceneCard(containerId, cfg){
+    const el = $(containerId);
+    if(!el) return;
+    const rows = cfg.rows || [];
+    if(!rows.length){ el.innerHTML = '<div class="empty">Δεν υπάρχουν διαθέσιμα δεδομένα για αυτήν την επιλογή.</div>'; return; }
+    const row = rows[clamp(cfg.hourIndex,0,rows.length-1)];
+    const season = seasonOf(cfg.dateStr);
+    const sceneType = resolveSceneType(cfg.sceneType, state.location?.name || '');
+    const sun = cfg.sun || {sunrise:'07:00', sunset:'19:00'};
+    const sunriseM = parseHM(sun.sunrise), sunsetM = parseHM(sun.sunset), currentM = parseHM(row.time);
+    const isDay = row.isDay ?? (currentM >= sunriseM && currentM < sunsetM);
+    let progress;
+    if(isDay){ progress = clamp((currentM - sunriseM) / Math.max(1,(sunsetM - sunriseM)), 0, 1); }
+    else {
+      const nightLen = (24*60 - sunsetM) + sunriseM;
+      const passed = currentM < sunriseM ? currentM + (24*60 - sunsetM) : currentM - sunsetM;
+      progress = clamp(passed / Math.max(1, nightLen), 0, 1);
+    }
+    const x = 9 + progress * 82;
+    const y = 49 - Math.sin(Math.PI * progress) * 26;
+    const markerX = x;
+    const markerY = y;
+    const sky = isDay
+      ? (row.code >= 80 || row.rain > 0.2 ? 'linear-gradient(180deg,#5f80b4,#92afd8 55%,#c9d9ec)' : 'linear-gradient(180deg,#4c79c2,#82b3f3 58%,#d6eaff)')
+      : 'linear-gradient(180deg,#15233e,#2a3d69 65%,#4a6394)';
+    const controlsOpen = cfg.controlsOpen;
+    const clouds = buildClouds(row.cloud);
+    const rain = buildRain(row.rain);
+    const leaves = buildLeaves(season, row.windDir, row.wind);
+    const landscape = buildLandscape(sceneType, season, row.windDir, row.wind);
+    const people = buildPeople(row.temp, row.rain, row.wind, season);
+    const windArrowRotation = (row.windDir + 180) % 360;
+    const title = cfg.title || `${state.location?.name || '—'} — ${fmtFull.format(new Date(cfg.dateStr+'T12:00:00'))}`;
+    const sourceText = cfg.source === 'history' ? 'Ιστορικό snapshot' : 'Forecast animation';
+    el.innerHTML = `
+      <div class="scene-wrap ${isDay ? '' : 'night'}" style="background:${sky}">
+        <div class="scene-controls-toggle">
+          <span class="clock-badge">${row.time}</span>
+          <button class="scene-gear" data-action="toggle-controls" data-target="${cfg.controlKey}">⚙</button>
+        </div>
+        <div class="scene-titlebox">
+          <div class="eyebrow">${sourceText} · ${humanScene(sceneType)}</div>
+          <h3>${title}</h3>
+          <div class="subtitle">${weatherText(row.code)} · ${weatherIcon(row.code, isDay ? 1 : 0)} · ${cfg.caption || 'Οπτική απόδοση του καιρού'}</div>
+        </div>
+        <div class="stars"></div>
+        <div class="sun-arc"></div>
+        <div class="arc-point" style="left:${markerX}%;top:${markerY}%"></div>
+        <div class="celestial ${isDay ? '' : 'moon'}" style="left:${x}%;top:${y}%"></div>
+        <div class="cloud-layer">${clouds}</div>
+        <div class="rain-layer">${rain}</div>
+        ${landscape}
+        <div class="tree"><div class="crown"></div><div class="trunk"></div>${leaves}</div>
+        <div class="scene-people">${people}</div>
+        <div class="scene-overlay"></div>
+      </div>
+      <div class="scene-panel">
+        <span class="metric-pill"><span class="icon">🌡️</span><strong>${row.temp.toFixed(1)} °C</strong></span>
+        <span class="metric-pill"><span class="icon">💧</span><strong>${Math.round(row.humidity)} %</strong></span>
+        <span class="metric-pill"><span class="icon">☔</span><strong>${Math.round(row.rainChance)} %</strong></span>
+        <span class="metric-pill"><span class="icon">🌧️</span><strong>${row.rain.toFixed(1)} mm</strong></span>
+        <span class="metric-pill"><span class="icon">🧭</span><strong>${bft(row.wind)} Bft · ${dirLabel(row.windDir)}</strong></span>
+        <div class="rightgrow">
+          <span class="sun-badge">Ανατολή ${sun.sunrise}</span>
+          <span class="sunset-badge">Δύση ${sun.sunset}</span>
+        </div>
+      </div>
+      <div class="scene-ctrls ${controlsOpen ? 'open' : ''}">
+        <button class="pill-btn" data-step="-1" data-target="${cfg.controlKey}">−1h</button>
+        <button class="pill-btn" data-play="${cfg.controlKey}">Auto</button>
+        <button class="pill-btn" data-step="1" data-target="${cfg.controlKey}">+1h</button>
+        <div class="badge">Ώρα ${row.time}</div>
+        <input type="range" min="0" max="23" step="1" value="${cfg.hourIndex}" data-range="${cfg.controlKey}" />
+        <div class="clockline">
+          ${rows.map((r,i)=>`<div class="tick ${i===cfg.hourIndex ? 'active' : ''}" data-jump="${i}" data-target="${cfg.controlKey}">${i%3===0 ? r.time : '·'}</div>`).join('')}
+        </div>
+      </div>`;
+    el.querySelectorAll('[data-step]').forEach(btn=>btn.addEventListener('click',()=>stepHour(btn.dataset.target, Number(btn.dataset.step))));
+    el.querySelectorAll('[data-range]').forEach(input=>input.addEventListener('input',e=>setHourKey(e.target.dataset.range, Number(e.target.value), false)));
+    el.querySelectorAll('[data-jump]').forEach(btn=>btn.addEventListener('click',()=>setHourKey(btn.dataset.target, Number(btn.dataset.jump), false)));
+    el.querySelectorAll('[data-action="toggle-controls"]').forEach(btn=>btn.addEventListener('click',()=>toggleControls(btn.dataset.target)));
+    el.querySelectorAll('[data-play]').forEach(btn=>btn.addEventListener('click',()=>toggleAuto(btn.dataset.play)));
+  }
+
+  const autoplay = {overview:true, scenic:true};
+  let autoTimer = null;
+  function startAutoLoop(){
+    if(autoTimer) clearInterval(autoTimer);
+    autoTimer = setInterval(()=>{
+      if(autoplay.overview){ state.selectedHour = (state.selectedHour + 1) % 24; renderOverviewSceneOnly(); }
+      if(autoplay.scenic){ state.scenicHour = (state.scenicHour + 1) % 24; $('scenicHour').value = state.scenicHour; renderScenic(); }
+    }, 1800);
+  }
+  function toggleControls(target){
+    if(target === 'overview') state.overviewControlsOpen = !state.overviewControlsOpen;
+    if(target === 'scenic') state.scenicControlsOpen = !state.scenicControlsOpen;
+    if(target === 'overview') renderOverviewSceneOnly(); else renderScenic();
+  }
+  function toggleAuto(target){
+    autoplay[target] = !autoplay[target];
+    if(target === 'overview') renderOverviewSceneOnly(); else renderScenic();
+  }
+  function setHourKey(target,val,persist=true){
+    if(target === 'overview'){ autoplay.overview = false; state.selectedHour = clamp(val,0,23); renderOverviewSceneOnly(); }
+    if(target === 'scenic'){ autoplay.scenic = false; state.scenicHour = clamp(val,0,23); $('scenicHour').value = state.scenicHour; renderScenic(); }
+  }
+  function stepHour(target,step){ setHourKey(target, (target === 'overview' ? state.selectedHour : state.scenicHour) + step, false); }
+
+  function renderOverviewSceneOnly(){
+    const daily = getDailyForecast(state.selectedDay);
+    if(!daily) return;
+    const rows = currentOverviewRows();
+    const hourIdx = clamp(state.selectedHour, 0, rows.length-1);
+    renderSceneCard('overviewSceneCard', {
+      rows,
+      hourIndex: hourIdx,
+      dateStr: daily.date,
+      sun: {sunrise: daily.sunrise, sunset: daily.sunset},
+      source: 'forecast',
+      sceneType: state.defaultSceneType,
+      title: `${state.location?.name || '—'} — ${fmtFull.format(new Date(daily.date+'T12:00:00'))}`,
+      caption: autoplay.overview ? 'Αυτόματη εξέλιξη της ημέρας' : 'Διάλεξε ώρα ή άφησέ το να κινηθεί μόνο του',
+      controlsOpen: state.overviewControlsOpen,
+      controlKey: 'overview',
+    });
+  }
+
+  function describeOverview(rows){
+    if(!rows.length) return;
+    const maxTemp = Math.max(...rows.map(r=>r.temp));
+    const minTemp = Math.min(...rows.map(r=>r.temp));
+    const wettest = rows.reduce((a,b)=>a.rain>b.rain?a:b);
+    const windiest = rows.reduce((a,b)=>a.wind>b.wind?a:b);
+    $('overviewInsight1').innerHTML = `<h4>Θερμικό σενάριο</h4><p>Η ημέρα κινείται από <b>${minTemp.toFixed(1)} °C</b> έως <b>${maxTemp.toFixed(1)} °C</b>. Το οπτικό σκηνικό αλλάζει smooth καθώς μεταβάλλονται η ώρα, η νέφωση και το φως.</p>`;
+    $('overviewInsight2').innerHTML = `<h4>Impact καιρού</h4><p>Η εντονότερη πιθανότητα υετού/βροχής εμφανίζεται περίπου στις <b>${wettest.time}</b> με <b>${Math.round(wettest.rainChance)}%</b> και <b>${wettest.rain.toFixed(1)} mm</b>.</p>`;
+    $('overviewInsight3').innerHTML = `<h4>Άνεμος & σκηνικό</h4><p>Ο ισχυρότερος άνεμος είναι στις <b>${windiest.time}</b>, περίπου <b>${bft(windiest.wind)} Bft</b> από <b>${dirLabel(windiest.windDir)}</b>, και επηρεάζει φύλλα, βάρκα/θάλασσα και την αίσθηση του τοπίου.</p>`;
+  }
+
+  function renderDayGrid(){
+    const box = $('daysGrid');
+    if(!state.forecast){ box.innerHTML=''; return; }
+    box.innerHTML = state.forecast.daily.time.map((date,i)=>{
+      const d = getDailyForecast(i);
+      return `<button class="day-tile ${i===state.selectedDay?'active':''}" data-day="${i}">
+        <div class="muted small">${dayLabel(date)}</div>
+        <span class="wx">${weatherIcon(d.code,1)}</span>
+        <strong>${weatherText(d.code)}</strong>
+        <div class="temps">${Math.round(d.max)}° / ${Math.round(d.min)}°</div>
+        <div class="mini muted">${d.rain.toFixed(1)} mm · ${d.sunrise} → ${d.sunset}</div>
+      </button>`;
+    }).join('');
+    box.querySelectorAll('[data-day]').forEach(btn=>btn.addEventListener('click',()=>{ state.selectedDay = Number(btn.dataset.day); state.selectedHour = 12; autoplay.overview = true; renderOverview(); }));
+  }
+
+  function renderHourlyTable(tableId, rows){
+    const t = $(tableId);
+    if(!rows.length){ t.innerHTML=''; return; }
+    t.innerHTML = `
+      <thead><tr><th>Ώρα</th><th>Καιρός</th><th>Θερμ.</th><th>Αισθ.</th><th>Υγρασία</th><th>Βροχή %</th><th>mm</th><th>Άνεμος</th><th>Διεύθυνση</th><th>Νέφωση</th></tr></thead>
+      <tbody>${rows.map(r=>`<tr><td>${r.time}</td><td>${weatherIcon(r.code,r.isDay)} ${weatherText(r.code)}</td><td>${r.temp.toFixed(1)} °C</td><td>${r.feel.toFixed(1)} °C</td><td>${Math.round(r.humidity)} %</td><td>${Math.round(r.rainChance)} %</td><td>${r.rain.toFixed(1)}</td><td>${bft(r.wind)} Bft</td><td>${dirLabel(r.windDir)}</td><td>${Math.round(r.cloud)} %</td></tr>`).join('')}</tbody>`;
+  }
+
+  function renderChart(containerId, rows, selectedIndex, sun, titleHint=''){ 
+    const box = $(containerId);
+    if(!rows.length){ box.innerHTML='<div class="empty">Δεν υπάρχουν δεδομένα για γράφημα.</div>'; return; }
+    const w=1180,h=360,pad={l:56,r:22,t:18,b:54};
+    const innerW=w-pad.l-pad.r, innerH=h-pad.t-pad.b;
+    const temps = rows.map(r=>r.temp), hums = rows.map(r=>r.humidity), rains = rows.map(r=>r.rain), winds = rows.map(r=>bft(r.wind) ?? 0);
+    const minT = Math.floor(Math.min(...temps)-2), maxT = Math.ceil(Math.max(...temps)+2);
+    const x = i => pad.l + (i/(rows.length-1||1))*innerW;
+    const yTemp = v => pad.t + (1 - (v-minT)/(maxT-minT||1))* (innerH*0.48);
+    const yHum = v => pad.t + innerH*0.56 + (1 - v/100) * (innerH*0.18);
+    const yRainBase = pad.t + innerH*0.82;
+    const maxRain = Math.max(1, ...rains);
+    const yWind = v => pad.t + innerH*0.82 - (v/12)*(innerH*0.16);
+    const pathTemp = rows.map((r,i)=>`${i===0?'M':'L'} ${x(i).toFixed(1)} ${yTemp(r.temp).toFixed(1)}`).join(' ');
+    const pathHum = rows.map((r,i)=>`${i===0?'M':'L'} ${x(i).toFixed(1)} ${yHum(r.humidity).toFixed(1)}`).join(' ');
+    const pathWind = rows.map((r,i)=>`${i===0?'M':'L'} ${x(i).toFixed(1)} ${yWind(winds[i]).toFixed(1)}`).join(' ');
+    const idx = clamp(selectedIndex,0,rows.length-1); const sel = rows[idx];
+    const currentX = x(idx), currentY = yTemp(sel.temp);
+    const sunriseIdx = rows.findIndex(r=>r.time>=sun.sunrise); const sunsetIdx = rows.findIndex(r=>r.time>=sun.sunset);
+    const verticals = rows.map((r,i)=>`<line x1="${x(i)}" x2="${x(i)}" y1="${pad.t}" y2="${h-pad.b}" stroke="${i===idx ? 'rgba(255,230,153,.55)' : 'rgba(148,176,223,.16)'}" stroke-dasharray="${i===idx ? '4 4' : '3 6'}" />`).join('');
+    const labels = rows.map((r,i)=>`<text x="${x(i)}" y="${h-18}" fill="${i===idx?'#ffe3a1':'#a8c5ef'}" font-size="11" text-anchor="middle" font-weight="${i===idx?800:600}">${i%3===0 || i===idx ? r.time : '·'}</text>`).join('');
+    const rainBars = rows.map((r,i)=>{
+      const barH = (r.rain / maxRain) * (innerH*0.14);
+      return `<rect x="${x(i)-7}" y="${yRainBase-barH}" width="14" height="${barH}" rx="4" fill="rgba(144,211,255,.72)" />`;
+    }).join('');
+    const windArrows = rows.map((r,i)=>{
+      const rot = (r.windDir + 180) % 360;
+      const yy = h-42;
+      return `<g transform="translate(${x(i)},${yy}) rotate(${rot})"><path d="M0,-10 L5,6 L0,2 L-5,6 Z" fill="#7fe2c9" opacity="${0.55 + (winds[i]/12)*0.4}" /></g>`;
+    }).join('');
+    box.innerHTML = `
+      <svg viewBox="0 0 ${w} ${h}" role="img" aria-label="Weather timeline chart">
+        <defs>
+          <linearGradient id="tempGlow" x1="0" x2="0" y1="0" y2="1"><stop offset="0%" stop-color="#f8ba72"/><stop offset="100%" stop-color="#ee8a47"/></linearGradient>
+          <linearGradient id="humGlow" x1="0" x2="0" y1="0" y2="1"><stop offset="0%" stop-color="#8fdcff"/><stop offset="100%" stop-color="#54b8ff"/></linearGradient>
+        </defs>
+        <rect x="0" y="0" width="${w}" height="${h}" fill="transparent" rx="18" />
+        ${verticals}
+        ${[0,1,2,3,4,5].map(n=>`<line x1="${pad.l}" x2="${w-pad.r}" y1="${pad.t + n*(innerH*0.48/5)}" y2="${pad.t + n*(innerH*0.48/5)}" stroke="rgba(148,176,223,.12)" />`).join('')}
+        ${[0,1,2].map(n=>`<line x1="${pad.l}" x2="${w-pad.r}" y1="${pad.t + innerH*0.56 + n*(innerH*0.18/2)}" y2="${pad.t + innerH*0.56 + n*(innerH*0.18/2)}" stroke="rgba(148,176,223,.1)" />`).join('')}
+        <text x="${pad.l}" y="${pad.t-2}" fill="#a9c2e9" font-size="12" font-weight="800">${titleHint}</text>
+        ${sunriseIdx>=0 ? `<line x1="${x(sunriseIdx)}" x2="${x(sunriseIdx)}" y1="${pad.t}" y2="${h-pad.b}" stroke="rgba(255,221,138,.45)" stroke-dasharray="7 6"/><text x="${x(sunriseIdx)+4}" y="${pad.t+14}" fill="#ffe3a1" font-size="11">Ανατολή ${sun.sunrise}</text>`:''}
+        ${sunsetIdx>=0 ? `<line x1="${x(sunsetIdx)}" x2="${x(sunsetIdx)}" y1="${pad.t}" y2="${h-pad.b}" stroke="rgba(255,221,138,.45)" stroke-dasharray="7 6"/><text x="${x(sunsetIdx)+4}" y="${pad.t+30}" fill="#ffe3a1" font-size="11">Δύση ${sun.sunset}</text>`:''}
+        <path d="${pathTemp}" fill="none" stroke="url(#tempGlow)" stroke-width="4" stroke-linecap="round" stroke-linejoin="round" />
+        <path d="${pathHum}" fill="none" stroke="url(#humGlow)" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" opacity=".92" />
+        <path d="${pathWind}" fill="none" stroke="#ceb6ff" stroke-width="2.4" stroke-dasharray="5 4" stroke-linecap="round" stroke-linejoin="round" opacity=".95" />
+        ${rainBars}
+        ${windArrows}
+        <circle cx="${currentX}" cy="${currentY}" r="8" fill="#fff5d1" stroke="#ffde8a" stroke-width="3" />
+        <circle cx="${currentX}" cy="${currentY}" r="15" fill="none" stroke="rgba(255,230,153,.3)" stroke-width="3" />
+        <rect x="${Math.min(currentX+12,w-170)}" y="${Math.max(currentY-54, 10)}" width="154" height="48" rx="12" fill="rgba(10,18,34,.82)" stroke="rgba(255,255,255,.1)" />
+        <text x="${Math.min(currentX+24,w-158)}" y="${Math.max(currentY-34, 30)}" fill="#fff" font-size="13" font-weight="800">${rows[idx].time} · ${rows[idx].temp.toFixed(1)} °C</text>
+        <text x="${Math.min(currentX+24,w-158)}" y="${Math.max(currentY-16, 48)}" fill="#b9d1f2" font-size="11">${weatherText(rows[idx].code)} · Υγρασία ${Math.round(rows[idx].humidity)}% · ${bft(rows[idx].wind)} Bft</text>
+        ${labels}
+      </svg>`;
+  }
+
+  function renderOverview(){
+    if(!state.forecast) return;
+    const daily = getDailyForecast(state.selectedDay);
+    const rows = currentOverviewRows();
+    const hour = clamp(state.selectedHour,0,rows.length-1);
+    $('overviewMeta').textContent = `${state.location.name}, ${state.location.country} · ${fmtFull.format(new Date(daily.date+'T12:00:00'))} · Scene ${humanScene(resolveSceneType(state.defaultSceneType,state.location.name))}`;
+    $('locationBadge').textContent = `📍 ${state.location.name} · ${state.location.country}`+(state.forecast.__demo?' · DEMO DATA':'');
+    renderOverviewSceneOnly();
+    renderDayGrid();
+    renderChart('overviewChartBox', rows, hour, {sunrise:daily.sunrise,sunset:daily.sunset}, 'Ωριαία μεταβολή');
+    renderHourlyTable('overviewTable', rows);
+    describeOverview(rows);
+  }
+
+  function renderQuickSummary(){
+    if(!state.forecast) return;
+    const c = state.forecast.current;
+    $('quickTemp').textContent = `${Number(c.temperature_2m).toFixed(1)} °C`;
+    $('quickWind').textContent = `${bft(c.wind_speed_10m)} Bft · ${dirLabel(c.wind_direction_10m)}`;
+    $('quickRain').textContent = `${Number(c.precipitation).toFixed(1)} mm`;
+    $('quickHumidity').textContent = `${Math.round(c.relative_humidity_2m)} %`;
+  }
+
+  async function rowsForTimelineDate(dateStr){
+    const today = new Date();
+    const pick = new Date(dateStr+'T12:00:00');
+    const forecastStart = new Date(state.forecast.daily.time[0]+'T12:00:00');
+    const forecastEnd = new Date(state.forecast.daily.time[state.forecast.daily.time.length-1]+'T12:00:00');
+    if(pick >= forecastStart && pick <= forecastEnd){
+      return {source:'forecast', rows: hourlyRowsFrom(state.forecast,dateStr,true), sun:getSunTimes(dateStr)};
+    }
+    const hist = await fetchHistoryForDate(state.location,dateStr);
+    return {source:'history', rows: hourlyRowsFrom(hist,dateStr,false), sun:{sunrise:'07:00', sunset:'19:00'}};
+  }
+
+  async function renderTimeline(){
+    if(!state.forecast) return;
+    const dateStr = $('timelineDate').value || state.forecast.daily.time[state.selectedDay];    $('timelineMeta').textContent = `${state.location.name} · ${fmtFull.format(new Date(dateStr+'T12:00:00'))}`;
+    const payload = await rowsForTimelineDate(dateStr);
+    renderChart('timelineChartBox', payload.rows, clamp(state.selectedHour,0,23), payload.sun, payload.source === 'history' ? 'Ιστορικό 24 ωρών' : 'Forecast 24 ωρών');
+    renderHourlyTable('timelineTable', payload.rows);
+  }
+
+  async function getScenicPayload(){
+    if(!state.forecast) return null;
+    const dateStr = $('scenicDate').value || state.forecast.daily.time[0];
+    const mode = $('scenicSourceMode').value;
+    const today = new Date(); today.setHours(0,0,0,0);
+    const picked = new Date(dateStr+'T00:00:00');
+    let source = mode;
+    if(mode === 'auto') source = picked >= today ? 'forecast' : 'history';
+    if(source === 'forecast'){
+      return {source:'forecast', dateStr, rows: hourlyRowsFrom(state.forecast,dateStr,true), sun:getSunTimes(dateStr)};
+    }
+    const hist = await fetchHistoryForDate(state.location,dateStr);
+    return {source:'history', dateStr, rows: hourlyRowsFrom(hist,dateStr,false), sun:{sunrise:'07:00', sunset:'19:00'}};
+  }
+
+  async function renderScenic(){
+    const payload = await getScenicPayload();
+    if(!payload) return;
+    const sceneType = $('scenicSceneType').value;
+    renderSceneCard('scenicSceneCard', {
+      rows: payload.rows,
+      hourIndex: clamp(Number($('scenicHour').value),0,23),
+      dateStr: payload.dateStr,
+      sun: payload.sun,
+      source: payload.source,
+      sceneType,
+      title: `${state.location?.name || '—'} · ${fmtFull.format(new Date(payload.dateStr+'T12:00:00'))}`,
+      caption: `Scenic ${humanScene(resolveSceneType(sceneType,state.location.name))} · ${payload.source === 'history' ? 'historical' : 'forecast'}`,
+      controlsOpen: state.scenicControlsOpen,
+      controlKey: 'scenic',
+    });
+    renderChart('scenicChartBox', payload.rows, clamp(Number($('scenicHour').value),0,23), payload.sun, payload.source === 'history' ? 'Scenic historical day' : 'Scenic forecast day');
+    const r = payload.rows[clamp(Number($('scenicHour').value),0,23)] || payload.rows[12] || payload.rows[0];
+    $('scenicBadge').textContent = `🎬 ${humanScene(resolveSceneType(sceneType,state.location.name))} · ${payload.source}`;
+    $('scenicInsight1').innerHTML = `<h4>Τι συμβαίνει στο σκηνικό</h4><p>Στο συγκεκριμένο scenic mode το τοπίο αλλάζει με βάση το forecast/history: νέφωση, βροχή, φορά ανέμου, εποχικότητα και τύπο ρούχων των ανθρώπων.</p>`;
+    $('scenicInsight2').innerHTML = `<h4>Αντίκτυπος ώρας</h4><p>Στις <b>${r.time}</b> το animation απεικονίζει <b>${weatherText(r.code)}</b> με <b>${r.temp.toFixed(1)} °C</b>, υγρασία <b>${Math.round(r.humidity)}%</b> και άνεμο <b>${bft(r.wind)} Bft</b>.</p>`;
+    $('scenicInsight3').innerHTML = `<h4>Σενάριο μελέτης</h4><p>Μπορείς να αλλάξεις ημερομηνία, τύπο τοπίου και source για να συγκρίνεις πώς φαίνεται μια ίδια περιοχή ως πόλη, χωριό, βουνό ή θάλασσα.</p>`;
+  }
+
+  function savePrefs(){
+    localStorage.setItem('meteolab-query', state.query);
+    localStorage.setItem('meteolab-default-scene', $('defaultSceneType').value);
+    localStorage.setItem('meteolab-scenic-scene', $('scenicSceneType').value);
+    localStorage.setItem('meteolab-scenic-source', $('scenicSourceMode').value);
+  }
+
+  async function loadLocation(q){
+    try{
+      setBusy(true);
+      setStatus('Αναζήτηση περιοχής και φόρτωση forecast...');
+      state.query = q;
+      savePrefs();
+      const loc = await geocode(q);
+      const forecast = await fetchForecast(loc);
+      state.location = loc;
+      state.forecast = forecast;
+      state.selectedDay = 0;
+      state.selectedHour = new Date().getHours();
+      state.scenicHour = new Date().getHours();
+      state.timelineDate = forecast.daily.time[0];
+      state.scenicDate = forecast.daily.time[0];
+      $('timelineDate').value = state.timelineDate;
+      $('scenicDate').value = state.scenicDate;
+      $('scenicHour').value = state.scenicHour;
+      renderQuickSummary();
+      renderOverview();
+      await renderTimeline();
+      await renderScenic();
+      setStatus(forecast.__demo ? 'ΕΠΙΔΕΙΞΗ / DEMO: Δεν είναι διαθέσιμα ζωντανά δεδομένα. Οι αριθμοί είναι συνθετικοί και όχι πρόγνωση.' : `Έτοιμο · ${loc.name}, ${loc.country} · Forecast 14 ημερών φορτώθηκε.`,forecast.__demo?'error':'normal');
+    }catch(err){
+      console.error(err);
+      setStatus(err.message || 'Κάτι πήγε στραβά κατά τη φόρτωση.', 'error');
+    }finally{ setBusy(false); }
+  }
+
+  function switchView(view){
+    state.view = view;
+    document.querySelectorAll('section').forEach(s=>s.classList.toggle('active', s.id === `view-${view}`));
+    document.querySelectorAll('.tab-btn').forEach(btn=>btn.classList.toggle('active', btn.dataset.view === view));
+  }
+
+  $('searchInput').value = state.query;
+  $('defaultSceneType').value = state.defaultSceneType;
+  $('scenicSceneType').value = state.scenicSceneType;
+  $('scenicSourceMode').value = state.scenicSourceMode;
+  document.querySelectorAll('.tab-btn').forEach(btn=>btn.addEventListener('click',()=>switchView(btn.dataset.view)));
+  $('searchBtn').addEventListener('click',()=>loadLocation($('searchInput').value.trim() || 'Elliniko'));
+  $('searchInput').addEventListener('keydown',e=>{ if(e.key==='Enter') loadLocation($('searchInput').value.trim() || 'Elliniko'); });
+  $('defaultSceneType').addEventListener('change',()=>{ state.defaultSceneType = $('defaultSceneType').value; savePrefs(); renderOverviewSceneOnly(); });
+  $('scenicSceneType').addEventListener('change',()=>{ state.scenicSceneType = $('scenicSceneType').value; savePrefs(); renderScenic(); });
+  $('scenicSourceMode').addEventListener('change',()=>{ state.scenicSourceMode = $('scenicSourceMode').value; savePrefs(); renderScenic(); });
+  $('scenicHour').addEventListener('input',()=>{ autoplay.scenic = false; state.scenicHour = Number($('scenicHour').value); renderScenic(); });
+  $('scenicDate').addEventListener('change',()=>renderScenic());
+  $('timelineDate').addEventListener('change',()=>renderTimeline());
+  $('scenicPrevDay').addEventListener('click',()=>{ const d = new Date(($('scenicDate').value || state.forecast.daily.time[0])+'T00:00:00'); d.setDate(d.getDate()-1); $('scenicDate').value = d.toISOString().slice(0,10); renderScenic(); });
+  $('scenicNextDay').addEventListener('click',()=>{ const d = new Date(($('scenicDate').value || state.forecast.daily.time[0])+'T00:00:00'); d.setDate(d.getDate()+1); $('scenicDate').value = d.toISOString().slice(0,10); renderScenic(); });
+  $('timelinePrevDay').addEventListener('click',()=>{ const d = new Date(($('timelineDate').value || state.forecast.daily.time[0])+'T00:00:00'); d.setDate(d.getDate()-1); $('timelineDate').value = d.toISOString().slice(0,10); renderTimeline(); });
+  $('timelineNextDay').addEventListener('click',()=>{ const d = new Date(($('timelineDate').value || state.forecast.daily.time[0])+'T00:00:00'); d.setDate(d.getDate()+1); $('timelineDate').value = d.toISOString().slice(0,10); renderTimeline(); });
+  startAutoLoop();
+  loadLocation(state.query);
+})();
+</script>
+</body>
+</html>
