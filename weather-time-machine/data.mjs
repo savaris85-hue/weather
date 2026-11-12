@@ -2,7 +2,7 @@
 export const FIELDS = [
   "temperature_2m", "relative_humidity_2m", "precipitation",
   "pressure_msl", "cloud_cover", "wind_speed_10m", "wind_direction_10m",
-  "weather_code", "dew_point_2m", "wind_gusts_10m"
+  "weather_code", "dew_point_2m", "wind_gusts_10m", "shortwave_radiation"
 ];
 
 // Keep explicit date ranges separate from relative past_days/forecast_days.
@@ -16,7 +16,7 @@ export function buildForecastParams(location, start, end, model = "best_match") 
     latitude: location.latitude,
     longitude: location.longitude,
     models: model,
-    hourly: [...FIELDS, "precipitation_probability"].join(","),
+    hourly: [...FIELDS, "precipitation_probability", "uv_index"].join(","),
     start_date: start,
     end_date: end,
     timezone: "GMT",
@@ -77,6 +77,7 @@ export function normalizeHourly(api, kind) {
     }
     row.precipitation_probability = h.precipitation_probability && typeof h.precipitation_probability[i] === "number"
       ? h.precipitation_probability[i] : null;
+    row.uv_index = h.uv_index && typeof h.uv_index[i] === "number" ? h.uv_index[i] : null;
     return row;
   }).filter(Boolean);
 }
@@ -129,11 +130,11 @@ export function aggregateForView(allRows, startMs, endMs, maxHourlyPoints = 3600
 }
 
 export function csvForRows(rows) {
-  const keys = ["t", "kind", ...FIELDS, "precipitation_probability"];
-  const header = ["time_utc", "source", ...keys.slice(2)];
+  const keys = ["t", "kind", ...FIELDS, "precipitation_probability", "uv_index"];
+  const header = ["time_utc", "source", ...keys.slice(2).map(k => k.startsWith("wind_speed") || k.startsWith("wind_gusts") ? k + "_bft" : k)];
   return [header.join(","), ...rows.map(row => [
     new Date(row.t * 1000).toISOString(), row.kind,
-    ...keys.slice(2).map(k => row[k] == null ? "" : row[k])
+    ...keys.slice(2).map(k => row[k] == null ? "" : (k.startsWith("wind_speed") || k.startsWith("wind_gusts") ? beaufort(row[k]) : row[k]))
   ].join(","))].join("\n");
 }
 
@@ -189,7 +190,9 @@ export const ALL_LAYERS = Object.freeze([
   {id:"pressure_msl",label:"Πίεση · Air Pressure",unit:"hPa"},
   {id:"wind_speed_10m",label:"Άνεμος · Wind Speed",unit:"Bft"},
   {id:"wind_gusts_10m",label:"Ριπές · Wind Gusts",unit:"Bft"},
-  {id:"wind_direction_10m",label:"Κατεύθυνση · Wind Direction",unit:""}
+  {id:"wind_direction_10m",label:"Κατεύθυνση · Wind Direction",unit:""},
+  {id:"shortwave_radiation",label:"Ηλιακή ακτινοβολία · Solar Radiation",unit:"W/m²"},
+  {id:"uv_index",label:"Δείκτης UV · UV Index (forecast)",unit:""}
 ]);
 export function cumulativeRain(rows, mode="daily") {
   let sum = 0, prevDay = "";
