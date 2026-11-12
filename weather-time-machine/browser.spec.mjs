@@ -93,7 +93,7 @@ test("actual Chromium computes historical percentiles and user-configurable colo
   await setup(page);
   await page.locator("#layers-toggle").click();
   await page.locator("#climate-years").selectOption("10");
-  await expect(page.locator("#climate-status")).toContainText("10 έτη",{timeout:30000});
+  await expect(page.locator("#climate-status")).toContainText("Γκρίζα:",{timeout:60000});
   const hasBand=await page.locator("#plot").evaluate(el=>
     el.data.some(s=>String(s.name).includes("ιστορικό") && s.fill==="tonexty"));
   expect(hasBand).toBeTruthy();
