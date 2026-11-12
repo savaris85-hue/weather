@@ -91,3 +91,15 @@ The left map has a switchable RainViewer past-radar overlay and Play / Previous 
 ## Verification
 
 GitHub Actions runs Node.js unit tests, mocked browser startup checks, API smoke requests for ERA5 and all selectable forecast models, and Playwright Chromium browser interaction tests. These do not establish that arbitrary third-party providers will always be available; runtime errors are surfaced rather than hiding failures. The original independent code is MIT-licensed; third-party data services retain their own usage restrictions.
+
+
+## v4 · Readable row labels, per-measurement colors, custom climatology and five pinned cities
+
+- **Readable Greek labels**: row names render *inside a reserved chart column*, not as negative Plotly annotations outside the chart. Main plot gets an adaptive left-side domain for labels and y-axis ticks. Small screen day labels are spaced out to avoid crowding.
+- **Each of the 14 weather layers has an independently editable color** in Graphs. Historic values use a lighter stroke of that layer's hue; **forecast values use the darker, thicker stroke of that same hue**. Default forecast thickness 3.5px; editable from 2 to 5px. Existing Classic, Ocean and Contrast presets remain and reset the measurement palette to a coordinated scheme.
+- **Selectable ERA5 reference years**: previous **1, 2, 3, 10, 20 or 44 years**, or a **custom inclusive historical year interval** (up to 44 years from 1940 through the year before the viewed date). Same calendar days and hours are compared. A single-year baseline is clearly labeled as one historical year rather than a statistical climate distribution. Changing the period changes both the mean and gray 10th–90th percentile envelope.
+- **Pin five cities** to the left-hand sidebar. Favorites are stored locally in the browser (not on any server), and can be switched or removed. No login required; settings and pinned cities are local to that device/browser.
+- **Mobile UX**: stacked 2-column date controls, horizontally scrollable header shortcuts and pinned city chips, touch-friendly color selectors, a small visible OpenStreetMap map, full-width graphs with mobile-specific date tick density, and the Graphs settings as a bottom sheet.
+- App still uses **°C and Beaufort**, Open-Meteo forecast model selection, historic ERA5, independent waveform color settings, radar and CSV export.
+
+Data licences remain unchanged. The free Open-Meteo API has usage limits: requesting 44 historical years can require multiple network calls and may take longer than a 1/2/3-year comparison. Tests use mocked weather data for deterministic UI checks, in addition to separate live Open-Meteo API contract tests.

@@ -2,7 +2,7 @@
 const DAY=86400000;
 const FIELDS=["temperature_2m","relative_humidity_2m","dew_point_2m","cloud_cover","precipitation","pressure_msl","wind_speed_10m","shortwave_radiation"];
 export const CLIMATE_FIELDS=Object.freeze(FIELDS);
-export const MIN_CLIMATE_YEARS=5;
+export const MIN_CLIMATE_YEARS=1;
 const iso=ms=>new Date(ms).toISOString().slice(0,10);
 const shiftYear=(date,year)=>{
   const mmdd=date.slice(5);
@@ -91,4 +91,24 @@ export function climateQueryParams(location,start,end) {
 export function isClimateSupported(start,end) {
   const delta=(Date.parse(end+"T00:00:00Z")-Date.parse(start+"T00:00:00Z"))/DAY;
   return delta>=0&&delta<=31;
+}
+
+
+// A user-selected climatology baseline is a list of *whole reference years*
+// rather than an arbitrary subset of dates. Each year's month/day/hour
+// is matched to the visible calendar period, including year-crossing periods.
+// Allow 1-44 years to avoid excessive free-API requests.
+export function historicalSamplesCustomRange(start,end,fromYear,toYear) {
+  if(!Number.isInteger(fromYear)||!Number.isInteger(toYear) ||
+     fromYear<1940||toYear<fromYear||toYear-fromYear+1>44 ||
+     toYear>Math.min(2025,Number(start.slice(0,4))-1)) {
+    throw new Error("Επίλεξε συνεχόμενα 1–44 έτη από το 1940 έως το προηγούμενο έτος.");
+  }
+  const days=(Date.parse(end+"T00:00:00Z")-Date.parse(start+"T00:00:00Z"))/DAY+1;
+  if(!Number.isFinite(days)||days<1||days>32) return [];
+  const wraps=Number(end.slice(0,4))>Number(start.slice(0,4));
+  return Array.from({length:toYear-fromYear+1},(_,i)=>{
+    const year=fromYear+i;
+    return {year,start:shiftYear(start,year),end:shiftYear(end,year+(wraps?1:0))};
+  });
 }

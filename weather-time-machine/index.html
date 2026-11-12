@@ -68,6 +68,73 @@ header{display:flex;align-items:center;gap:14px;flex-wrap:wrap;padding:8px 14px;
 .radar-controls input{accent-color:#4f69dc}
 .radar-controls button{border:1px solid #c1d0e3;background:#fff;padding:3px 6px;border-radius:3px;color:#37577a}
 .radar-controls #radar-time{color:#557089;flex:1;text-align:right;font-size:10px}
+
+/* v4: legible full-width chart labels, per-measurement colors, favorites and mobile ergonomics */
+.pin-section{padding:9px 12px 12px;border-bottom:1px solid #cbd7e5;background:#f8fbff}
+.pin-head{display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap;margin-bottom:7px;color:#243c60;font-size:12px}
+.pin-head button,.pin-chip,.pin-remove{border:1px solid #aebfdb;background:#fff;border-radius:6px;color:#31517d;padding:6px 9px;font-size:12px}
+.pin-head button{font-weight:700}.pin-head button:disabled{opacity:.55}
+.pin-list{display:flex;gap:6px;flex-wrap:wrap}.pin-item{display:flex;align-items:center;border-radius:8px;border:1px solid #bccce0;background:white}
+.pin-chip{border:0;background:transparent;max-width:185px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.pin-item.active{border-color:#5076d7;background:#e7f0ff}.pin-remove{border:0;border-left:1px solid #d6deeb;padding:6px;color:#7f4053;background:transparent}
+.pin-empty{font-size:11px;color:#7c8da4}.climate-year-range[hidden]{display:none}
+.climate-year-range{display:flex;align-items:end;gap:6px;flex-wrap:wrap;margin:8px 0 12px}
+.climate-year-range label{display:grid;gap:2px;flex:1;min-width:100px;font-size:11px;color:#506883}
+.climate-year-range input{width:100%;padding:6px;border:1px solid #bfcfe3;border-radius:5px;background:#fff;color:#253d5f}
+.climate-year-range button{border:0;border-radius:5px;background:#516ad8;color:white;padding:7px 9px}
+.layer-item .layer-color{width:32px;height:30px;flex:none;padding:1px;border:1px solid #c6d0e0;border-radius:5px;cursor:pointer;background:white}
+.layer-item{min-height:34px}.layer-item .layer-title{min-width:0;overflow-wrap:anywhere;font-size:12px}
+.layer-panel{width:min(355px,calc(100vw - 22px))}
+#plot{overflow:visible}.plot-wrap{overflow:visible}
+#forecast-weight{width:100%;height:26px;accent-color:#516ad8}
+@media(max-width:1100px){
+ .workspace{grid-template-columns:minmax(240px,290px) minmax(0,1fr)}
+ .header-tools{margin-left:0}
+ .controls{justify-content:flex-start}
+}
+@media(max-width:800px){
+ body{overflow-x:hidden}
+ header{gap:6px;padding:8px 10px;align-items:center}
+ .brand strong{font-size:18px;letter-spacing:-.6px}
+ .header-tools{width:100%;display:flex;flex-wrap:nowrap;overflow-x:auto;scrollbar-width:thin;gap:5px;padding:5px 1px 3px}
+ .navbutton{flex:none;min-height:34px;font-size:12px}
+ .workspace{grid-template-columns:minmax(0,1fr);display:block;min-width:0}
+ .sidebar{border-right:0;width:100%;display:block}
+ .location-search{padding:9px 12px 5px}
+ .pin-list{flex-wrap:nowrap;overflow-x:auto;padding:2px 0 5px;scrollbar-width:thin}
+ .pin-item{flex:none}
+ .current{padding:8px 12px}
+ .conditions{margin-top:4px}.current-icon{font-size:33px}.current-temp{font-size:26px}
+ .current .condition-meta{grid-template-columns:1fr auto 1fr auto;gap:5px 7px;font-size:11px}
+ .map-title{display:block;font-size:12px;padding:6px}
+ #map{display:block;height:215px;min-height:180px;max-height:260px}
+ .radar-controls{padding:5px 8px}
+ .controls{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:7px;padding:9px}
+ .controls>.control-group{min-width:0}
+ .controls>.control-group:nth-child(3){grid-column:1/-1}
+ .controls input,.controls select{width:100%;min-width:0}
+ .buttons{grid-column:1/-1;display:flex;flex-wrap:wrap}
+ .buttons button{flex:1 1 auto;min-height:38px}
+ .legend-strip{gap:6px 10px;padding:7px 10px;font-size:11px}
+ .plot-wrap{padding:5px 0 0;max-width:100%}
+ .plot-heading{padding:3px 10px;align-items:flex-start}
+ .plot-heading h2{font-size:14px}
+ .plot-heading p{font-size:11px}
+ #plot{min-height:650px;width:100%}
+ #overview{height:112px}
+ .layer-panel{position:fixed;right:6px;left:6px;top:auto;bottom:8px;width:auto;max-height:75dvh;overflow-y:auto;border-radius:12px;z-index:2200}
+ .layer-item .layer-color{width:36px;height:36px}
+ .layer-item{min-height:40px}
+ .navigator-title{font-size:11px;margin:4px 9px}
+}
+@media(max-width:390px){
+ .brand strong{font-size:16px}
+ .conditions{gap:6px}
+ .current .condition-meta{grid-template-columns:1fr auto;font-size:11px}
+ .controls{gap:6px}
+ .buttons button{font-size:11px;padding:7px 6px}
+}
+
 </style>
 </head>
 <body>
@@ -92,6 +159,7 @@ header{display:flex;align-items:center;gap:14px;flex-wrap:wrap;padding:8px 14px;
 <input id="place" value="Elliniko, Greece" autocomplete="off">
 <div id="suggestions" role="listbox"></div>
 </div>
+<div class="pin-section" aria-label="Αγαπημένες πόλεις"><div class="pin-head"><strong>★ Οι πόλεις μου <span id="pin-count">0/5</span></strong><button id="pin-current" type="button">☆ Αποθήκευση πόλης</button></div><div id="pinned-cities" class="pin-list"><span class="pin-empty">Καρφίτσωσε έως 5 πόλεις για γρήγορη εναλλαγή.</span></div></div>
 <div class="current">
 <h2 id="current-place">Elliniko, Greece</h2><div class="muted" id="current-time">Loading weather timeline…</div>
 <div class="conditions"><span class="current-icon" id="current-icon">⛅</span><div><div class="current-temp" id="current-temp">— °C</div><div class="muted" id="current-desc">Historical / Forecast</div></div></div>
@@ -131,12 +199,13 @@ header{display:flex;align-items:center;gap:14px;flex-wrap:wrap;padding:8px 14px;
 <div id="overview" role="img" aria-label="Κάτω χρονογραμμή για zoom και μετακίνηση"></div>
 <div class="layer-panel" id="layer-panel" hidden>
 <h3>Layers · Επιλογή γραφημάτων</h3>
-<div id="layer-options"></div>
-<div class="control-group"><label for="climate-years">Γκρίζες ιστορικές καμπύλες · Κλιματική σύγκριση</label><select id="climate-years"><option value="0">Κρυφές · χωρίς κλιματικά στατιστικά</option><option value="10">10 ιστορικά έτη</option><option value="20" selected>20 ιστορικά έτη (γρήγορο)</option><option value="44">44 ιστορικά έτη (όπως WeatherDave)</option></select></div>
+<p class="mini-note">Κάθε παράμετρος έχει δικό της χρώμα. Το ιστορικό φαίνεται πιο ανοιχτό και η πρόγνωση πιο σκούρα και έντονη.</p><div id="layer-options"></div>
+<div class="control-group"><label for="climate-years">Γκρίζες ιστορικές καμπύλες · Κλιματική σύγκριση</label><select id="climate-years"><option value="0">Κρυφές · χωρίς κλιματικά στατιστικά</option><option value="1">1 προηγούμενο έτος</option><option value="2">2 προηγούμενα έτη</option><option value="3">3 προηγούμενα έτη</option><option value="10">10 ιστορικά έτη</option><option value="20" selected>20 ιστορικά έτη (γρήγορο)</option><option value="44">44 ιστορικά έτη (όπως WeatherDave)</option><option value="custom">Επιλογή ετών (από–έως)…</option></select></div>
+<div id="climate-custom-range" class="climate-year-range" hidden><label>Από έτος<input id="climate-year-from" type="number" min="1940" max="2025" value="2000"></label><label>Έως έτος<input id="climate-year-to" type="number" min="1940" max="2025" value="2020"></label><button id="climate-apply" type="button">Εφαρμογή</button></div>
 <label class="climate-compare"><input type="checkbox" id="compare-last-year"> Σύγκριση με το προηγούμενο έτος</label>
 <div id="climate-status" class="mini-note">Το γκρίζο υπόβαθρο δείχνει μέση τιμή και εύρος 10–90% για την ίδια εποχή — όχι μόνο πέρυσι.</div>
 <div class="control-group"><label for="height-slider">Ύψος κάθε γραφήματος</label><input type="range" id="height-slider" min="82" max="190" step="4" value="112"></div>
-<div class="control-group"><label for="wave-palette">Χρώματα γραμμών</label><select id="wave-palette"><option value="classic">Classic · Μαύρο / Κόκκινο</option><option value="ocean">Ocean · Μπλε / Τυρκουάζ</option><option value="contrast">Contrast · Μαύρο / Μωβ</option><option value="custom">Προσαρμοσμένα</option></select></div>
+<div class="control-group"><label for="forecast-weight">Πάχος γραμμής πρόγνωσης</label><input type="range" id="forecast-weight" min="2" max="5" step=".5" value="3.5"></div><div class="control-group"><label for="wave-palette">Χρώματα γραμμών</label><select id="wave-palette"><option value="classic">Classic · ξεχωριστά χρώματα ανά παράμετρο</option><option value="ocean">Ocean · Μπλε / Τυρκουάζ</option><option value="contrast">Contrast · Μαύρο / Μωβ</option><option value="custom">Προσαρμοσμένα</option></select></div>
 <div class="color-pickers"><label>Ιστορικό <input type="color" id="history-color" value="#243446"></label><label>Πρόγνωση <input type="color" id="forecast-color" value="#d8392d"></label><label>Κλίμα <input type="color" id="climate-color" value="#98a4b3"></label></div>
 <div class="control-group"><label for="rain-mode">Συσσώρευση βροχής</label><select id="rain-mode"><option value="daily">Ανά ημέρα (reset 00:00 UTC)</option><option value="total">Συνολικά από την αρχή της προβολής</option></select></div>
 <div class="panel-buttons"><button id="save-layout">Αποθήκευση</button><button id="reset-layout">Επαναφορά</button><button id="close-layers">Κλείσιμο</button></div>
