@@ -136,3 +136,16 @@ QA: checked both scripts' syntax and DOM references; executed simulated sign-in,
 - Added a waveform thickness control, a reset-colors button, and a switch to hide/show the persistent date ribbon. The controls are persisted in the existing localStorage layout settings, and Reset layout restores defaults.
 - Reduced native zoom-slider label clutter and placed it lower to avoid overlapping the dates. Bumped CSS/JS version query parameters to 102.
 - Verified source syntax, DOM references, graph-series day-mark options, last axis label visibility, zoom slider bottom placement and date-ribbon generation using mocked ECharts/forecast responses. **Actual GitHub Pages browser rendering and real external API/CDN behavior have not been visually verified.**
+
+## MeteoLab v1.2 — Overview homepage, consistent scientific pages and mobile support (2026-11-12)
+
+- **Overview is now the default first navigation tab and homepage.** The Weather Timeline remains one click away as the second tab. All local settings, rules, and geofences are preserved.
+- The sidebar and site footer credit **Developed by Antonis Savaris**.
+- Mobile experience: horizontally scrollable, sticky navigation bar, responsive weather cards, stacked scientific comparison charts, vertically compact controls and horizontal data-table scrolling. No standalone APK or native background alerts are implied.
+- History and Comparisons now share the same **dark scientific workstation** styling for cards, chart canvases, controls and tables. An explicit comparison data table was added for both year-over-year and forecast model comparisons, with CSV export retained.
+- Chart.js graphs in History and Comparisons have coordinated dark grid, axis labels, legends and tooltips. Overview/Forecast charts intentionally retain their existing light appearance.
+- On the main Timeline, historical ERA5 curves use the **same selected layer hue but thinner, dashed, 34%-opacity strokes**. Recent retrospective hourly data is a subtle dotted version of the same color, while future forecast strokes are thicker and stronger. Source distinctions remain present in labels and exports.
+- The sticky UTC date rail changes to a muted gray treatment when scrolling down the page, retaining date visibility; it reverts on returning to the top. This is controlled by page scroll and does not alter the underlying timeline values.
+- Asset query versions changed to 104 to reduce issues with stale GitHub Pages/browser caching.
+
+QA: Verified syntax of the main inline JavaScript and Timeline module, no duplicate or missing referenced DOM IDs, Overview as default view, comparison-table wiring, mobile and gray-scroll CSS, consistent dark chart options, and historical-vs-forecast line styling. These are source/static tests; actual browser and on-device screen testing and external API behavior remain unverified.
