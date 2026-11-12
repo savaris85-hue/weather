@@ -26,6 +26,7 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: '22'
+      - run: node weather-time-machine/live-api-smoke.mjs
       - run: npm install --no-save @playwright/test@1.56.1
       - run: npx playwright install --with-deps chromium
       - run: npx playwright test --config=weather-time-machine/playwright.config.mjs
