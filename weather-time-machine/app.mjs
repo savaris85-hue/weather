@@ -878,13 +878,72 @@ function setupMap() {
     $("#map").querySelector(".map-fallback")?.remove();
   }catch(error){console.warn("Map unavailable",error);}
 }
-function locationChanged() {
+function updateLocationUI(){
+  const label=placeLabel(state.place);
+  controls.place.value=label;
+  $("#current-place").textContent=label;
+  $("#chart-title").textContent=label+" · Ιστορικό + "+modelConfig().label;
+  $("#chart-subtitle").textContent="Φόρτωση δεδομένων για "+label+"…";
   renderPins();
+}
+function resetCurrentMetrics(){
+  $("#current-time").textContent="Φόρτωση δεδομένων νέας περιοχής…";
+  $("#current-temp").textContent="— °C";
+  $("#current-icon").textContent="⛅";
+  $("#current-desc").textContent="Αναμονή πρόγνωσης";
+  for(const id of ["#current-cloud","#current-humidity","#current-wind","#current-direction","#current-pressure","#current-rain"])$(id).textContent="—";
+}
+function locationChanged(){
   resetData();
-  $("#current-place").textContent=state.place.name+", "+(state.place.country||"");
+  resetCurrentMetrics();
+  updateLocationUI();
+  if(typeof Plotly!=="undefined"&&typeof Plotly.purge==="function"){
+    Plotly.purge(controls.plot);Plotly.purge($("#overview"));
+  }else{
+    controls.plot.replaceChildren();$("#overview").replaceChildren();
+  }
+  state.plotBound=false;state.overviewBound=false;
+  $("#nav-loaded-range").textContent="Φορτωμένο διάστημα: —";
   state.marker?.setLatLng([state.place.latitude,state.place.longitude]);
   state.map?.setView([state.place.latitude,state.place.longitude],6);
   refresh({reason:"location"});
+}
+const reverseCache=new Map();
+let reverseLastCall=0,mapReverseController=null;
+async function reverseMapPlace(lat,lon,signal){
+  const key=lat.toFixed(3)+":"+lon.toFixed(3);
+  if(reverseCache.has(key))return reverseCache.get(key);
+  const elapsed=Date.now()-reverseLastCall;
+  if(elapsed<1200)await new Promise(resolve=>setTimeout(resolve,1200-elapsed));
+  if(signal.aborted)return null;
+  reverseLastCall=Date.now();
+  const url=query("https://nominatim.openstreetmap.org/reverse",{
+    lat:lat.toFixed(5),lon:lon.toFixed(5),
+    format:"jsonv2",zoom:13,addressdetails:1,"accept-language":"el"
+  });
+  const response=await fetch(url,{signal});
+  if(!response.ok)throw new Error("Reverse location lookup "+response.status);
+  const place=nearestPlaceName(await response.json());
+  if(place)reverseCache.set(key,place);
+  return place;
+}
+async function selectMapLocation(lat,lon){
+  if(mapReverseController)mapReverseController.abort();
+  const ctrl=new AbortController();mapReverseController=ctrl;
+  const token=++state.locationLookupId;
+  state.marker?.setLatLng([lat,lon]);
+  controls.place.value="Εντοπισμός κοντινής περιοχής…";
+  $("#current-place").textContent="Εντοπισμός κοντινής περιοχής…";
+  showStatus("Αναζήτηση πλησιέστερης περιοχής στον χάρτη…");
+  let named=null;
+  try{named=await reverseMapPlace(lat,lon,ctrl.signal)}
+  catch(error){if(error.name==="AbortError")return}
+  if(ctrl.signal.aborted||token!==state.locationLookupId)return;
+  state.place={
+    ...(named||{name:"Επιλεγμένη περιοχή",country:""}),
+    latitude:lat,longitude:lon,timezone:"GMT"
+  };
+  locationChanged();
 }
 let searchTimeout;
 controls.place.addEventListener("input",()=>{
