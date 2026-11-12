@@ -105,7 +105,7 @@ async function loadForecastExtra(){
  if(!place)return;
  const seq=++forecastSeq,lat=place.lat,lon=place.lon;
  try{
-  const p=new URLSearchParams({latitude:String(lat),longitude:String(lon),timezone:"UTC",forecast_days:"14",hourly:"pressure_msl,wind_direction_10m,dew_point_2m,wind_gusts_10m"});
+  const p=new URLSearchParams({latitude:String(lat),longitude:String(lon),timezone:"UTC",past_days:"10",forecast_days:"14",hourly:"temperature_2m,relative_humidity_2m,precipitation,precipitation_probability,cloud_cover,wind_speed_10m,weather_code,pressure_msl,wind_direction_10m,dew_point_2m,wind_gusts_10m"});
   if(model!=="best_match")p.set("models",model);
   const res=await fetch("https://api.open-meteo.com/v1/forecast?"+p);
   if(!res.ok)throw Error("Additional parameters unavailable");
@@ -113,11 +113,22 @@ async function loadForecastExtra(){
   forecastExtra=result;render();
  }catch(e){if(seq===forecastSeq){forecastExtra=null;render();status(en()?"Some extended layers are unavailable for this model.":"Ορισμένα πρόσθετα layers δεν διατίθενται από αυτό το μοντέλο.")}}
 }
+function buildRecentModel(){
+ const h=forecastExtra?.hourly;if(!h?.time?.length)return[];
+ const core=buildForecast(),firstCore=core.length?Math.min(...core.map(r=>r.t)):Infinity;
+ return h.time.map((time,i)=>({t:timestamp(time),kind:"recent-model",temperature:number(h.temperature_2m?.[i]),humidity:number(h.relative_humidity_2m?.[i]),
+ precipitation:number(h.precipitation?.[i]),probability:number(h.precipitation_probability?.[i]),pressure:number(h.pressure_msl?.[i]),
+ wind:bft(h.wind_speed_10m?.[i]),cloud:number(h.cloud_cover?.[i]),direction:number(h.wind_direction_10m?.[i]),
+ dew:number(h.dew_point_2m?.[i]),gusts:bft(h.wind_gusts_10m?.[i]),code:number(h.weather_code?.[i])}))
+ .filter(r=>Number.isFinite(r.t)&&r.t<firstCore&&r.t>=Date.now()-11*DAY);
+}
 function rowsAll(){
- const f=buildForecast();
- const cutoff=f.length?Math.min(...f.map(r=>r.t)):Infinity;
+ const f=buildForecast(),recent=buildRecentModel();
+ const firstRecent=recent.length?Math.min(...recent.map(r=>r.t)):Infinity;
+ const firstFuture=f.length?Math.min(...f.map(r=>r.t)):Infinity;
+ const cutoff=Math.min(firstRecent,firstFuture);
  const past=[...history.values()].filter(r=>r.t<cutoff).sort((a,b)=>a.t-b.t);
- return [...past,...f.sort((a,b)=>a.t-b.t)];
+ return [...past,...recent,...f].sort((a,b)=>a.t-b.t);
 }
 function drawLayerControls(){
  const root=$("tlLayerControls");if(!root)return;
@@ -127,6 +138,7 @@ function drawLayerControls(){
 }
 function chartSeries(layer,rows,gridIndex,now){
  const hist=rows.filter(r=>r.kind==="history"&&r[layer.key]!=null).map(r=>[r.t,r[layer.key]]);
+ const recent=rows.filter(r=>r.kind==="recent-model"&&r[layer.key]!=null).map(r=>[r.t,r[layer.key]]);
  const fut=rows.filter(r=>r.kind==="forecast"&&r[layer.key]!=null).map(r=>[r.t,r[layer.key]]);
  const base={xAxisIndex:gridIndex,yAxisIndex:gridIndex,showSymbol:false,connectNulls:false,emphasis:{focus:"series"},large:true,animation:false};
  const name=layer.name.replace(/^[^ ]+ /,""),color=colors[layer.key];
@@ -136,7 +148,10 @@ function chartSeries(layer,rows,gridIndex,now){
  const isRain=layer.key==="precipitation";
  const make=(data,historical)=>({...base,name:(historical?"ERA5 daily · ":"Forecast hourly · ")+name,type:isRain?"bar":"line",
  data,barMaxWidth:9,barGap:"-100%",smooth:!isRain,sampling:"lttb",lineStyle:{width:historical?1.7:2.2,type:historical?"dashed":"solid"},itemStyle:{color:historical?"#68c8e5":color},areaStyle:isRain?{color:historical?"#68c8e542":color+"4a"}:undefined,markLine:(!historical?{silent:true,symbol:"none",label:{show:false},lineStyle:{color:"#e8d0fc",width:1.5,type:"dashed"},data:[{xAxis:now}]}:undefined)});
- return [make(hist,true),make(fut,false)];
+ const recentLine={...base,name:"Recent model hourly · "+name,type:isRain?"bar":"line",data:recent,
+ barMaxWidth:8,smooth:!isRain,sampling:"lttb",lineStyle:{width:1.8,type:"dotted"},
+ itemStyle:{color:"#6bd5b2"},areaStyle:isRain?{color:"#6bd5b24a"}:undefined};
+ return [make(hist,true),recentLine,make(fut,false)];
 }
 function render(){
  if(!active||!window.echarts)return;
@@ -160,12 +175,12 @@ function render(){
  tooltip:{trigger:"axis",confine:true,backgroundColor:"#14243c",borderColor:"#526688",textStyle:{color:"#e1edff",fontSize:11},axisPointer:{type:"cross",crossStyle:{color:"#c0d8ff"}},formatter:params=>{if(!params?.length)return"";const stamp=Number(params[0].axisValue);return '<b>'+utcFormatter(stamp)+'</b><br>'+params.filter(p=>p.value?.[1]!=null).slice(0,10).map(p=>'<span style="color:'+p.color+'">●</span> '+p.seriesName+': <b>'+Number(p.value[1]).toFixed(1)+'</b>').join("<br>")}},
  axisPointer:{show:true,link:[{xAxisIndex:"all"}],label:{backgroundColor:"#355276"}},
  dataZoom:[{type:"inside",xAxisIndex:axisIndices,filterMode:"none",zoomOnMouseWheel:true,moveOnMouseMove:true,moveOnMouseWheel:true,startValue:start,endValue:end,throttle:65},{type:"slider",xAxisIndex:axisIndices,filterMode:"none",height:24,bottom:5,backgroundColor:"#101a2e",borderColor:"#405371",fillerColor:"#4a78b64b",handleStyle:{color:"#7faee8"},textStyle:{color:"#acc1dd",fontSize:10},startValue:start,endValue:end}],
- graphic:[{type:"text",left:76,top:9,style:{text:"HISTORY  ·  DAILY REANALYSIS",font:"10px sans-serif",fill:"#75cce7"}},{type:"text",right:26,top:9,style:{text:"FORECAST  ·  HOURLY",font:"10px sans-serif",fill:"#ffb37e"}}]
+ graphic:[{type:"text",left:76,top:9,style:{text:"ERA5 DAILY / RECENT MODEL HOURLY",font:"10px sans-serif",fill:"#75cce7"}},{type:"text",right:26,top:9,style:{text:"FORECAST  ·  HOURLY",font:"10px sans-serif",fill:"#ffb37e"}}]
  };
  renderLock=true;chart.setOption(opts,true);renderLock=false;
  $("tlTitle").textContent=(place?.name||"Athens")+" — Weather Timeline";
  $("tlRange").textContent=dateUTC(start)+" → "+dateUTC(end)+" UTC";
- $("tlSource").innerHTML="Forecast: Open-Meteo "+String(model).replace(/_/g," ")+"<br>Historical: ERA5 daily reanalysis<br>"+history.size+" archived days";
+ $("tlSource").innerHTML="Forecast: Open-Meteo "+String(model).replace(/_/g," ")+"<br>Recent model: archived forecast (hourly)<br>Historical: ERA5 daily reanalysis<br>"+history.size+" archived days";
  $("tlIconRow").innerHTML=buildIcons(buildForecast(),start,end);
  if(historyOldest===null)status(en()?"Forecast loaded. Loading daily history…":"Η πρόγνωση φορτώθηκε. Ανακτάται το ημερήσιο ιστορικό…");
 }
