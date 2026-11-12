@@ -53,14 +53,14 @@ async function storeChunk(key,rows){
 }
 function historyKey(start,end){return [place?.lat?.toFixed(4),place?.lon?.toFixed(4),"era5",dateUTC(start),dateUTC(end)].join("|")}
 function archiveRow(t,raw,i){
- return {t,temperature:number(raw.temperature_2m_mean?.[i]),humidity:number(raw.relative_humidity_2m_mean?.[i]),precipitation:number(raw.precipitation_sum?.[i]),pressure:null,wind:bft(raw.wind_speed_10m_max?.[i]),cloud:null,probability:null,direction:null,dew:null,gusts:null,kind:"history"};
+ return {t,temperature:number(raw.temperature_2m_mean?.[i]),humidity:number(raw.relative_humidity_2m_mean?.[i]),precipitation:number(raw.precipitation_sum?.[i]),pressure:number(raw.pressure_msl_mean?.[i]),wind:bft(raw.wind_speed_10m_max?.[i]),cloud:number(raw.cloud_cover_mean?.[i]),probability:null,direction:number(raw.wind_direction_10m_dominant?.[i]),dew:number(raw.dew_point_2m_mean?.[i]),gusts:null,kind:"history"};
 }
 async function requestArchive(start,end,seq){
  if(start> end)return[];
  const key=historyKey(start,end);
  let rows=await cachedChunk(key);
  if(!rows){
-  const url="https://archive-api.open-meteo.com/v1/archive?"+new URLSearchParams({latitude:String(place.lat),longitude:String(place.lon),start_date:dateUTC(start),end_date:dateUTC(end),timezone:"UTC",models:"era5",daily:"temperature_2m_mean,relative_humidity_2m_mean,precipitation_sum,wind_speed_10m_max"});
+  const url="https://archive-api.open-meteo.com/v1/archive?"+new URLSearchParams({latitude:String(place.lat),longitude:String(place.lon),start_date:dateUTC(start),end_date:dateUTC(end),timezone:"UTC",models:"era5",daily:"temperature_2m_mean,relative_humidity_2m_mean,precipitation_sum,wind_speed_10m_max,pressure_msl_mean,cloud_cover_mean,dew_point_2m_mean,wind_direction_10m_dominant"});
   const response=await fetch(url);if(!response.ok)throw Error("Archive "+response.status);
   const json=await response.json();if(json.error)throw Error(json.reason||"Archive error");
   const daily=json.daily;if(!daily?.time?.length)throw Error("No historical archive returned");
@@ -104,7 +104,7 @@ async function loadForecastExtra(){
  if(!place)return;
  const seq=++forecastSeq,lat=place.lat,lon=place.lon;
  try{
-  const p=new URLSearchParams({latitude:String(lat),longitude:String(lon),timezone:"UTC",forecast_days:"14",hourly:"pressure_msl,wind_direction_10m,dew_point_2m,wind_gusts_10m,visibility"});
+  const p=new URLSearchParams({latitude:String(lat),longitude:String(lon),timezone:"UTC",forecast_days:"14",hourly:"pressure_msl,wind_direction_10m,dew_point_2m,wind_gusts_10m"});
   if(model!=="best_match")p.set("models",model);
   const res=await fetch("https://api.open-meteo.com/v1/forecast?"+p);
   if(!res.ok)throw Error("Additional parameters unavailable");
@@ -130,7 +130,7 @@ function chartSeries(layer,rows,gridIndex,now){
  const base={xAxisIndex:gridIndex,yAxisIndex:gridIndex,showSymbol:false,connectNulls:false,emphasis:{focus:"series"},large:true,animation:false};
  const name=layer.name.replace(/^[^ ]+ /,""),color=colors[layer.key];
  if(layer.key==="direction"){
-  return [{...base,type:"scatter",name:name+" direction",data:rows.filter(r=>r.kind==="forecast"&&r.direction!=null&&r.wind!=null).filter((_,i)=>i%3===0).map(r=>({value:[r.t,0],symbol:"arrow",symbolSize:17,symbolRotate:(r.direction+180)%360,itemStyle:{color:"#68deb5"},label:{show:false},_deg:r.direction})),tooltip:{valueFormatter:()=>"Wind direction (meteorological)"}}];
+  return [{...base,type:"scatter",name:name+" direction",data:rows.filter(r=>r.direction!=null&&r.wind!=null).filter((r,i)=>r.kind==="history"||i%3===0).map(r=>({value:[r.t,0],symbol:"arrow",symbolSize:17,symbolRotate:(r.direction+180)%360,itemStyle:{color:"#68deb5"},label:{show:false},_deg:r.direction})),tooltip:{valueFormatter:()=>"Wind direction (meteorological)"}}];
  }
  const isRain=layer.key==="precipitation";
  const make=(data,historical)=>({...base,name:(historical?"ERA5 daily · ":"Forecast hourly · ")+name,type:isRain?"bar":"line",
