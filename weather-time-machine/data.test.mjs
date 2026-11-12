@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import {moveDay, dayISO, splitDateChunks, validateRange, normalizeHourly, mergeHourly, aggregateForView, csvForRows, buildForecastParams, beaufort, windArrow, weatherIcon, FORECAST_MODELS, cumulativeRain, archiveBlocks, ALL_LAYERS} from "./data.mjs";
+import {moveDay, dayISO, splitDateChunks, validateRange, normalizeHourly, mergeHourly, aggregateForView, csvForRows, buildForecastParams, separateTimelineAtNow, beaufort, windArrow, weatherIcon, FORECAST_MODELS, cumulativeRain, archiveBlocks, ALL_LAYERS} from "./data.mjs";
 test("leap dates",()=>{assert.equal(moveDay("2024-02-28",1),"2024-02-29");assert.equal(dayISO(Date.UTC(2024,1,29)),"2024-02-29")});
 test("chunks are contiguous",()=>assert.deepEqual(splitDateChunks("2025-01-01","2025-01-10",4),[{start:"2025-01-01",end:"2025-01-04"},{start:"2025-01-05",end:"2025-01-08"},{start:"2025-01-09",end:"2025-01-10"}]));
 test("date validation",()=>{assert.throws(()=>validateRange("2025-04-02","2025-04-01"));assert.throws(()=>validateRange("2025-02-31","2025-03-01"));assert.throws(()=>validateRange("1940-01-01","2025-01-01"))});
@@ -66,4 +66,31 @@ test("forecast model selection and chart layers are explicitly supported",()=>{
   assert.ok(FORECAST_MODELS.some(model=>model.id==="icon_seamless"));
   assert.ok(ALL_LAYERS.some(layer=>layer.id==="rain_cumulative"));
   assert.equal(buildForecastParams({latitude:38,longitude:23},"2026-11-10","2026-11-20","ecmwf_ifs025").models,"ecmwf_ifs025");
+});
+
+test("only future model points can use thick forecast style",()=>{
+  const now=Date.parse("2026-11-12T10:30:00Z")/1000;
+  const rows=[
+    {t:now-86400,kind:"history"},
+    {t:now-7200,kind:"forecast"},
+    {t:now-1800,kind:"forecast"},
+    {t:now,kind:"forecast"},
+    {t:now+3600,kind:"forecast"},
+    {t:now-3500,kind:"history"}
+  ];
+  const slices=separateTimelineAtNow(rows,now);
+  assert.equal(slices.historical.length,2);
+  assert.equal(slices.recentModel.length,2);
+  assert.equal(slices.futureModel.length,2);
+  assert.ok(slices.recentModel.every(x=>x.t<now));
+  assert.ok(slices.futureModel.every(x=>x.t>=now));
+});
+test("historical years are never reclassified as a forecast",()=>{
+ const now=Date.parse("2026-11-12T11:00:00Z")/1000;
+ const samples=[{t:now+3600,kind:"history"},{t:now-3600,kind:"forecast"}];
+ const slices=separateTimelineAtNow(samples,now);
+ assert.equal(slices.historical.length,1);
+ assert.equal(slices.futureModel.length,0);
+ assert.equal(slices.recentModel.length,1);
+ assert.throws(()=>separateTimelineAtNow(samples,NaN));
 });
