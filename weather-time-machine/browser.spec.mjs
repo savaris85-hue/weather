@@ -102,6 +102,11 @@ test("actual Chromium computes historical percentiles and user-configurable colo
     el.data.some(s=>s.line?.color==="#009eae"));
   expect(hasOceanLine).toBeTruthy();
   await page.locator("#height-slider").evaluate(el=>{el.value="144";el.dispatchEvent(new Event("input",{bubbles:true}));});
+  await expect.poll(()=>page.locator("#plot").evaluate(el=>el.layout?.height)).toBeGreaterThan(1450);
+  const main=await page.locator("#plot").boundingBox();
+  const navigator=await page.locator("#overview").boundingBox();
+  expect(navigator.y).toBeGreaterThanOrEqual(main.y+main.height-4);
+  await expect(page.locator("#legend-forecast")).toHaveCSS("background-color","rgb(0, 158, 174)");
   await expect(page.locator("#plot")).toHaveAttribute("role","img");
   await page.locator("#save-layout").click();
   await page.screenshot({path:testInfo.outputPath("weather-v3-climate-colors.png"),fullPage:true});
