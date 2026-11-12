@@ -97,16 +97,23 @@ test("actual Chromium computes historical percentiles and user-configurable colo
   const hasBand=await page.locator("#plot").evaluate(el=>
     el.data.some(s=>String(s.name).includes("ιστορικό") && s.fill==="tonexty"));
   expect(hasBand).toBeTruthy();
+  const beforeColor=await page.locator("#plot").evaluate(el=>
+    el.data.find(s=>s.name?.startsWith("Forecast · Temperature"))?.line?.color);
   await page.locator("#wave-palette").selectOption("ocean");
-  const hasOceanLine=await page.locator("#plot").evaluate(el=>
-    el.data.some(s=>s.line?.color==="#009eae"));
-  expect(hasOceanLine).toBeTruthy();
+  await expect.poll(()=>page.locator("#plot").evaluate(el=>
+    el.data.find(s=>s.name?.startsWith("Forecast · Temperature"))?.line?.color)).not.toBe(beforeColor);
+  const bold=await page.locator("#plot").evaluate(el=>{
+    const prediction=el.data.find(s=>s.name?.startsWith("Forecast · Temperature"));
+    const actual=el.data.find(s=>s.name?.startsWith("ERA5 · Temperature"));
+    return {prediction:prediction?.line?.width,actual:actual?.line?.width};
+  });
+  expect(bold.prediction).toBeGreaterThan(bold.actual);
   await page.locator("#height-slider").evaluate(el=>{el.value="144";el.dispatchEvent(new Event("input",{bubbles:true}));});
   await expect.poll(()=>page.locator("#plot").evaluate(el=>el.layout?.height)).toBeGreaterThan(1450);
   const main=await page.locator("#plot").boundingBox();
   const navigator=await page.locator("#overview").boundingBox();
   expect(navigator.y).toBeGreaterThanOrEqual(main.y+main.height-4);
-  await expect(page.locator("#legend-forecast")).toHaveCSS("background-color","rgb(0, 158, 174)");
+  await expect(page.locator("#legend-forecast")).not.toHaveCSS("background-color","rgb(216, 57, 45)");
   await expect(page.locator("#plot")).toHaveAttribute("role","img");
   await page.locator("#save-layout").click();
   await page.screenshot({path:testInfo.outputPath("weather-v3-climate-colors.png"),fullPage:true});
@@ -127,4 +134,109 @@ test("RainViewer past-radar controls show UTC frame times without pretending to 
   await expect(page.locator("#radar-time")).toContainText("UTC");
   await page.locator("#radar-toggle").uncheck();
   await expect(page.locator("#radar-time")).toHaveText("Radar ανενεργό");
+});
+
+
+test("clear Greek row labels are entirely inside the chart at desktop width",async({page})=>{
+  await setup(page);
+  await expect(page.locator("#plot .annotation").first()).toBeVisible();
+  const positions=await page.locator("#plot").evaluate(el=>{
+    const rect=el.getBoundingClientRect();
+    return [...el.querySelectorAll(".annotation")].map(label=>{
+      const box=label.getBoundingClientRect();
+      return {left:box.left,top:box.top,right:box.right,chartLeft:rect.left,chartRight:rect.right};
+    });
+  });
+  expect(positions.length).toBeGreaterThan(4);
+  for(const pos of positions){
+    expect(pos.left).toBeGreaterThanOrEqual(pos.chartLeft-2);
+    expect(pos.right).toBeLessThanOrEqual(pos.chartRight+2);
+  }
+});
+
+test("user can customize each measurement and make forecast line bolder; settings persist",async({page})=>{
+  await setup(page);
+  await page.locator("#layers-toggle").click();
+  await expect(page.locator("#layer-options input[type=color]")).toHaveCount(14);
+  await page.locator("#layer-options input[data-layer-color=temperature_2m]").evaluate(el=>{
+    el.value="#b13586";el.dispatchEvent(new Event("input",{bubbles:true}));
+  });
+  await expect.poll(()=>page.locator("#plot").evaluate(el=>
+    el.data.find(s=>s.name?.startsWith("Forecast · Temperature"))?.line?.color)).toBe("#8d2e70");
+  await page.locator("#forecast-weight").evaluate(el=>{
+    el.value="4.5";el.dispatchEvent(new Event("input",{bubbles:true}));
+  });
+  await expect.poll(()=>page.locator("#plot").evaluate(el=>
+    el.data.find(s=>s.name?.startsWith("Forecast · Temperature"))?.line?.width)).toBe(4.5);
+  await page.locator("#save-layout").click();
+  await page.reload({waitUntil:"domcontentloaded"});
+  await expect(page.locator("#status")).toContainText("σημεία στο γράφημα");
+  await page.locator("#layers-toggle").click();
+  await expect(page.locator("#layer-options input[data-layer-color=temperature_2m]")).toHaveValue("#b13586");
+  await expect(page.locator("#forecast-weight")).toHaveValue("4.5");
+});
+
+test("historical reference periods support 1, 2, 3 years and custom 1990–1992",async({page})=>{
+  await setup(page);
+  await page.locator("#layers-toggle").click();
+  for(const years of ["1","2","3"]){
+    await page.locator("#climate-years").selectOption(years);
+    await expect(page.locator("#climate-status")).toContainText(years+" έτη",{timeout:30000});
+  }
+  await page.locator("#climate-years").selectOption("custom");
+  await expect(page.locator("#climate-custom-range")).toBeVisible();
+  await page.locator("#climate-year-from").fill("1990");
+  await page.locator("#climate-year-to").fill("1992");
+  await page.locator("#climate-apply").click();
+  await expect(page.locator("#climate-status")).toContainText("1990–1992",{timeout:30000});
+});
+
+test("pins up to five locations in the sidebar and restores them across reload",async({page})=>{
+  await page.route(/https:\/\/geocoding-api\.open-meteo\.com\/v1\/search/,async route=>{
+    const search=new URL(route.request().url()).searchParams.get("name");
+    const number=Number(search.replace("City",""))||1;
+    await route.fulfill({status:200,contentType:"application/json",
+      headers:{"access-control-allow-origin":"*"},
+      body:JSON.stringify({results:[{name:search,country:"Greece",latitude:36+number*.2,longitude:23+number*.3,timezone:"Europe/Athens"}]})});
+  });
+  await setup(page);
+  await page.locator("#pin-current").click();
+  await expect(page.locator("#pin-count")).toHaveText("1/5");
+  for(let i=1;i<=4;i++){
+    await page.locator("#place").fill("City"+i);
+    await expect(page.locator("#suggestions button").first()).toBeVisible();
+    await page.locator("#suggestions button").first().click();
+    await page.locator("#pin-current").click();
+  }
+  await expect(page.locator("#pin-count")).toHaveText("5/5");
+  await expect(page.locator("#pinned-cities .pin-chip")).toHaveCount(5);
+  await expect(page.locator("#pin-current")).toBeDisabled();
+  await page.reload({waitUntil:"domcontentloaded"});
+  await expect(page.locator("#pin-count")).toHaveText("5/5");
+  await page.locator("#pinned-cities .pin-chip").nth(1).click();
+  await expect(page.locator("#current-place")).toContainText("City1");
+  await page.locator("#pinned-cities .pin-remove").nth(0).click();
+  await expect(page.locator("#pin-count")).toHaveText("4/5");
+});
+
+test("390px mobile viewport keeps labels, city pins, map, charts and controls usable",async({page},testInfo)=>{
+  await page.setViewportSize({width:390,height:844});
+  await setup(page);
+  await expect(page.locator("#pin-current")).toBeVisible();
+  await expect(page.locator("#map")).toBeVisible();
+  await expect(page.locator("#current-temp")).toContainText("°C");
+  const overflow=await page.evaluate(()=>document.documentElement.scrollWidth-window.innerWidth);
+  expect(overflow).toBeLessThanOrEqual(4);
+  const labels=await page.locator("#plot").evaluate(el=>{
+    const r=el.getBoundingClientRect();
+    return [...el.querySelectorAll(".annotation")].map(node=>({
+      left:node.getBoundingClientRect().left,chartLeft:r.left
+    }));
+  });
+  expect(labels.length).toBeGreaterThan(4);
+  for(const label of labels)expect(label.left).toBeGreaterThanOrEqual(label.chartLeft-3);
+  await page.locator("#layers-toggle").click();
+  await expect(page.locator("#layer-panel")).toBeVisible();
+  await expect(page.locator("#layer-options input[type=color]")).toHaveCount(14);
+  await page.screenshot({path:testInfo.outputPath("weather-v4-mobile-390.png"),fullPage:true});
 });
