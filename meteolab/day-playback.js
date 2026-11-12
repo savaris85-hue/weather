@@ -1,7 +1,7 @@
 /* MeteoLab day-by-day forecast player — standalone progressive enhancement, no accounts. */
 (()=>{"use strict";
 const rootIds=["dayPlaybackOverview","dayPlaybackForecast"];
-let data=null,selected=0,index=0,playing=true,lang="el",town="";let tick=null,playingStarted=false;
+let data=null,selected=0,index=0,playing=true,lang="el",town="",controlsOpen=false;let tick=null,playingStarted=false;
 const $=id=>document.getElementById(id),esc=v=>String(v??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
 const gr=()=>lang!=="en",tr=(el,en)=>gr()?el:en,arr=(o,k)=>Array.isArray(o?.[k])?o[k]:[];
 const bft=kmh=>kmh==null?null:Math.min(12,Math.max(0,Math.round(Math.pow(Number(kmh)/3.6/.836,2/3))));
@@ -51,10 +51,10 @@ function at(r,i){
 }
 function template(target){
  return '<div class="ml-day-head"><div><div class="ml-day-eyebrow">'+tr("ΩΡΙΑΙΑ ΚΙΝΗΣΗ ΤΟΥ ΚΑΙΡΟΥ","HOURLY WEATHER ANIMATION")+'</div><h3 data-ml-date>—</h3><div class="ml-day-source">'+tr("Πρόγνωση ανά ώρα · όχι πραγματική δορυφορική εικόνα","Hourly forecast · not live satellite imagery")+'</div></div><div class="ml-day-stepday"><button type="button" data-ml-prevday aria-label="Previous day">‹</button><span data-ml-daycount>—</span><button type="button" data-ml-nextday aria-label="Next day">›</button></div></div>'+
- '<div class="ml-day-sky" data-ml-sky><div class="ml-day-stars"></div><div class="ml-day-arc"></div><div class="ml-day-celestial" data-ml-celestial></div><div class="ml-day-clouds" data-ml-clouds></div><div class="ml-day-rain" data-ml-rain></div><div class="ml-day-core"><div class="ml-day-icon" data-ml-icon>🌤️</div><div><div class="ml-day-temp" data-ml-temp>—</div><div class="ml-day-desc" data-ml-desc>—</div><div class="ml-day-isnight" data-ml-isnight></div></div></div><div class="ml-day-wind"><span class="ml-day-arrow" data-ml-arrow>➤</span><span data-ml-wind>—</span></div></div>'+
+ '<div class="ml-day-sky" data-ml-sky><div class="ml-day-topright"><span class="ml-day-time" data-ml-timenow>00:00</span><button type="button" class="ml-day-toggle" data-ml-toggle aria-label="Show or hide playback controls" aria-expanded="false" title="Playback controls">⚙</button></div><div class="ml-day-stars"></div><div class="ml-day-arc" data-ml-arc></div><div class="ml-day-celestial" data-ml-celestial role="slider" tabindex="0" aria-label="Move sun or moon to choose hour" aria-valuemin="0" aria-valuemax="23" aria-valuenow="0"></div><div class="ml-day-clouds" data-ml-clouds></div><div class="ml-day-rain" data-ml-rain></div><div class="ml-day-core"><div class="ml-day-icon" data-ml-icon>🌤️</div><div><div class="ml-day-temp" data-ml-temp>—</div><div class="ml-day-desc" data-ml-desc>—</div><div class="ml-day-isnight" data-ml-isnight></div></div></div><div class="ml-day-wind"><span class="ml-day-arrow" data-ml-arrow>➤</span><span data-ml-wind>—</span></div></div>'+
  '<div class="ml-day-meta"><span>☂ <strong data-ml-rainmm>—</strong></span><span>☔ <strong data-ml-chance>—</strong></span><span>☁ <strong data-ml-cover>—</strong></span><span>💧 <strong data-ml-humidity>—</strong></span><span>🌡 <strong data-ml-feel>—</strong></span></div>'+
- '<div class="ml-day-controls"><button type="button" data-ml-play class="ml-day-play">❚❚</button><button type="button" data-ml-back aria-label="Previous hour">−1h</button><span data-ml-hour>—</span><button type="button" data-ml-next aria-label="Next hour">+1h</button><input type="range" data-ml-range min="0" max="23" value="0" aria-label="Hour of day"><span data-ml-sun>—</span></div>'+
- '<div class="ml-day-clockline" data-ml-clock></div>';
+ '<div class="ml-day-controls" data-ml-controls hidden><button type="button" data-ml-play class="ml-day-play">❚❚</button><button type="button" data-ml-back aria-label="Previous hour">−1h</button><span data-ml-hour>—</span><button type="button" data-ml-next aria-label="Next hour">+1h</button><input type="range" data-ml-range min="0" max="23" value="0" aria-label="Hour of day"><span data-ml-sun>—</span></div>'+
+ '<div class="ml-day-clockline" data-ml-clock hidden></div>';
 }
 function setText(w,sel,v){const e=w.querySelector(sel);if(e)e.textContent=v}
 function render(){
@@ -79,23 +79,44 @@ function render(){
   setText(w,"[data-ml-humidity]",fmt(r.humidity)+"%");
   setText(w,"[data-ml-feel]",fmt(r.feel,1)+" °C");
   setText(w,"[data-ml-hour]",sun.hh);
+  setText(w,"[data-ml-timenow]",sun.hh);
   setText(w,"[data-ml-sun]",sun.start+" ☀ "+sun.stop);
   const sky=w.querySelector("[data-ml-sky]");sky.classList.toggle("ml-night",!sun.light);sky.classList.toggle("ml-rainy",precip>0.15);
   const celestial=w.querySelector("[data-ml-celestial]");celestial.classList.toggle("ml-moon",!sun.light);
-  celestial.style.left=(7+sun.prog*86)+"%";celestial.style.top=(68-Math.sin(Math.PI*sun.prog)*49)+"%";
+  const timePosition=(index/(Math.max(1,rows.length-1)));
+  celestial.style.left=(7+timePosition*86)+"%";celestial.style.top=(68-Math.sin(Math.PI*timePosition)*49)+"%";
+  celestial.setAttribute("aria-valuemax",String(rows.length-1));celestial.setAttribute("aria-valuenow",String(index));celestial.setAttribute("aria-valuetext",sun.hh);
   const cloudDiv=w.querySelector("[data-ml-clouds]");cloudDiv.style.opacity=String(Math.max(.03,Math.min(.95,cloud/100)));
   cloudDiv.innerHTML=Array.from({length:Math.max(1,Math.min(5,Math.round(cloud/24)))},(_,i)=>'<span class="ml-cloud" style="left:'+(6+i*21)%90+'%;top:'+(14+i%3*19)+'%;animation-delay:-'+(i*1.2)+'s"></span>').join("");
   const rainDiv=w.querySelector("[data-ml-rain]");rainDiv.innerHTML=precip>.15?Array.from({length:Math.min(40,5+Math.round(precip*6))},(_,i)=>'<i style="left:'+(i*37)%97+'%;animation-delay:-'+(i*.17)+'s"></i>').join(""):"";
   const arrow=w.querySelector("[data-ml-arrow]");arrow.style.transform="rotate("+((r.dir??0)+180)+"deg)";
   const range=w.querySelector("[data-ml-range]");range.max=String(rows.length-1);range.value=String(index);
   const play=w.querySelector("[data-ml-play]");play.textContent=playing?"❚❚":"▶";play.title=playing?tr("Παύση","Pause"):tr("Αναπαραγωγή","Play");
+  w.querySelector("[data-ml-controls]").hidden=!controlsOpen;
+  w.querySelector("[data-ml-clock]").hidden=!controlsOpen;
+  w.querySelector("[data-ml-toggle]").setAttribute("aria-expanded",String(controlsOpen));
+  w.querySelector("[data-ml-toggle]").classList.toggle("active",controlsOpen);
   const ticks=w.querySelector("[data-ml-clock]");ticks.innerHTML=rows.map((h,i)=>'<span class="'+(i===index?"selected":"")+'" data-ml-jump="'+i+'">'+((i%3===0||i===index)?esc(h.time.slice(11,16)):"·")+'</span>').join("");
   ticks.querySelectorAll("[data-ml-jump]").forEach(b=>b.onclick=()=>{index=Number(b.dataset.mlJump);playing=false;render()});
  }
  document.querySelectorAll("[data-day]").forEach(b=>b.classList.toggle("selected",Number(b.dataset.day)===selected));
 }
+function jumpToPoint(evt,w){
+ const sky=w.querySelector("[data-ml-sky]");if(!sky)return;
+ const rect=sky.getBoundingClientRect();if(!rect.width)return;
+ const frac=Math.max(0,Math.min(1,((evt.clientX-rect.left)/rect.width-.07)/.86));
+ index=Math.round(frac*Math.max(0,hoursFor(selected).length-1));playing=false;render();
+}
 function bind(w){
  const action=(s,f)=>{const b=w.querySelector(s);if(b)b.addEventListener("click",f)};
+ action("[data-ml-toggle]",()=>{controlsOpen=!controlsOpen;render()});
+ const marker=w.querySelector("[data-ml-celestial]"),arc=w.querySelector("[data-ml-arc]");
+ marker?.addEventListener("pointerdown",evt=>{if(evt.button!==0)return;evt.preventDefault();marker.setPointerCapture?.(evt.pointerId);marker.dataset.dragging="true";jumpToPoint(evt,w)});
+ marker?.addEventListener("pointermove",evt=>{if(marker.dataset.dragging==="true"){evt.preventDefault();jumpToPoint(evt,w)}});
+ const stopDrag=()=>{marker.dataset.dragging="false"};
+ marker?.addEventListener("pointerup",stopDrag);marker?.addEventListener("pointercancel",stopDrag);
+ marker?.addEventListener("keydown",evt=>{if(evt.key==="ArrowLeft"||evt.key==="ArrowRight"){evt.preventDefault();playing=false;index=Math.max(0,Math.min(hoursFor(selected).length-1,index+(evt.key==="ArrowLeft"?-1:1)));render()}});
+ arc?.addEventListener("pointerdown",evt=>jumpToPoint(evt,w));
  action("[data-ml-play]",()=>{playing=!playing;render()});
  action("[data-ml-back]",()=>{playing=false;index=Math.max(0,index-1);render()});
  action("[data-ml-next]",()=>{playing=false;index=Math.min(hoursFor(selected).length-1,index+1);render()});
