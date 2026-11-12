@@ -107,7 +107,14 @@ async function loadForecastExtra(){
  try{
   const p=new URLSearchParams({latitude:String(lat),longitude:String(lon),timezone:"UTC",past_days:"10",forecast_days:"14",hourly:"temperature_2m,relative_humidity_2m,precipitation,precipitation_probability,cloud_cover,wind_speed_10m,weather_code,pressure_msl,wind_direction_10m,dew_point_2m,wind_gusts_10m"});
   if(model!=="best_match")p.set("models",model);
-  const res=await fetch("https://api.open-meteo.com/v1/forecast?"+p);
+  let res=await fetch("https://api.open-meteo.com/v1/forecast?"+p);
+  if(!res.ok){
+    // Some individual providers do not support a 10-day retrospective window.
+    // Preserve their current directional/pressure/dew point layers.
+    p.delete("past_days");
+    p.set("hourly","pressure_msl,wind_direction_10m,dew_point_2m,wind_gusts_10m");
+    res=await fetch("https://api.open-meteo.com/v1/forecast?"+p);
+  }
   if(!res.ok)throw Error("Additional parameters unavailable");
   const result=await res.json();if(seq!==forecastSeq)return;
   forecastExtra=result;render();
