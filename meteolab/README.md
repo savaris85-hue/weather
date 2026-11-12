@@ -1,6 +1,29 @@
-# MeteoLab Web v0.6
+# MeteoLab Web v1.0
 
 A free, static, bilingual (Greek/English) weather workspace, accessible at the GitHub Pages path **/weather/meteolab/** when GitHub Pages is configured to publish the repository root from the main branch.
+
+## MeteoLab v1.0 — Weather Timeline Explorer (2026-11-12)
+
+The default landing screen now opens the dedicated dark **Weather Timeline** workstation inspired by scientific multi-panel weather visualizations (all styling and functionality is original). It uses **Apache ECharts 5.6** as an additional CDN dependency; earlier Chart.js dashboards, history, comparisons, rules, cloud AI, alerts, pinned locations and data/settings remain intact.
+
+### Features delivered
+
+- Ten individually switchable stacked scientific panels: Celsius temperature, humidity, precipitation, rain probability, mean sea-level pressure, Beaufort wind, cloud cover, meteorological wind direction arrows, dew point and Beaufort wind gusts.
+- Shared ECharts time axes with linked crosshair, tooltips, wheel zoom, drag-pan, bottom range slider, zoom buttons and 3/7/14/30/90/365 day presets. Daily history is **not** interpolated to pretend it has hourly temporal resolution.
+- Now boundary, distinct ERA5 daily reanalysis vs hourly Open-Meteo forecast styling, weather-code icon strip, color legend and adjustable per-panel heights; persist enabled layers and panel sizes in localStorage.
+- Automatic historical fetch in 90-day ERA5 chunks when nearing the earliest loaded date (backwards to 1940 when available), manual older/newer navigation and jump-to-date. IndexedDB caches fetched chunks on supporting browsers; there is no server database to operate.
+- Selected location/forecast model propagated from the existing main MeteoLab UI. The main forecast has the city's timezone; its time values are converted using the API's UTC offset before joining with an independent UTC extended-variables fetch. For a timezone offset change within one 14-day forecast, transition hours may be approximate.
+- Historical daily aggregates: mean temperature, relative humidity, precipitation, peak wind, mean pressure, mean cloud cover, mean dew point and dominant direction. Probability and some wind-gust series are unavailable from the historic dataset and remain blank rather than being invented.
+- Available hourly model parameters are requested for pressure, wind direction, dew point and wind gusts. Variables unsupported by a selected model remain blank.
+- Export visible time-window weather rows to UTF-8 CSV, graph snapshot PNG, or browser print-to-PDF; global app exports are wired as well.
+- View real multi-model comparisons in the existing Compare page; not yet superimposed into the new single timeline. Rules/alerts are preserved rather than recreated.
+
+### QA and limitations
+
+- Verified the new and original JavaScript compile, no duplicate DOM IDs and no missing referenced elements.
+- Ran mocked integration tests: location+forecast event, extended hourly model response, ERA5 daily response, synchronized 8-axis/15-series ECharts options, historical fetch, wind-direction symbol series and CSV dataset availability.
+- **Real external chart CDN, GitHub Pages rendering, live Open-Meteo response and the UX of mouse-wheel/pan cannot be end-to-end verified from the available test environment.** Do not describe those checks as completed.
+- Backwards exploration is conditional on available source coverage, API quotas, network, CDN and browser memory. It does not literally provide infinite data. Historical data is model reanalysis, not a local station's raw observations. Open-Meteo's free offering is subject to usage terms and noncommercial restrictions.
 
 ## Working features
 
