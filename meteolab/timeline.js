@@ -90,9 +90,10 @@ async function moreHistory(reset=false){
 function utcFormatter(t){return new Date(t).toLocaleString(en()?"en-GB":"el-GR",{timeZone:"UTC",day:"numeric",month:"short",hour:"2-digit",minute:"2-digit"})+" UTC"}
 function buildForecast(){
  const data=forecast?.hourly;if(!data?.time)return[];
- const aux=forecastExtra?.hourly||{},auxTimes=new Map((aux.time||[]).map((t,i)=>[t,i]));
+ const aux=forecastExtra?.hourly||{},auxTimes=new Map((aux.time||[]).map((t,i)=>[timestamp(t),i]));
+ const coreOffset=Number(forecast?.utc_offset_seconds)||0;
  return data.time.map((time,i)=>{
-  const t=timestamp(time),j=auxTimes.get(time);
+  const t=timestamp(time)-coreOffset*1000,j=auxTimes.get(timestamp(time)-coreOffset*1000);
   const value=k=>j===undefined?null:number(aux[k]?.[j]);
   return {t,kind:"forecast",temperature:number(data.temperature_2m?.[i]),humidity:number(data.relative_humidity_2m?.[i]),
    precipitation:number(data.precipitation?.[i]),probability:number(data.precipitation_probability?.[i]),
