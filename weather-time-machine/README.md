@@ -20,7 +20,7 @@ From repository root, run: python3 -m http.server 8080
 
 Visit: http://localhost:8080/weather-time-machine/
 
-Test with Node.js 20+: node --test weather-time-machine/data.test.mjs
+Test with Node.js 20+: node --test weather-time-machine/*.test.mjs
 
 ## Deploy
 GitHub repository Settings → Pages → Build and deployment → Deploy from a branch → main / (root). Committing code alone does not automatically enable Pages.
@@ -33,5 +33,9 @@ Not yet included: weather radar layer, local station records, climatological nor
 ## Files
 - index.html: static responsive Plotly dashboard
 - data.mjs: validation, timeline UTC normalization, aggregation, export
-- data.test.mjs: Node.js unit tests
+- data.test.mjs: Node.js unit tests and forecast request regression checks
+- ui.test.mjs: Node.js headless startup test with simulated Open-Meteo responses (not a real-browser test)
 - LICENSE: MIT licence for original project code only (third-party services have separate licences).
+
+## 2026-11-12 fix
+The Open-Meteo Forecast API does not accept `past_days` or `forecast_days` together with `start_date` and `end_date`. Forecast requests now use **explicit date ranges only**. API parameters are assembled in the tested `buildForecastParams` helper. The historic ERA5 cutoff is seven days behind today to accommodate publication lag. Automated tests simulate the previously failing HTTP 400 combination and confirm the chart startup path reaches rendering.
