@@ -5,7 +5,7 @@ import {
   FORECAST_MODELS, ALL_LAYERS, DEFAULT_LAYERS, cumulativeRain,
   archiveBlocks
 } from "./data.mjs";
-import {historicalSamplesWindows, climateQueryParams, calculateClimateSummary, isClimateSupported} from "./climate.mjs";
+import {historicalSamplesWindows, historicalSamplesCustomRange, climateQueryParams, calculateClimateSummary, isClimateSupported} from "./climate.mjs";
 
 const $ = selector => document.querySelector(selector);
 const DAY = 86400000;
@@ -18,12 +18,33 @@ const DEFAULT_COORDS = { name:"Elliniko",country:"Greece",latitude:37.89,longitu
 const ARCHIVE_CHUNK_DAYS = 90;
 const MIN_WINDOW_MS = 3 * 3600000;
 const NAV_PRELOAD_DAYS = 6;
-const LAYOUT_KEY = "wtm-layout-v3";
+const LAYOUT_KEY = "wtm-layout-v4";
+const PIN_KEY = "wtm-pinned-cities-v1";
 const PALETTES = {
   classic:{history:"#243446",forecast:"#d8392d",climate:"#98a4b3"},
   ocean:{history:"#173f7a",forecast:"#009eae",climate:"#93a7bc"},
   contrast:{history:"#171717",forecast:"#a11386",climate:"#68788c"}
 };
+const LAYER_CLASSIC = Object.freeze({
+  icons:"#b98218",cloud_cover:"#617c9b",precipitation_probability:"#b04b68",
+  precipitation:"#247fca",rain_cumulative:"#356ab5",temperature_2m:"#d94437",
+  relative_humidity_2m:"#1498a6",dew_point_2m:"#a5658e",
+  pressure_msl:"#555db7",wind_speed_10m:"#b6772d",
+  wind_gusts_10m:"#8754a2",wind_direction_10m:"#277e68",
+  shortwave_radiation:"#d19415",uv_index:"#8060bc"
+});
+function paletteColors(palette){
+  const shift = palette==="ocean"?{temperature_2m:"#008cba",relative_humidity_2m:"#118b8f",pressure_msl:"#225aa9",wind_speed_10m:"#277a8d"}:
+    palette==="contrast"?{temperature_2m:"#a11386",relative_humidity_2m:"#153377",precipitation:"#424299"}:{};
+  return {...LAYER_CLASSIC,...shift};
+}
+function blend(hex,other,amount){
+  const rgb=h=>[1,3,5].map(i=>parseInt(h.slice(i,i+2),16));
+  const a=rgb(hex),b=rgb(other);
+  return "#"+a.map((v,i)=>Math.round(v*(1-amount)+b[i]*amount).toString(16).padStart(2,"0")).join("");
+}
+function layerColor(id){return state.layerColors[id]||state.colors.forecast}
+function lineColor(id,history){return blend(layerColor(id),history?"#ffffff":"#101522",history?.45:.2)}
 const controls = {
   place:$("#place"), start:$("#start"), end:$("#end"), model:$("#model"),
   status:$("#status"), plot:$("#plot"), layers:$("#layer-panel")
@@ -37,6 +58,8 @@ const state = {
   map:null, marker:null, debounce:null, searchId:0, loading:false,
   climateYears:20, climate:null, climateKey:null, climateCache:new Map(), climateController:null, climateTimer:null,
   compareLastYear:false, palette:"classic", colors:{...PALETTES.classic}, rowHeight:112,
+  layerColors:paletteColors("classic"), forecastWeight:3.5, pins:[],
+  climateYearFrom:2000,climateYearTo:2020,
   overviewBound:false, overviewPlotting:false
 };
 const formatDate = value => new Date(value).toLocaleDateString("el-GR",{day:"2-digit",month:"short",year:"numeric",timeZone:"UTC"});
@@ -198,6 +221,53 @@ function chooseDates() {
 function clearSelectedPreset() {
   document.querySelectorAll("[data-span]").forEach(button=>button.classList.remove("active"));
 }
+function pinKey(place){return Number(place.latitude).toFixed(3)+":"+Number(place.longitude).toFixed(3)}
+function persistPins(){
+  try{localStorage.setItem(PIN_KEY,JSON.stringify(state.pins))}catch{/* browser may disable storage */}
+}
+function renderPins(){
+  const target=$("#pinned-cities");target.replaceChildren();
+  $("#pin-count").textContent=state.pins.length+"/5";
+  const active=state.pins.some(p=>pinKey(p)===pinKey(state.place));
+  $("#pin-current").textContent=active?"★ Αποθηκευμένη":"☆ Αποθήκευση πόλης";
+  $("#pin-current").disabled=active||state.pins.length>=5;
+  if(!state.pins.length){
+    const empty=document.createElement("span");
+    empty.className="pin-empty";empty.textContent="Καρφίτσωσε έως 5 πόλεις για γρήγορη εναλλαγή.";
+    target.append(empty);
+  }
+  state.pins.forEach((place,index)=>{
+    const wrapper=document.createElement("span");wrapper.className="pin-item";
+    if(pinKey(place)===pinKey(state.place))wrapper.classList.add("active");
+    const open=document.createElement("button");open.className="pin-chip";open.type="button";
+    open.textContent=place.name+", "+(place.country||"");
+    open.title="Μετάβαση σε "+place.name;
+    open.addEventListener("click",()=>{
+      state.place={...place};
+      controls.place.value=place.name+", "+(place.country||"");
+      locationChanged();
+    });
+    const remove=document.createElement("button");remove.className="pin-remove";remove.type="button";
+    remove.setAttribute("aria-label","Αφαίρεση "+place.name);
+    remove.textContent="×";
+    remove.addEventListener("click",()=>{
+      state.pins.splice(index,1);persistPins();renderPins();
+    });
+    wrapper.append(open,remove);target.append(wrapper);
+  });
+}
+function restorePins(){
+  try{
+    const pins=JSON.parse(localStorage.getItem(PIN_KEY)||"[]");
+    if(Array.isArray(pins))state.pins=pins.filter(p=>p&&Number.isFinite(p.latitude)&&
+      Number.isFinite(p.longitude)&&typeof p.name==="string").slice(0,5);
+  }catch{state.pins=[]}
+  renderPins();
+}
+$("#pin-current").addEventListener("click",()=>{
+  if(state.pins.length>=5 || state.pins.some(p=>pinKey(p)===pinKey(state.place)))return;
+  state.pins.push({...state.place});persistPins();renderPins();
+});
 function layerList() {
   const target=$("#layer-options");target.replaceChildren();
   ALL_LAYERS.forEach(layer=>{
@@ -207,14 +277,25 @@ function layerList() {
       if(check.checked)state.enabled.add(layer.id);else state.enabled.delete(layer.id);
       renderChart();
     });
-    const title=document.createElement("span");title.textContent=layer.label;
-    label.append(check,title);target.append(label);
+    const title=document.createElement("span");title.className="layer-title";title.textContent=layer.label;
+    const picker=document.createElement("input");picker.type="color";picker.className="layer-color";
+    picker.value=state.layerColors[layer.id]||LAYER_CLASSIC[layer.id];picker.dataset.layerColor=layer.id;
+    picker.setAttribute("aria-label","Χρώμα: "+layer.label);
+    picker.setAttribute("title","Χρώμα γραμμής: "+layer.label);
+    picker.addEventListener("input",()=>{
+      state.layerColors[layer.id]=picker.value;
+      state.palette="custom";$("#wave-palette").value="custom";
+      renderChart();
+    });
+    label.append(check,title,picker);target.append(label);
   });
 }
 function persistLayout() {
   try {localStorage.setItem(LAYOUT_KEY,JSON.stringify({layers:[...state.enabled],rainMode:state.rainMode,
     climateYears:state.climateYears,compareLastYear:state.compareLastYear,
-    palette:state.palette,colors:state.colors,rowHeight:state.rowHeight}));}
+    palette:state.palette,colors:state.colors,rowHeight:state.rowHeight,
+    layerColors:state.layerColors,forecastWeight:state.forecastWeight,
+    climateYearFrom:state.climateYearFrom,climateYearTo:state.climateYearTo}));}
   catch {showStatus("Η αποθήκευση δεν είναι διαθέσιμη σε αυτόν τον browser.",true);}
 }
 function restoreLayout() {
@@ -223,15 +304,25 @@ function restoreLayout() {
     if(saved && Array.isArray(saved.layers)) {
       state.enabled=new Set(saved.layers.filter(id=>ALL_LAYERS.some(x=>x.id===id)));
       state.rainMode=saved.rainMode==="total"?"total":"daily";
-      state.climateYears=[0,10,20,44].includes(saved.climateYears)?saved.climateYears:20;
+      state.climateYears=[0,1,2,3,10,20,44,"custom"].includes(saved.climateYears)?saved.climateYears:20;
       state.compareLastYear=!!saved.compareLastYear;
       state.rowHeight=Number.isFinite(saved.rowHeight)?Math.min(190,Math.max(82,saved.rowHeight)):112;
       state.palette=PALETTES[saved.palette]?saved.palette:(saved.palette==="custom"?"custom":"classic");
       state.colors={...PALETTES.classic,...(saved.colors||{})};
+      state.layerColors={...paletteColors(state.palette),...Object.fromEntries(
+        Object.entries(saved.layerColors||{}).filter(([key,value])=>ALL_LAYERS.some(x=>x.id===key)&&/^#[0-9a-fA-F]{6}$/.test(value))
+      )};
+      state.forecastWeight=Number.isFinite(saved.forecastWeight)?Math.max(2,Math.min(5,saved.forecastWeight)):3.5;
+      state.climateYearFrom=Number.isInteger(saved.climateYearFrom)?saved.climateYearFrom:2000;
+      state.climateYearTo=Number.isInteger(saved.climateYearTo)?saved.climateYearTo:2020;
     }
   } catch {/* private mode, no local storage */}
   $("#rain-mode").value=state.rainMode;
   $("#climate-years").value=String(state.climateYears);
+  $("#climate-year-from").value=String(state.climateYearFrom);
+  $("#climate-year-to").value=String(state.climateYearTo);
+  $("#climate-custom-range").hidden=state.climateYears!=="custom";
+  $("#forecast-weight").value=String(state.forecastWeight);
   $("#compare-last-year").checked=state.compareLastYear;
   $("#height-slider").value=String(state.rowHeight);
   $("#wave-palette").value=state.palette;
