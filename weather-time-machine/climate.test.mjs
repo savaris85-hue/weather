@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import {historicalSamplesWindows,calculateClimateSummary,climateQueryParams,isClimateSupported,quantile} from "./climate.mjs";
+import {historicalSamplesWindows,calculateClimateSummary,climateQueryParams,isClimateSupported,quantile,historicalSamplesCustomRange} from "./climate.mjs";
 
 test("30-day or shorter climatology uses same calendar dates in each preceding year",()=>{
  const items=historicalSamplesWindows("2026-11-09","2026-11-23",44,2026);
@@ -48,4 +48,28 @@ test("historical fetch only requests real ERA5 variables, never forecast probabi
  assert.ok(!q.get("hourly").includes("precipitation_probability"));
  assert.equal(q.get("start_date"),"2020-11-11");
  assert.equal(q.has("past_days"),false);
+});
+
+test("single-year and two/three-year baselines are supported and not mislabeled as decades",()=>{
+  const one=historicalSamplesWindows("2026-11-10","2026-11-15",1,2026);
+  assert.deepEqual(one,[{year:2025,start:"2025-11-10",end:"2025-11-15"}]);
+  const two=historicalSamplesWindows("2026-11-10","2026-11-15",2,2026);
+  assert.deepEqual(two.map(x=>x.year),[2024,2025]);
+  const three=historicalSamplesWindows("2026-11-10","2026-11-15",3,2026);
+  assert.deepEqual(three.map(x=>x.year),[2023,2024,2025]);
+  const stats=calculateClimateSummary([{year:2025,rows:[
+    {t:Date.parse("2025-11-10T12:00:00Z")/1000,temperature_2m:23}
+  ]}],"2026-11-10","2026-11-10");
+  assert.equal(stats.fields.temperature_2m.count[12],1);
+  assert.equal(stats.fields.temperature_2m.mean[12],23);
+  assert.equal(stats.fields.temperature_2m.p10[12],23);
+  assert.equal(stats.fields.temperature_2m.p90[12],23);
+});
+test("selected custom historical reference years are explicit and bounded",()=>{
+  const windows=historicalSamplesCustomRange("2026-11-11","2026-11-18",1999,2004);
+  assert.deepEqual(windows.map(w=>w.year),[1999,2000,2001,2002,2003,2004]);
+  assert.deepEqual(windows.at(0),{year:1999,start:"1999-11-11",end:"1999-11-18"});
+  assert.throws(()=>historicalSamplesCustomRange("2026-11-11","2026-11-18",1940,2020));
+  assert.throws(()=>historicalSamplesCustomRange("2026-11-11","2026-11-18",2020,2019));
+  assert.throws(()=>historicalSamplesCustomRange("2026-11-11","2026-11-18",2026,2026));
 });
