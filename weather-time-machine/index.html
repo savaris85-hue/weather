@@ -62,6 +62,12 @@ header{display:flex;align-items:center;gap:14px;flex-wrap:wrap;padding:8px 14px;
 .plot-heading h2{font-size:15px}
 .plot-heading p{font-size:12px}
 @media(max-width:800px){.layer-panel{width:min(315px,calc(100vw - 18px))}}
+
+.radar-controls{display:flex;align-items:center;gap:5px;flex-wrap:wrap;padding:6px 8px;border-bottom:1px solid #cbd7e7;background:#f7faff;font-size:11px}
+.radar-controls label{display:flex;align-items:center;gap:4px;font-weight:650;color:#32516f}
+.radar-controls input{accent-color:#4f69dc}
+.radar-controls button{border:1px solid #c1d0e3;background:#fff;padding:3px 6px;border-radius:3px;color:#37577a}
+.radar-controls #radar-time{color:#557089;flex:1;text-align:right;font-size:10px}
 </style>
 </head>
 <body>
@@ -97,7 +103,14 @@ header{display:flex;align-items:center;gap:14px;flex-wrap:wrap;padding:8px 14px;
 <span>Πίεση</span><span id="current-pressure">—</span>
 <span>Βροχόπτωση</span><span id="current-rain">—</span>
 </div></div>
-<div class="map-title">Χάρτης τοποθεσίας · OpenStreetMap</div>
+<div class="map-title">Radar βροχής · χάρτης OpenStreetMap</div>
+<div class="radar-controls">
+  <label><input id="radar-toggle" type="checkbox"> Radar 2 ωρών</label>
+  <button id="radar-prev" aria-label="Previous radar frame" disabled>◀</button>
+  <button id="radar-play" aria-label="Play radar animation" disabled>▶</button>
+  <button id="radar-next" aria-label="Next radar frame" disabled>▶▶</button>
+  <span id="radar-time">Radar ανενεργό</span>
+</div>
 <div id="map" aria-label="Χάρτης επιλεγμένης τοποθεσίας"><div class="map-fallback">Ο χάρτης φορτώνεται από OpenStreetMap. Δεν παρέχεται ζωντανό radar.</div></div>
 <div class="sidebar-footer">Τα ιστορικά στοιχεία είναι αναανάλυση ERA5 (1940–σήμερα), όχι ακριβείς μετρήσεις μετεωρολογικού σταθμού. Τα μοντέλα έχουν διαφορετικά χρονικά όρια και η πιθανότητα βροχής δεν υποστηρίζεται πάντοτε από όλα τα μοντέλα.</div>
 </aside>
@@ -130,7 +143,7 @@ header{display:flex;align-items:center;gap:14px;flex-wrap:wrap;padding:8px 14px;
 <p class="mini-note">Τα layers αναδιατάσσονται αυτόματα. Ορισμένα προγνωστικά δεδομένα μπορεί να μην είναι διαθέσιμα για κάθε μοντέλο ή ιστορική περίοδο. Τα κενά δεν αντικαθίστανται με επινοημένες τιμές.</p>
 </div>
 </div>
-<div class="footerline">Data: <a href="https://open-meteo.com/" target="_blank" rel="noopener">Open-Meteo</a> · Map: <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">OpenStreetMap</a> · Ανεξάρτητο open-source project, χωρίς σχέση με WeatherSpark ή WeatherDave. API free tier: μη εμπορική χρήση.</div>
+<div class="footerline">Data: <a href="https://open-meteo.com/" target="_blank" rel="noopener">Open-Meteo</a> · Radar: <a href="https://www.rainviewer.com/" target="_blank" rel="noopener">RainViewer</a> (προαιρετικά, μόνο τελευταία 2ωρα) · Map: <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">OpenStreetMap</a> · Ανεξάρτητο open-source project, χωρίς σχέση με WeatherSpark ή WeatherDave. API free tier: μη εμπορική χρήση.</div>
 </section></main>
 <script type="module" src="./app.mjs"></script>
 </body></html>
