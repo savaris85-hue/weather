@@ -250,6 +250,6 @@ function initialize(){
  window.addEventListener("meteolab:ready",e=>{if(e.detail?.location&&!place)place=e.detail.location;lang=e.detail?.lang||"el"});
  if(document.querySelector("#view-timeline.active"))activate();
 }
-window.MeteoTimeline={activate,moreHistory,resetRange,getState:()=>({shown:[...shown],loadedDays:history.size,oldest:historyOldest,layers:{...enabled},location:place})};
+window.MeteoTimeline={activate,moreHistory,resetRange,exportPNG,exportRows:()=>rowsAll().filter(r=>r.t>=shown[0]&&r.t<=shown[1]).map(r=>({utc:new Date(r.t).toISOString(),source:r.kind,...Object.fromEntries(layers.filter(l=>enabled[l.key]).map(l=>[l.key,r[l.key]]))})),getState:()=>({shown:[...shown],loadedDays:history.size,oldest:historyOldest,layers:{...enabled},location:place})};
 if(document.readyState==="loading")document.addEventListener("DOMContentLoaded",initialize);else initialize();
 })();
