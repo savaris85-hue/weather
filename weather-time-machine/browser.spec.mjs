@@ -45,6 +45,13 @@ async function setup(page) {
 test("real Chromium renders classic multi-layer timeline with Celsius and Beaufort",async({page},testInfo)=>{
   const requests=await setup(page);
   await expect(page.locator("#plot .main-svg").first()).toBeVisible();
+  await expect(page.locator("#overview .main-svg").first()).toBeVisible();
+  const layout=await page.locator("#plot").evaluate(el=>el.layout);
+  expect(layout.xaxis.side).toBe("top");
+  expect(layout.annotations.length).toBeGreaterThan(4);
+  expect(layout.shapes.some(s=>s.type==="line" && s.line?.color==="#f49c14")).toBeTruthy();
+  expect(layout.shapes.some(s=>s.type==="rect" && s.fillcolor==="rgba(183,145,238,.21)")).toBeTruthy();
+
   await expect(page.locator("#current-temp")).toContainText("°C");
   await expect(page.locator("#current-wind")).toContainText("Bft");
   await expect(page.locator("#current-icon")).not.toHaveText("·");
@@ -80,4 +87,22 @@ test("real Chromium can navigate back one year without 3-year loading limit",asy
     url.searchParams.get("start_date")<"2025-07-01")).toBeTruthy();
   await page.locator("#back").click();
   await expect(page.locator("#status")).toContainText("σημεία στο γράφημα");
+});
+
+test("actual Chromium computes historical percentiles and user-configurable colors",async({page},testInfo)=>{
+  await setup(page);
+  await page.locator("#layers-toggle").click();
+  await page.locator("#climate-years").selectOption("10");
+  await expect(page.locator("#climate-status")).toContainText("10 έτη",{timeout:30000});
+  const hasBand=await page.locator("#plot").evaluate(el=>
+    el.data.some(s=>String(s.name).includes("ιστορικό") && s.fill==="tonexty"));
+  expect(hasBand).toBeTruthy();
+  await page.locator("#wave-palette").selectOption("ocean");
+  const hasOceanLine=await page.locator("#plot").evaluate(el=>
+    el.data.some(s=>s.line?.color==="#009eae"));
+  expect(hasOceanLine).toBeTruthy();
+  await page.locator("#height-slider").fill("144");
+  await expect(page.locator("#plot")).toHaveAttribute("role","img");
+  await page.locator("#save-layout").click();
+  await page.screenshot({path:testInfo.outputPath("weather-v3-climate-colors.png"),fullPage:true});
 });
