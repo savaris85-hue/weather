@@ -420,7 +420,7 @@ function timeShapes(from,to){
       line:{width:0},fillcolor:color,layer:"below"});
   };
   addRect(from,now,"rgba(228,234,242,.14)");
-  addRect(now,to,"rgba(255,233,217,.30)");
+  addRect(now,Math.min(to,now+14*DAY),"rgba(255,233,217,.30)");
   addRect(startDay,startDay+DAY,"rgba(183,145,238,.21)");
   // Midnight guides remain visible when vertical day ticks are dense.
   if((to-from)/DAY<=32){
