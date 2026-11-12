@@ -194,10 +194,10 @@ function chartSeries(layer,rows,gridIndex,now){
  }
  const isRain=layer.key==="precipitation";
  const make=(data,historical)=>({...base,name:(historical?"ERA5 daily · ":"Forecast hourly · ")+name,type:isRain?"bar":"line",
- data,barMaxWidth:9,barGap:"-100%",smooth:!isRain,sampling:"lttb",lineStyle:{width:historical?Math.max(1,lineThickness-.5):lineThickness,type:historical?"dashed":"solid",color:color,opacity:historical?.7:1},itemStyle:{color:historical?color:color},areaStyle:isRain?{color:color+(historical?"28":"4a")}:undefined,markLine:(!historical?{silent:true,symbol:"none",label:{show:false},lineStyle:{color:"#e8d0fc",width:1.5,type:"dashed"},data:[{xAxis:now}]}:undefined)});
+ data,barMaxWidth:9,barGap:"-100%",smooth:!isRain,sampling:"lttb",lineStyle:{width:historical?Math.max(.85,lineThickness*.52):Math.max(2.4,lineThickness*1.24),type:historical?"dashed":"solid",color,opacity:historical?.34:1},itemStyle:{color,opacity:historical?.45:1},areaStyle:isRain?{color:color+(historical?"14":"65")}:undefined,markLine:(!historical?{silent:true,symbol:"none",label:{show:false},lineStyle:{color:"#e8d0fc",width:1.5,type:"dashed"},data:[{xAxis:now}]}:undefined)});
  const recentLine={...base,name:"Recent model hourly · "+name,type:isRain?"bar":"line",data:recent,
- barMaxWidth:8,smooth:!isRain,sampling:"lttb",lineStyle:{width:Math.max(1,lineThickness-.3),type:"dotted",color:"#6bd5b2"},
- itemStyle:{color:"#6bd5b2"},areaStyle:isRain?{color:"#6bd5b24a"}:undefined};
+ barMaxWidth:8,smooth:!isRain,sampling:"lttb",lineStyle:{width:Math.max(1,lineThickness*.65),type:"dotted",color,opacity:.52},
+ itemStyle:{color,opacity:.55},areaStyle:isRain?{color:color+"28"}:undefined};
  return [make(hist,true),recentLine,make(fut,false)];
 }
 function render(){
@@ -318,8 +318,15 @@ function activate(){
  if(!chart)render();else chart.resize();
  if(place&&historyOldest===null)moreHistory(false);
 }
+function updateDateScrollState(){
+ const ribbon=$("tlDateRibbon");if(!ribbon)return;
+ const y=window.scrollY||document.documentElement?.scrollTop||0;
+ ribbon.classList.toggle("tl-scrolled",y>130);
+}
 function initialize(){
  connectControls();
+ window.addEventListener("scroll",updateDateScrollState,{passive:true});
+ updateDateScrollState();
  window.addEventListener("meteolab:forecast",receive);
  window.addEventListener("meteolab:language",e=>{lang=e.detail?.lang||"el";if(active)render()});
  window.addEventListener("meteolab:ready",e=>{if(e.detail?.location&&!place)place=e.detail.location;lang=e.detail?.lang||"el"});
