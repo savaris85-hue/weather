@@ -162,7 +162,7 @@ test("user can customize each measurement and make forecast line bolder; setting
     el.value="#b13586";el.dispatchEvent(new Event("input",{bubbles:true}));
   });
   await expect.poll(()=>page.locator("#plot").evaluate(el=>
-    el.data.find(s=>s.name?.startsWith("Forecast · Temperature"))?.line?.color)).toBe("#8d2e70");
+    el.data.find(s=>s.name?.startsWith("Forecast · Temperature"))?.line?.color)).toBe("#912f72");
   await page.locator("#forecast-weight").evaluate(el=>{
     el.value="4.5";el.dispatchEvent(new Event("input",{bubbles:true}));
   });
