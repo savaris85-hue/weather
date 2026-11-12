@@ -4,6 +4,26 @@ export const FIELDS = [
   "pressure_msl", "cloud_cover", "wind_speed_10m", "wind_direction_10m"
 ];
 
+// Keep explicit date ranges separate from relative past_days/forecast_days.
+// Open-Meteo rejects combining these mutually exclusive parameter families.
+export function buildForecastParams(location, start, end) {
+  validateRange(start, end);
+  if (![location?.latitude, location?.longitude].every(Number.isFinite)) {
+    throw new Error("Invalid location coordinates");
+  }
+  return {
+    latitude: location.latitude,
+    longitude: location.longitude,
+    hourly: [...FIELDS, "precipitation_probability"].join(","),
+    start_date: start,
+    end_date: end,
+    timezone: "GMT",
+    temperature_unit: "celsius",
+    wind_speed_unit: "kmh",
+    precipitation_unit: "mm"
+  };
+}
+
 export const EARLIEST = "1940-01-01";
 export const MAX_DAYS = 1120;
 const DAY = 86400000;
