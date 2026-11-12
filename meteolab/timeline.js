@@ -194,13 +194,14 @@ function render(){
 function buildIcons(rows,start,end){
  const filtered=rows.filter(r=>r.t>=start&&r.t<=end&&r.code!=null).filter((_,i)=>i%Math.max(1,Math.ceil((end-start)/HOUR/10))===0).slice(0,12);
  const icon=c=>c===0?"☀️":c<=2?"🌤️":c===3?"☁️":c>=95?"⛈️":c>=71&&c<=77?"❄️":c>=51?"🌧️":"🌫️";
- return filtered.length?filtered.map(r=>'<span class="tl-icon-item">'+icon(r.code)+'<small>'+new Date(r.t).toLocaleDateString("en-GB",{timeZone:"UTC",day:"numeric",month:"short"})+'</small></span>').join(""):'<span class="tl-side-info">Icons are shown for available hourly forecasts.</span>';
+ return filtered.length?filtered.map(r=>{const pct=Math.max(0,Math.min(100,(r.t-start)/(end-start||1)*100));return '<span class="tl-icon-item" style="left:calc(70px + (100% - 94px) * '+(pct/100).toFixed(5)+')">'+icon(r.code)+'<small>'+new Date(r.t).toLocaleDateString("en-GB",{timeZone:"UTC",day:"numeric",month:"short"})+'</small></span>'}).join(""):'<span class="tl-side-info">Icons are shown for available hourly forecasts.</span>';
 }
 function zoomRange(start,end){
  if(!Number.isFinite(start)||!Number.isFinite(end)||end<=start)return;
  const width=Math.max(HOUR*3,Math.min(365*DAY*10,end-start)),mid=(start+end)/2;
  shown=[mid-width/2,mid+width/2];if(chart){renderLock=true;chart.dispatchAction({type:"dataZoom",dataZoomIndex:0,startValue:shown[0],endValue:shown[1]});renderLock=false}
  $("tlRange").textContent=dateUTC(shown[0])+" → "+dateUTC(shown[1])+" UTC";
+ $("tlIconRow").innerHTML=buildIcons(buildForecast(),shown[0],shown[1]);
  maybeLoadOlder();
 }
 function onZoom(){
@@ -212,6 +213,7 @@ function onZoom(){
   if(s===null||e===null){const p=number(z.start),q=number(z.end);if(p===null||q===null)return;s=minData+(maxData-minData)*p/100;e=minData+(maxData-minData)*q/100}
   if(!Number.isFinite(s)||!Number.isFinite(e)||e<=s)return;
   shown=[s,e];$("tlRange").textContent=dateUTC(s)+" → "+dateUTC(e)+" UTC";
+  $("tlIconRow").innerHTML=buildIcons(buildForecast(),s,e);
   maybeLoadOlder();
  },160);
 }
