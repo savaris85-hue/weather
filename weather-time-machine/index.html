@@ -293,7 +293,7 @@ body{overflow-x:clip}
 <div class="layer-panel" id="layer-panel" hidden>
 <h3>Layers · Επιλογή γραφημάτων</h3>
 <p class="mini-note">Κάθε παράμετρος έχει δικό της χρώμα. Το ιστορικό φαίνεται πιο ανοιχτό και η πρόγνωση πιο σκούρα και έντονη.</p><div id="layer-options"></div>
-<div class="control-group"><label for="climate-years">Γκρίζες ιστορικές καμπύλες · Κλιματική σύγκριση</label><select id="climate-years"><option value="0">Κρυφές · χωρίς κλιματικά στατιστικά</option><option value="1">1 προηγούμενο έτος</option><option value="2">2 προηγούμενα έτη</option><option value="3">3 προηγούμενα έτη</option><option value="10">10 ιστορικά έτη</option><option value="20" selected>20 ιστορικά έτη (γρήγορο)</option><option value="44">44 ιστορικά έτη (όπως WeatherDave)</option><option value="custom">Επιλογή ετών (από–έως)…</option></select></div>
+<div class="control-group"><label for="climate-years">Γκρίζες ιστορικές καμπύλες · Κλιματική σύγκριση</label><select id="climate-years"><option value="0">Κρυφές · χωρίς κλιματικά στατιστικά</option><option value="1">1 προηγούμενο έτος</option><option value="2">2 προηγούμενα έτη</option><option value="3">3 προηγούμενα έτη</option><option value="10">10 ιστορικά έτη</option><option value="20" selected>20 ιστορικά έτη (γρήγορο)</option><option value="44">44 ιστορικά έτη (εκτεταμένη σύγκριση)</option><option value="custom">Επιλογή ετών (από–έως)…</option></select></div>
 <div id="climate-custom-range" class="climate-year-range" hidden><label>Από έτος<input id="climate-year-from" type="number" min="1940" max="2025" value="2000"></label><label>Έως έτος<input id="climate-year-to" type="number" min="1940" max="2025" value="2020"></label><button id="climate-apply" type="button">Εφαρμογή</button></div>
 <label class="climate-compare"><input type="checkbox" id="compare-last-year"> Σύγκριση με το προηγούμενο έτος</label>
 <div id="climate-status" class="mini-note">Το γκρίζο υπόβαθρο δείχνει μέση τιμή και εύρος 10–90% για την ίδια εποχή — όχι μόνο πέρυσι.</div>
@@ -305,7 +305,7 @@ body{overflow-x:clip}
 <p class="mini-note">Τα layers αναδιατάσσονται αυτόματα. Ορισμένα προγνωστικά δεδομένα μπορεί να μην είναι διαθέσιμα για κάθε μοντέλο ή ιστορική περίοδο. Τα κενά δεν αντικαθίστανται με επινοημένες τιμές.</p>
 </div>
 </div>
-<div class="footerline">Data: <a href="https://open-meteo.com/" target="_blank" rel="noopener">Open-Meteo</a> · Radar: <a href="https://www.rainviewer.com/" target="_blank" rel="noopener">RainViewer</a> (προαιρετικά, μόνο τελευταία 2ωρα) · Map: <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">OpenStreetMap</a> · Ανεξάρτητο open-source project, χωρίς σχέση με WeatherSpark ή WeatherDave. API free tier: μη εμπορική χρήση. <strong class="footer-credit">Developed by Antonis Savaris</strong></div>
+<div class="footerline">Data: <a href="https://open-meteo.com/" target="_blank" rel="noopener">Open-Meteo</a> · Radar: <a href="https://www.rainviewer.com/" target="_blank" rel="noopener">RainViewer</a> (προαιρετικά, μόνο τελευταία 2ωρα) · Map: <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">OpenStreetMap</a> · Ανεξάρτητη εφαρμογή ανάλυσης ιστορικού και προγνωστικού καιρού. API free tier: μη εμπορική χρήση. <strong class="footer-credit">Developed by Antonis Savaris</strong></div>
 </section></main>
 <script type="module" src="./app.mjs"></script>
 </body></html>

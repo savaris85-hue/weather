@@ -1,6 +1,6 @@
 # Weather Time Machine — v2
 
-A clean-room, independent weather history explorer inspired by the **interaction style** of the former WeatherSpark Dashboard and WeatherDave. This project does **not** copy WeatherDave/WeatherSpark source code, assets, branding, or proprietary data.
+An independently developed weather history and forecast explorer, powered by public weather-data APIs. It uses original application source code and respects third-party data and software licenses.
 
 ## Live website
 
@@ -38,7 +38,7 @@ Unit and simulated UI tests:
     node --test weather-time-machine/*.test.mjs
 
 Files:
-- index.html — WeatherDave-like layout and Leaflet map container
+- index.html — responsive dashboard layout and Leaflet map container
 - app.mjs — interactive Plotly/Leaflet app with infinite timeline and forecast-model switching
 - data.mjs — UTC normalization, queries, conversion functions, aggregation and CSV
 - data.test.mjs — data and calculation unit/regression tests
@@ -71,14 +71,14 @@ In the weather repository, GitHub Settings → Pages → Build and deployment �
 The original authored code is MIT-licensed. Plotly, Leaflet, map tiles and Open-Meteo APIs/data have their own licences and terms.
 
 
-## WeatherDave-inspired v3: climate interpretation and readability
+## v3: climate interpretation and readability
 
 The pale gray lines are **not simply the previous year's forecast**. They are historical climate statistics by calendar day and hour. This implementation independently calculates, from real Open-Meteo ERA5 hourly reanalysis:
 - mean value by the same month/day/hour over the previous selectable **10, 20 or 44 years**;
 - the **10th and 90th percentiles**, shown as a pale gray uncertainty/reference envelope;
 - optional last-year same-calendar-date dotted comparison line (separate control).
 
-No climate values are invented; missing sample years remain missing. Historical baseline is requested only for visible windows of up to 32 days to protect API rate limits. A maximum of 3 concurrent requests are made; data are cached during a session. Default is 20 years for responsiveness; switch to 44 years in the Graphs panel for a WeatherDave-scale reference. Climate comparison is not displayed for the non-station historical precipitation probability layer or when insufficient reference records exist.
+No climate values are invented; missing sample years remain missing. Historical baseline is requested only for visible windows of up to 32 days to protect API rate limits. A maximum of 3 concurrent requests are made; data are cached during a session. Default is 20 years for responsiveness; switch to 44 years in the Graphs panel for an extended historical comparison. Climate comparison is not displayed for the non-station historical precipitation probability layer or when insufficient reference records exist.
 
 The present time is highlighted by an **orange vertical line**, the current UTC calendar day by a **purple background**, and the next 14 days by a warm-tinted background distinct from the past. Recent historical ERA5 is dark and forecast is red by default. Daily two-row Greek date labels are at the **top**, aligned with the plot for easy reading. The left-hand row labels are horizontal and larger. The bottom overview shows *only temperature* so it is no longer a spaghetti-like combination of every chart.
 
