@@ -245,6 +245,9 @@ function renderPins(){
     open.textContent=placeLabel(place);
     open.title="Μετάβαση σε "+place.name;
     open.addEventListener("click",()=>{
+      if(/^coordinates$/i.test(String(place.name||""))){
+        void selectMapLocation(place.latitude,place.longitude,index);return;
+      }
       state.place={...place};
       if(mapReverseController)mapReverseController.abort();
       state.locationLookupId++;
@@ -927,7 +930,7 @@ async function reverseMapPlace(lat,lon,signal){
   if(place)reverseCache.set(key,place);
   return place;
 }
-async function selectMapLocation(lat,lon){
+async function selectMapLocation(lat,lon,pinnedIndex=null){
   if(mapReverseController)mapReverseController.abort();
   const ctrl=new AbortController();mapReverseController=ctrl;
   const token=++state.locationLookupId;
@@ -943,6 +946,10 @@ async function selectMapLocation(lat,lon){
     ...(named||{name:"Επιλεγμένη περιοχή",country:""}),
     latitude:lat,longitude:lon,timezone:"GMT"
   };
+  if(pinnedIndex!=null && state.pins[pinnedIndex] &&
+     pinKey(state.pins[pinnedIndex])===pinKey(state.place)){
+    state.pins[pinnedIndex]={...state.place};persistPins();
+  }
   locationChanged();
 }
 let searchTimeout;
