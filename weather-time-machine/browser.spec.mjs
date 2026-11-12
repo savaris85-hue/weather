@@ -386,3 +386,23 @@ test("new location recovers from one Open-Meteo 429 without stale Elliniko data 
   await expect(page.locator("#chart-title")).not.toContainText("Elliniko");
   await expect(page.locator("#current-temp")).toContainText("°C");
 });
+
+
+test("legacy Coordinates favorite is resolved to town on selection and saved with its name",async({page})=>{
+  await page.addInitScript(()=>{
+    localStorage.setItem("wtm-pinned-cities-v1",JSON.stringify([
+      {name:"Coordinates",country:"37.945, 22.632",latitude:37.945,longitude:22.632,timezone:"GMT"}
+    ]));
+  });
+  await page.route(/https:\/\/nominatim\.openstreetmap\.org\/reverse\?/,async route=>{
+    await route.fulfill({status:200,contentType:"application/json",
+      headers:{"access-control-allow-origin":"*"},
+      body:JSON.stringify({address:{town:"Κόρινθος",country:"Ελλάδα"}})});
+  });
+  await setup(page);
+  await page.locator("#pinned-cities .pin-chip").first().click();
+  await expect(page.locator("#current-place")).toContainText("Κόρινθος",{timeout:30000});
+  await expect(page.locator("#pinned-cities .pin-chip").first()).toContainText("Κόρινθος");
+  const saved=await page.evaluate(()=>JSON.parse(localStorage.getItem("wtm-pinned-cities-v1")));
+  expect(saved[0].name).toBe("Κόρινθος");
+});
