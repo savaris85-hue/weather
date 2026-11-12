@@ -274,7 +274,7 @@ test("v5 navigator displays explicit dates, selected window and visible date tic
   await setup(page);
   const before=await page.locator("#nav-from-date").textContent();
   await expect(page.locator("#nav-to-date")).not.toBeEmpty();
-  await expect(page.locator("#nav-duration")).toContainText("ημέρες");
+  await expect(page.locator("#nav-duration")).toHaveText("15 ημέρες");
   await expect(page.locator("#nav-date-ticks .nav-date-tick")).toHaveCount(8);
   await expect(page.locator("#nav-loaded-range")).toContainText("Φορτωμένο:");
   await expect(page.locator("#overview .main-svg").first()).toBeVisible();
@@ -293,6 +293,7 @@ test("v5 390px mobile keeps header and date ribbon sticky without taking entire 
   await expect(page.locator("#developer-credit")).toHaveCount(0);
   await expect(page.locator(".developer-credit")).toBeVisible();
   await expect(page.locator("#sticky-date-values .sticky-day")).toHaveCount(3);
+  await expect(page.locator("#sticky-date-values .sticky-day:visible")).toHaveCount(3);
   await expect(page.locator("#nav-date-ticks .nav-date-tick")).toHaveCount(3);
   await page.evaluate(()=>window.scrollTo(0,1350));
   await expect.poll(()=>page.evaluate(()=>window.scrollY)).toBeGreaterThan(500);
