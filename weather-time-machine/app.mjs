@@ -91,6 +91,8 @@ function applyPreset(days) {
 function syncDates() {
   controls.start.value=iso(state.view[0]);
   controls.end.value=iso(state.view[1]);
+  updateStickyDates();
+  updateRangeLabels();
 }
 function query(base,parameters) {return base+"?"+new URLSearchParams(parameters).toString();}
 async function json(url,signal) {
@@ -536,6 +538,83 @@ function timeShapes(from,to){
   });
   return shapes;
 }
+
+const DATE_MONTHS=["Ιαν","Φεβ","Μαρ","Απρ","Μαΐ","Ιουν","Ιουλ","Αυγ","Σεπ","Οκτ","Νοε","Δεκ"];
+const DATE_DAYS=["Κυρ","Δευ","Τρι","Τετ","Πεμ","Παρ","Σαβ"];
+function friendlyUTC(ms,year=true){
+  const d=new Date(ms);
+  const val=String(d.getUTCDate()).padStart(2,"0")+" "+DATE_MONTHS[d.getUTCMonth()];
+  return year?val+" "+d.getUTCFullYear():val;
+}
+function setStickyGeometry(){
+  if(!document.documentElement?.style?.setProperty)return;
+  const header=document.querySelector("#site-header");
+  const toolbar=document.querySelector("#main-controls");
+  const mobile=(window.innerWidth||1200)<=800;
+  const hh=header?.getBoundingClientRect?.().height||50;
+  const th=mobile?0:(toolbar?.getBoundingClientRect?.().height||55);
+  document.documentElement.style.setProperty("--header-h",Math.round(hh)+"px");
+  document.documentElement.style.setProperty("--toolbar-h",Math.round(th)+"px");
+}
+function updateStickyDates(){
+  if(!state.view)return;
+  const area=$("#sticky-date-values");
+  if(!area)return;
+  const {0:from,1:to}=state.view;
+  const count=(window.innerWidth||1200)<440?3:(window.innerWidth||1200)<800?4:8;
+  area.replaceChildren();
+  for(let i=0;i<count;i++){
+    const when=from+(to-from)*(i/(count-1));
+    const d=new Date(when);
+    const node=document.createElement("span");
+    node.className="sticky-day";
+    if(iso(when)===today)node.classList.add("is-today");
+    const line=document.createElement("span");
+    line.textContent=DATE_DAYS[d.getUTCDay()];
+    const date=document.createElement("strong");
+    date.textContent=friendlyUTC(when,false);
+    node.append(line,date);area.append(node);
+  }
+  $("#sticky-date-summary").textContent=friendlyUTC(from,false)+" – "+friendlyUTC(to,false);
+}
+function updateRangeLabels(){
+  if(!state.view)return;
+  const [from,to]=state.view;
+  $("#nav-from-date").textContent=friendlyUTC(from);
+  $("#nav-to-date").textContent=friendlyUTC(to);
+  const days=Math.max(1,Math.floor((to-from)/DAY)+1);
+  $("#nav-duration").textContent=days===1?"1 ημέρα":days+" ημέρες";
+}
+function updateNavigatorDates(){
+  updateRangeLabels();
+  if(!state.rows.length)return;
+  const points=state.rows.map(row=>row.t*1000).filter(Number.isFinite);
+  if(!points.length)return;
+  let min=Infinity,max=-Infinity;
+  for(const t of points){if(t<min)min=t;if(t>max)max=t;}
+  $("#nav-loaded-range").textContent="Φορτωμένο: "+friendlyUTC(min)+" – "+friendlyUTC(max);
+  const ticks=$("#nav-date-ticks");
+  ticks.replaceChildren();
+  const screen=window.innerWidth||1200;
+  const count=screen<440?3:screen<800?4:screen<1200?6:8;
+  for(let i=0;i<count;i++){
+    const date=min+(max-min)*(i/(count-1));
+    const node=document.createElement("span");
+    node.className="nav-date-tick";
+    node.textContent=friendlyUTC(date,(max-min)>330*DAY);
+    ticks.append(node);
+  }
+}
+if(typeof ResizeObserver==="function"){
+  const observer=new ResizeObserver(()=>setStickyGeometry());
+  const header=$("#site-header"),toolbar=$("#main-controls");
+  if(header)observer.observe(header);
+  if(toolbar)observer.observe(toolbar);
+}
+if(typeof window.addEventListener==="function")window.addEventListener("resize",()=>{
+  setStickyGeometry();updateStickyDates();updateNavigatorDates();
+});
+setStickyGeometry();
 async function drawOverview(){
   if(typeof Plotly==="undefined"||!$("#overview"))return;
   const full=sampleRows(state.rows.filter(row=>Number.isFinite(row.temperature_2m)),2200);
@@ -546,15 +625,18 @@ async function drawOverview(){
   state.overviewPlotting=true;
   try{
     await Plotly.react($("#overview"),[trace],{
-      height:128,autosize:true,paper_bgcolor:"#f9fbfe",plot_bgcolor:"#f9fbfe",
-      font:{size:11,color:"#57708b"},margin:{l:Math.round(chartGutter().gutter)+20,r:18,t:2,b:6},
+      height:(window.innerWidth||1200)<800?143:152,autosize:true,paper_bgcolor:"#f6f9ff",plot_bgcolor:"#ffffff",
+      font:{size:11,color:"#486188"},margin:{l:(window.innerWidth||1200)<800?14:24,r:18,t:5,b:27},
       showlegend:false,dragmode:"pan",
       xaxis:{type:"date",range:state.view.map(ms=>new Date(ms).toISOString()),
-        showticklabels:false,gridcolor:"#e7edf5",showgrid:false,
-        rangeslider:{visible:true,thickness:.64,bgcolor:"#f1f5fc",bordercolor:"#bfccdf"}},
+        showticklabels:true,tickformat:"%d %b",tickfont:{size:10,color:"#476488"},
+        ticks:"outside",ticklen:4,tickcolor:"#8caad3",
+        gridcolor:"#e4ecf8",showgrid:true,
+        rangeslider:{visible:true,thickness:.62,bgcolor:"#dce9fc",bordercolor:"#83a7e8",borderwidth:2}},
       yaxis:{visible:false,fixedrange:true}
     },{responsive:true,scrollZoom:false,displayModeBar:false});
     const element=$("#overview");
+    updateNavigatorDates();
     if(!state.overviewBound&&typeof element.on==="function"){
       element.on("plotly_relayout",onRelayout);
       state.overviewBound=true;
@@ -600,6 +682,7 @@ async function renderChart(){
   const n=layers.length,gap=.014,size=(1-(n-1)*gap)/n;
   const from=state.view[0],to=state.view[1];
   const dayTicks=niceDays(from,to);
+  updateStickyDates();updateRangeLabels();
   const {mobile,gutter,domain}=chartGutter();
   const layout={
     autosize:true,height:Math.max(580,145+n*state.rowHeight),

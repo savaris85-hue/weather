@@ -240,3 +240,75 @@ test("390px mobile viewport keeps labels, city pins, map, charts and controls us
   await expect(page.locator("#layer-options input[type=color]")).toHaveCount(14);
   await page.screenshot({path:testInfo.outputPath("weather-v4-mobile-390.png"),fullPage:true});
 });
+
+
+test("v5 desktop sticky header, sidebar, controls and date strip remain fixed while scrolling",async({page},testInfo)=>{
+  await setup(page);
+  await expect(page.locator("#site-header")).toContainText("Developed by");
+  await expect(page.locator("#site-header")).toContainText("Antonis Savaris");
+  await expect(page.locator("#sticky-date-values .sticky-day")).toHaveCount(8);
+  const sticky=await page.evaluate(()=>{
+    return ["#site-header","#location-sidebar","#main-controls","#sticky-dates"].map(selector=>({
+      selector,position:getComputedStyle(document.querySelector(selector)).position
+    }));
+  });
+  for(const item of sticky)expect(item.position).toBe("sticky");
+  await page.evaluate(()=>window.scrollTo(0,950));
+  await expect.poll(()=>page.evaluate(()=>window.scrollY)).toBeGreaterThan(400);
+  const places=await page.evaluate(()=>{
+    const header=document.querySelector("#site-header").getBoundingClientRect();
+    const sidebar=document.querySelector("#location-sidebar").getBoundingClientRect();
+    const toolbar=document.querySelector("#main-controls").getBoundingClientRect();
+    const dates=document.querySelector("#sticky-dates").getBoundingClientRect();
+    return {header:header.top,sidebar:sidebar.top,toolbar:toolbar.top,dates:dates.top,
+      headerHeight:header.height,toolbarHeight:toolbar.height};
+  });
+  expect(Math.abs(places.header)).toBeLessThan(3);
+  expect(Math.abs(places.sidebar-places.headerHeight)).toBeLessThan(6);
+  expect(Math.abs(places.toolbar-places.headerHeight)).toBeLessThan(6);
+  expect(Math.abs(places.dates-places.headerHeight-places.toolbarHeight)).toBeLessThan(7);
+  await page.screenshot({path:testInfo.outputPath("v5-desktop-sticky-after-scroll.png")});
+});
+
+test("v5 navigator displays explicit dates, selected window and visible date ticks after navigation",async({page},testInfo)=>{
+  await setup(page);
+  const before=await page.locator("#nav-from-date").textContent();
+  await expect(page.locator("#nav-to-date")).not.toBeEmpty();
+  await expect(page.locator("#nav-duration")).toHaveText("15 ημέρες");
+  await expect(page.locator("#nav-date-ticks .nav-date-tick")).toHaveCount(8);
+  await expect(page.locator("#nav-loaded-range")).toContainText("Φορτωμένο:");
+  await expect(page.locator("#overview .main-svg").first()).toBeVisible();
+  await expect(page.locator("#overview .rangeslider-container")).toBeVisible();
+  await page.locator("#back").click();
+  await expect(page.locator("#status")).toContainText("σημεία στο γράφημα");
+  await expect(page.locator("#nav-from-date")).not.toHaveText(before);
+  await expect(page.locator("#sticky-date-summary")).not.toBeEmpty();
+  await page.locator("#overview").scrollIntoViewIfNeeded();
+  await page.screenshot({path:testInfo.outputPath("v5-navigator-dates-selection.png")});
+});
+
+test("v5 390px mobile keeps header and date ribbon sticky without taking entire screen",async({page},testInfo)=>{
+  await page.setViewportSize({width:390,height:844});
+  await setup(page);
+  await expect(page.locator("#developer-credit")).toHaveCount(0);
+  await expect(page.locator(".developer-credit")).toBeVisible();
+  await expect(page.locator("#sticky-date-values .sticky-day")).toHaveCount(3);
+  await expect(page.locator("#sticky-date-values .sticky-day:visible")).toHaveCount(3);
+  await expect(page.locator("#nav-date-ticks .nav-date-tick")).toHaveCount(3);
+  await page.evaluate(()=>window.scrollTo(0,1350));
+  await expect.poll(()=>page.evaluate(()=>window.scrollY)).toBeGreaterThan(500);
+  const dim=await page.evaluate(()=>{
+    const header=document.querySelector("#site-header").getBoundingClientRect();
+    const ribbon=document.querySelector("#sticky-dates").getBoundingClientRect();
+    const toolbar=document.querySelector("#main-controls").getBoundingClientRect();
+    return {headerTop:header.top,headerHeight:header.height,ribbonTop:ribbon.top,
+      ribbonHeight:ribbon.height,toolbarPosition:getComputedStyle(document.querySelector("#main-controls")).position,
+      overflow:document.documentElement.scrollWidth-innerWidth};
+  });
+  expect(Math.abs(dim.headerTop)).toBeLessThan(3);
+  expect(Math.abs(dim.ribbonTop-dim.headerHeight)).toBeLessThan(6);
+  expect(dim.toolbarPosition).not.toBe("sticky");
+  expect(dim.headerHeight+dim.ribbonHeight).toBeLessThan(175);
+  expect(dim.overflow).toBeLessThanOrEqual(4);
+  await page.screenshot({path:testInfo.outputPath("v5-mobile-sticky-after-scroll.png")});
+});
