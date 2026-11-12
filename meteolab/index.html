@@ -117,6 +117,83 @@ body{background:linear-gradient(180deg,#f1f7ff 0%,#f6f8fc 40%,#f4f7fb 100%)}
 @media(max-width:420px){.hero-weather-visual{width:120px;height:145px}.weather-hero-card{min-height:285px}.hero-condition{font-size:15px}.hero-temperature{font-size:48px}.hero-weather-reading{min-width:140px}}
 @media(prefers-reduced-motion:reduce){.w-motion-sun,.w-motion-cloud,.w-motion-rain,.w-motion-snow,.hero-decoration,.sunpath-sun,.hero-live-dot span:first-child,.day{animation:none!important}}
 
+
+/* MeteoLab v1.2 — unified dark scientific tables/charts and compact mobile navigation */
+.developer-credit{margin-top:11px;color:#a9c0df;font-size:11px;line-height:1.5}
+.developer-credit strong{color:#eff6ff;font-weight:750}
+.credit strong{color:#3869b2}
+.scientific-workspace{color:#dce8fb}
+.scientific-workspace .card,.scientific-workspace .analysis-card,.scientific-data-panel{background:#18243b;border:1px solid #30435f;border-radius:16px;box-shadow:0 12px 32px #101a3020;color:#dce8fb}
+.scientific-workspace .panel{background:#18243b;color:#dce8fb}
+.scientific-workspace h3,.scientific-workspace .mini-title,.scientific-workspace .form-group label{color:#f0f6ff}
+.scientific-workspace .muted,.scientific-workspace .history-hint,.scientific-workspace .fineprint{color:#a5bddc}
+.scientific-workspace .badge{color:#bcd4f1;background:#223653;border-color:#405979}
+.scientific-workspace .period-switch{background:#1d2e49}
+.scientific-workspace .period-switch button,.scientific-workspace .analysis-tabs button,.scientific-workspace .btn:not(.primary),.scientific-workspace .chart-layer-list button,.scientific-workspace .chart-zoom-tools button{background:#263b5b;border:1px solid #435b7b;color:#dce9ff;border-radius:9px}
+.scientific-workspace .period-switch button.active,.scientific-workspace .analysis-tabs button.active,.scientific-workspace .chart-layer-list button.active{background:#3265b8;color:#fff;border-color:#6498e6}
+.scientific-workspace input:not([type=checkbox]),.scientific-workspace select{background:#1d2f49;border:1px solid #476183;color:#f0f6ff}
+.scientific-workspace .history-stat,.scientific-workspace .analytics-metric{background:#1d2f49;border:1px solid #3c5270;color:#dce8fb}
+.scientific-workspace .history-stat strong,.scientific-workspace .analytics-metric strong{color:#f5f8ff}
+.scientific-workspace .analytics-chart,.scientific-workspace .hscroll{background:#18243b;border-radius:12px}
+.scientific-workspace canvas{max-width:100%}
+.scientific-workspace .compare-model-choices label{background:#223550;color:#e2edff}
+.scientific-data-panel{margin-top:14px;padding:18px}
+.scientific-workspace .scroll-x{overflow-x:auto;-webkit-overflow-scrolling:touch}
+.scientific-workspace .scientific-table{width:100%;min-width:460px;border-collapse:collapse;font-variant-numeric:tabular-nums}
+.scientific-workspace .scientific-table th{position:sticky;top:0;background:#223653;color:#9fcbff;text-transform:none;letter-spacing:.2px;border-bottom:1px solid #547297;padding:11px 12px;text-align:left;white-space:nowrap}
+.scientific-workspace .scientific-table td{padding:10px 12px;background:#18243b;color:#dce8fb;border-bottom:1px solid #30415f;white-space:nowrap}
+.scientific-workspace .scientific-table tbody tr:nth-child(even) td{background:#1c2a43}
+.scientific-workspace .scientific-table tbody tr:hover td{background:#283b5c}
+.scientific-workspace .scientific-table th:first-child,.scientific-workspace .scientific-table td:first-child{position:sticky;left:0;z-index:2;background:#22334e}
+.scientific-workspace .scientific-table th:first-child{z-index:3;background:#293e60}
+@media(max-width:1050px){
+  .main{padding:16px 14px 30px}
+  .app{grid-template-columns:196px minmax(0,1fr)}
+  .sidebar{padding:15px 9px}
+  .nav button{padding:10px 8px;gap:7px}
+  .top-actions{gap:6px}
+  .scientific-workspace .analysis-grid{grid-template-columns:1fr}
+}
+@media(max-width:760px){
+  html,body{max-width:100%;overflow-x:hidden}
+  .app{display:flex;flex-direction:column;width:100%;max-width:100%}
+  .sidebar{position:sticky;top:0;z-index:1200;width:100%;height:auto;min-height:unset;display:flex;flex-direction:column;gap:6px;padding:8px 9px 7px;background:#12223d;border-bottom:1px solid #354d70}
+  .brand{padding:1px 5px;gap:7px}
+  .brand-icon{height:28px;width:28px;border-radius:9px}
+  .brand strong{font-size:15px}.brand small{display:none}
+  .nav{display:flex;gap:5px;overflow-x:auto;overflow-y:hidden;scroll-snap-type:x proximity;scrollbar-width:thin;padding:2px 0 5px;width:100%}
+  .nav button{flex:0 0 auto;padding:8px 10px;gap:7px;font-size:11px;white-space:nowrap;scroll-snap-align:start;border-radius:9px}
+  .nav svg{height:14px;width:14px}
+  .side-foot{display:none}
+  .main{padding:12px 10px 35px;width:100%;min-width:0;max-width:100%}
+  .topbar{display:flex;flex-direction:column;align-items:stretch;gap:9px;margin-bottom:14px}
+  .topbar h1{font-size:20px}
+  .top-actions{display:flex;flex-wrap:wrap;gap:5px;width:100%}
+  .search{flex:1 1 190px;min-width:150px}
+  .search input{font-size:16px}
+  #pinCurrent{min-width:36px}
+  #globalExport{max-width:108px}
+  .pinbar{display:flex;overflow-x:auto;max-width:100%;scrollbar-width:thin}
+  .grid-stats{grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}
+  .workspace{display:grid;grid-template-columns:minmax(0,1fr)}
+  .aside-stack{grid-template-columns:1fr}
+  .analysis-grid{grid-template-columns:1fr}
+  .analytics-metrics{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .scientific-workspace .card,.scientific-workspace .analysis-card,.scientific-data-panel{padding:12px}
+  .scientific-workspace .history-toolbar,.scientific-workspace .analysis-actions{flex-wrap:wrap;gap:7px}
+  .scientific-workspace .form-grid{grid-template-columns:repeat(2,minmax(0,1fr))!important}
+  .scientific-workspace .analytics-chart{min-height:260px}
+  .credit{font-size:10px;line-height:1.8}
+}
+@media(max-width:410px){
+  .scientific-workspace .form-grid{grid-template-columns:1fr!important}
+  .top-actions #language{max-width:66px}
+  .grid-stats{gap:6px}
+  .stat{padding:11px}
+  .stat strong{font-size:22px}
+  .hero-weather-visual{width:110px;height:132px}
+}
+
 </style>
 
 </head>
