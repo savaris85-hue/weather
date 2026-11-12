@@ -135,12 +135,97 @@ header{display:flex;align-items:center;gap:14px;flex-wrap:wrap;padding:8px 14px;
  .buttons button{font-size:11px;padding:7px 6px}
 }
 
+
+/* v5: sticky desktop navigation without creating an overflow scroll container */
+:root{--header-h:50px;--toolbar-h:55px;--dates-h:43px}
+html{scroll-padding-top:calc(var(--header-h) + var(--toolbar-h) + var(--dates-h) + 10px)}
+body{overflow-x:clip}
+#site-header{position:sticky;top:0;z-index:120;box-shadow:0 2px 8px #1c30552a;min-height:48px}
+.developer-credit{font-size:11px;white-space:nowrap;color:#edf2ff;background:#394eae88;border:1px solid #b8c9ff77;border-radius:999px;padding:5px 10px}
+.developer-credit strong{font-weight:750;color:#fff}
+.workspace{align-items:start}
+#location-sidebar{position:sticky;top:var(--header-h);height:calc(100dvh - var(--header-h));min-height:360px;overflow-y:auto;overscroll-behavior:contain;scrollbar-width:thin;align-self:start;z-index:22;box-shadow:3px 2px 12px #132c5212}
+.dashboard{isolation:isolate}
+#main-controls{position:sticky;top:var(--header-h);z-index:78;box-shadow:0 3px 9px #1d3d5c18}
+.sticky-dates{position:sticky;top:calc(var(--header-h) + var(--toolbar-h));z-index:75;
+ display:flex;align-items:center;gap:10px;min-height:44px;padding:5px 13px;
+ border-bottom:2px solid #88a8e6;background:#edf4ff;box-shadow:0 4px 12px #29446c14;color:#284f89}
+.date-caption{font-size:10px;letter-spacing:.06em;font-weight:800;color:#627a9b;white-space:nowrap}
+.sticky-dates-values{display:flex;align-items:center;justify-content:space-between;flex:1;gap:6px;min-width:0}
+.sticky-day{font-size:11px;line-height:1.2;white-space:nowrap;text-align:center;color:#334e76;font-weight:650}
+.sticky-day strong{display:block;font-size:11px;color:#172e53}
+.sticky-day.is-today{border-radius:5px;background:#fff0d8;color:#9b5806;padding:3px 6px}
+.sticky-day.is-today strong{color:#98500b}
+.sticky-dates-summary{font-size:11px;white-space:nowrap;color:#345da0;padding:4px 7px;border:1px solid #a8bee7;border-radius:6px;background:white}
+.footer-credit{font-size:12px;color:#234f8c;margin-left:12px;white-space:nowrap}
+
+/* Simplified high contrast date-bearing navigator */
+.navigator-shell{margin:14px 12px 22px;border:1px solid #b6cbe9;border-radius:13px;overflow:hidden;background:linear-gradient(180deg,#ffffff 0%,#f3f7ff 100%);box-shadow:0 5px 18px #1c42751a}
+.navigator-heading{padding:11px 15px 10px;display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap}
+.navigator-heading-text{display:grid;gap:1px;color:#28486f}
+.navigator-heading-text strong{font-size:14px}
+.navigator-heading-text span{font-size:11px;color:#748aa9}
+.range-chips{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.range-chip{display:grid;gap:1px;background:#eaf1ff;border:1px solid #9bb7e7;color:#214579;border-radius:8px;padding:4px 10px;min-width:96px}
+.range-chip small{font-size:9px;font-weight:750;letter-spacing:.08em;color:#728aa9}
+.range-chip strong{font-size:13px}
+.range-arrow{font-weight:800;font-size:17px;color:#6282b4}
+.range-duration{font-size:12px;border-radius:999px;background:#2e5caa;color:white;padding:7px 10px}
+#overview{height:152px;margin:0;width:100%;background:transparent;border:0}
+#overview .rangeslider-bg{fill:#eaf1fc!important}
+#overview .rangeslider-mask-min,#overview .rangeslider-mask-max{fill:rgba(19,45,88,.38)!important}
+#overview .rangeslider-handle-min,#overview .rangeslider-handle-max{stroke:#244f9c!important;stroke-width:3px!important;fill:#ffffff!important}
+.nav-date-ticks{display:flex;align-items:center;justify-content:space-between;gap:0;padding:6px 14px 9px;border-top:1px solid #d6e3f4;min-height:34px}
+.nav-date-tick{font-size:11px;color:#4a6384;white-space:nowrap;text-align:center;font-weight:650}
+.nav-date-tick:first-child,.nav-date-tick:last-child{color:#284e8a;font-weight:800}
+.navigator-bottom{display:flex;flex-wrap:wrap;justify-content:space-between;align-items:center;gap:8px;font-size:11px;color:#687f9e;padding:10px 15px;background:#f5f9ff;border-top:1px solid #e0e9f7}
+.navigator-bottom strong{color:#315e9c}
+.navigator-current-dot{display:inline-block;vertical-align:middle;width:9px;height:9px;background:#4f8ee8;border-radius:50%;box-shadow:0 0 0 3px #cfe2ff}
+#overview .range-slider{background:#eef4ff}
+#overview .rangeslider-container .drag{cursor:grab}
+@media(max-width:1090px){
+ .developer-credit{margin-left:auto}
+ .sticky-day:nth-child(even){display:none}
+ .sticky-day:last-child{display:block}
+}
+@media(max-width:800px){
+ :root{--toolbar-h:0px}
+ #site-header{position:sticky;top:0}
+ .developer-credit{font-size:10px;padding:3px 8px;margin-left:0}
+ #location-sidebar{position:static;height:auto;overflow:visible;min-height:0;box-shadow:none}
+ #main-controls{position:relative;top:auto;box-shadow:none;z-index:10}
+ .sticky-dates{top:var(--header-h);padding:4px 7px;min-height:42px}
+ .date-caption{display:none}
+ .sticky-day{font-size:10px}.sticky-day strong{font-size:10px}
+ .sticky-dates-summary{font-size:10px;padding:3px 5px}
+ .navigator-shell{margin:11px 7px 20px;border-radius:11px}
+ .navigator-heading{padding:9px 10px}
+ .navigator-heading-text strong{font-size:13px}
+ .navigator-heading-text span{font-size:10px}
+ .range-chips{gap:5px}
+ .range-chip{padding:4px 8px;min-width:82px}
+ .range-chip strong{font-size:11px}
+ .range-duration{font-size:10px;padding:5px 7px}
+ #overview{height:143px}
+ .nav-date-ticks{padding:5px 9px;font-size:9px}
+ .nav-date-tick{font-size:10px}
+ .navigator-bottom{font-size:10px;padding:8px 10px}
+ .footer-credit{display:block;margin:6px 0 0}
+}
+@media(max-width:440px){
+ .developer-credit{order:2}
+ .sticky-dates-summary{max-width:140px;overflow:hidden;text-overflow:ellipsis}
+ .sticky-day:nth-child(3n){display:none}
+ .range-chips{width:100%;justify-content:flex-start}
+}
+
 </style>
 </head>
 <body>
-<header>
+<header id="site-header">
 <div class="brand"><span class="mark">☀</span><div><strong>Weather Time Machine</strong><small>BETA</small></div></div>
 <span class="header-note">Ιστορικός καιρός + προγνωστικά μοντέλα σε μία χρονογραμμή</span>
+<span class="developer-credit" aria-label="Developer credit">Developed by <strong>Antonis Savaris</strong></span>
 <div class="header-tools">
 <button class="navbutton" id="help-btn">Οδηγίες</button>
 <button class="navbutton" data-span="3">3-day</button>
@@ -153,7 +238,7 @@ header{display:flex;align-items:center;gap:14px;flex-wrap:wrap;padding:8px 14px;
 </div>
 </header>
 <main class="workspace">
-<aside class="sidebar">
+<aside class="sidebar" id="location-sidebar">
 <div class="location-search">
 <label for="place">Αναζήτηση πόλης ή περιοχής</label>
 <input id="place" value="Elliniko, Greece" autocomplete="off">
@@ -183,20 +268,28 @@ header{display:flex;align-items:center;gap:14px;flex-wrap:wrap;padding:8px 14px;
 <div class="sidebar-footer">Τα ιστορικά στοιχεία είναι αναανάλυση ERA5 (1940–σήμερα), όχι ακριβείς μετρήσεις μετεωρολογικού σταθμού. Τα μοντέλα έχουν διαφορετικά χρονικά όρια και η πιθανότητα βροχής δεν υποστηρίζεται πάντοτε από όλα τα μοντέλα.</div>
 </aside>
 <section class="dashboard">
-<div class="controls">
+<div class="controls" id="main-controls">
 <div class="control-group"><label for="start">Από (UTC)</label><input type="date" id="start" min="1940-01-01"></div>
 <div class="control-group"><label for="end">Έως (UTC)</label><input type="date" id="end" min="1940-01-01"></div>
 <div class="control-group"><label for="model">Προγνωστικό μοντέλο</label><select id="model" aria-label="Weather forecast model"><option value="best_match">Best Match · Open-Meteo</option><option value="ecmwf_ifs025">ECMWF IFS</option><option value="ncep_gfs_seamless">NOAA GFS</option><option value="icon_seamless">DWD ICON</option></select></div>
 <div class="buttons"><button class="primary" id="load">↻ Φόρτωση</button><button id="back" title="Load earlier dates">← Πίσω</button><button id="forward" title="Move toward future dates">Μπροστά →</button><button id="today">Σήμερα</button><button id="export">CSV ↓</button></div>
 </div>
+<div id="sticky-dates" class="sticky-dates" aria-label="Σταθερή κεφαλίδα ημερομηνιών"><span class="date-caption">ΗΜΕΡΟΜΗΝΙΕΣ</span><div class="sticky-dates-values" id="sticky-date-values"></div><strong class="sticky-dates-summary" id="sticky-date-summary">—</strong></div>
 <div id="status" role="status" aria-live="polite">Αναμονή φόρτωσης ιστορικών και προγνωστικών δεδομένων…</div>
 <div id="help"><strong>Πλοήγηση:</strong> Σύρε το γράφημα οριζόντια για να μετακινηθείς στον χρόνο, κάνε scroll για zoom, και χρησιμοποίησε το κάτω mini timeline για εύρεση ημερομηνιών. Καθώς προχωράς αριστερά, φορτώνονται αυτόματα παλαιότερα ιστορικά δεδομένα μέχρι το 1940. Τα βελάκια του ανέμου δείχνουν την κατεύθυνση προς την οποία φυσά.</div>
 <div class="legend-strip"><span><span class="swatch" style="background:#243446" id="legend-history"></span>Πρόσφατο ιστορικό ERA5</span><span><span class="swatch" style="background:#d8392d" id="legend-forecast"></span>Πρόγνωση</span><span><span class="swatch" style="background:#a0aab9" id="legend-climate"></span>Κλιματικός μέσος και 10–90% προηγούμενων ετών</span><span><span class="swatch" style="background:#ff9e17"></span>Πορτοκαλί: τώρα</span><span><span class="swatch" style="background:#cebaed"></span>Μοβ: σημερινή ημέρα</span><span>🌡 °C</span><span>💨 Bft</span></div>
 <div class="plot-wrap">
 <div class="plot-heading"><div><h2 id="chart-title">Elliniko — Weather Timeline</h2><p id="chart-subtitle">Συνεχές zoom, pan, δυναμική φόρτωση ιστορικού</p></div><span class="mini-note" id="period-summary"></span></div>
 <div id="plot" role="img" aria-label="Διαδραστικά μετεωρολογικά γραφήματα"></div>
-<div class="navigator-title">Επισκόπηση χρονικού διαστήματος · σύρε τα άκρα για zoom ή μετακίνησε το επιλεγμένο παράθυρο</div>
-<div id="overview" role="img" aria-label="Κάτω χρονογραμμή για zoom και μετακίνηση"></div>
+<section class="navigator-shell" aria-label="Διαδραστική επιλογή χρονικού διαστήματος">
+<div class="navigator-heading">
+  <div class="navigator-heading-text"><strong>Χρονογραμμή επιλογής</strong><span>Σύρε τη φωτισμένη περιοχή ή τα πλαϊνά άκρα για μετακίνηση / zoom</span></div>
+  <div class="range-chips"><span class="range-chip"><small>ΑΠΟ</small><strong id="nav-from-date">—</strong></span><span class="range-arrow">→</span><span class="range-chip"><small>ΕΩΣ</small><strong id="nav-to-date">—</strong></span><strong class="range-duration" id="nav-duration">—</strong></div>
+</div>
+<div id="overview" role="img" aria-label="Κάτω διαδραστική χρονογραμμή με σκιασμένα μη επιλεγμένα διαστήματα"></div>
+<div id="nav-date-ticks" class="nav-date-ticks" aria-label="Ημερομηνίες σε όλο το διαθέσιμο ιστορικό"></div>
+<div class="navigator-bottom"><span><span class="navigator-current-dot"></span> <strong>Φωτισμένη περιοχή:</strong> εμφανίζεται στο κύριο γράφημα</span><span id="nav-loaded-range">Φορτωμένο διάστημα: —</span></div>
+</section>
 <div class="layer-panel" id="layer-panel" hidden>
 <h3>Layers · Επιλογή γραφημάτων</h3>
 <p class="mini-note">Κάθε παράμετρος έχει δικό της χρώμα. Το ιστορικό φαίνεται πιο ανοιχτό και η πρόγνωση πιο σκούρα και έντονη.</p><div id="layer-options"></div>
@@ -212,7 +305,7 @@ header{display:flex;align-items:center;gap:14px;flex-wrap:wrap;padding:8px 14px;
 <p class="mini-note">Τα layers αναδιατάσσονται αυτόματα. Ορισμένα προγνωστικά δεδομένα μπορεί να μην είναι διαθέσιμα για κάθε μοντέλο ή ιστορική περίοδο. Τα κενά δεν αντικαθίστανται με επινοημένες τιμές.</p>
 </div>
 </div>
-<div class="footerline">Data: <a href="https://open-meteo.com/" target="_blank" rel="noopener">Open-Meteo</a> · Radar: <a href="https://www.rainviewer.com/" target="_blank" rel="noopener">RainViewer</a> (προαιρετικά, μόνο τελευταία 2ωρα) · Map: <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">OpenStreetMap</a> · Ανεξάρτητο open-source project, χωρίς σχέση με WeatherSpark ή WeatherDave. API free tier: μη εμπορική χρήση.</div>
+<div class="footerline">Data: <a href="https://open-meteo.com/" target="_blank" rel="noopener">Open-Meteo</a> · Radar: <a href="https://www.rainviewer.com/" target="_blank" rel="noopener">RainViewer</a> (προαιρετικά, μόνο τελευταία 2ωρα) · Map: <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">OpenStreetMap</a> · Ανεξάρτητο open-source project, χωρίς σχέση με WeatherSpark ή WeatherDave. API free tier: μη εμπορική χρήση. <strong class="footer-credit">Developed by Antonis Savaris</strong></div>
 </section></main>
 <script type="module" src="./app.mjs"></script>
 </body></html>
