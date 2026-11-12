@@ -194,6 +194,10 @@ body{background:linear-gradient(180deg,#f1f7ff 0%,#f6f8fc 40%,#f4f7fb 100%)}
   .hero-weather-visual{width:110px;height:132px}
 }
 
+.nav a.scenic-nav-link{display:flex;align-items:center;gap:12px;text-decoration:none;color:#e6f2ff;background:#254b82;border:1px solid #4679b9;border-radius:10px;padding:11px 12px;font-size:12px;font-weight:800;transition:background .18s}
+.nav a.scenic-nav-link:hover,.nav a.scenic-nav-link:focus-visible{background:#3665a3;color:white}
+.nav a.scenic-nav-link svg{width:17px;height:17px;flex-shrink:0}
+@media(max-width:760px){.nav a.scenic-nav-link{flex:0 0 auto;white-space:nowrap;padding:8px 10px;font-size:11px;scroll-snap-align:start}}
 </style>
 
 <link rel="stylesheet" href="./day-playback.css?v=140">
@@ -204,6 +208,7 @@ body{background:linear-gradient(180deg,#f1f7ff 0%,#f6f8fc 40%,#f4f7fb 100%)}
  <div class="brand"><div class="brand-icon"><i data-lucide="cloud-sun"></i></div><div><strong>MeteoLab</strong><small>WEATHER WORKSPACE</small></div></div>
  <nav class="nav" aria-label="Primary navigation">
   <button data-view="overview" class="active"><i data-lucide="layout-dashboard"></i><span data-t="overview">Επισκόπηση</span></button>
+  <a class="scenic-nav-link" href="./scenic/" title="Άνοιγμα MeteoLab Scenic Lab"><i data-lucide="trees"></i><span>Scenic Lab <span style="font-size:9px;opacity:.85">NEW</span></span></a>
   <button data-view="timeline"><i data-lucide="chart-no-axes-combined"></i><span data-t="timeline">Weather Timeline</span></button>
   
   <button data-view="forecast"><i data-lucide="calendar-days"></i><span data-t="forecast">Πρόγνωση 14 ημερών</span></button>
