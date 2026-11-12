@@ -35,7 +35,7 @@ test("historical summary aggregates actual same-day hourly distributions",()=>{
  assert.equal(stats.fields.temperature_2m.count[12],10);
  assert.equal(stats.fields.temperature_2m.mean[12],22);
  assert.equal(stats.fields.temperature_2m.p10[12],14.8);
- assert.equal(stats.fields.temperature_2m.p90[12],29.2);
+ assert.ok(Math.abs(stats.fields.temperature_2m.p90[12]-29.2)<1e-9);
  assert.equal(stats.previous.temperature_2m[12],31);
  assert.equal(stats.fields.temperature_2m.mean[11],null);
 });
