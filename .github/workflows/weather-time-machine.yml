@@ -17,3 +17,22 @@ jobs:
         with:
           node-version: '22'
       - run: node --test weather-time-machine/*.test.mjs
+  browser:
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - run: node weather-time-machine/live-api-smoke.mjs
+      - run: npm install --no-save @playwright/test@1.56.1
+      - run: npx playwright install --with-deps chromium
+      - run: npx playwright test --config=weather-time-machine/playwright.config.mjs
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: weather-time-machine-chromium
+          path: weather-time-machine/test-results/
+          retention-days: 7
