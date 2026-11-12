@@ -530,6 +530,10 @@ async function renderChart(){
   $("#chart-subtitle").textContent=formatDate(from)+" — "+formatDate(to)+
     " · "+(resolution==="hourly"?"Ωριαία":"Ημερήσια")+" ανάλυση · UTC";
   $("#period-summary").textContent="Πορτοκαλί: τώρα · Μοβ: σήμερα · Γκρίζο: κλιματικό ιστορικό";
+  for(const kind of ["history","forecast","climate"]){
+    const swatch=$("#legend-"+kind);
+    if(swatch)swatch.style.background=state.colors[kind];
+  }
   state.plotting=true;
   try{
     await Plotly.react(controls.plot,data,layout,{
