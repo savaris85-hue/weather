@@ -70,7 +70,7 @@ test("page loads all required controls and boots the multi-layer chart",async()=
   assert.match(html,/value="ncep_gfs_seamless"/);
   await import("./app.mjs");
   await until(()=>plotted.length>=1);
-  assert.ok(plotted.at(-1)[1].length>=12,"multiple weather layers drawn");
+  assert.ok(plotted.some(args=>args[0]===element("#plot") && args[1].length>=12),"multiple weather layers drawn");
   assert.equal(element("#load").disabled,false);
   assert.match(element("#status").textContent,/σημεία στο γράφημα/);
   assert.ok(calls.some(url=>url.hostname==="archive-api.open-meteo.com"));
