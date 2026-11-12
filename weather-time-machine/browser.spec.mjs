@@ -338,3 +338,51 @@ test("bold forecast starts only at now; earlier forecast-model data stays thin a
   for(const date of result.future.x)expect(Date.parse(date)).toBeGreaterThanOrEqual(result.now-1000);
   for(const date of result.recent.x)expect(Date.parse(date)).toBeLessThan(result.now);
 });
+
+
+test("map click resolves nearest named locality, updates all UI labels and pins without Coordinates",async({page})=>{
+  await page.route(/https:\/\/nominatim\.openstreetmap\.org\/reverse\?/,async route=>{
+    await route.fulfill({status:200,contentType:"application/json",
+      headers:{"access-control-allow-origin":"*"},
+      body:JSON.stringify({address:{town:"Λάρισα",country:"Ελλάδα",state:"Θεσσαλία"}})});
+  });
+  await setup(page);
+  await page.locator("#map").click({position:{x:180,y:155}});
+  await expect(page.locator("#current-place")).toContainText("Λάρισα",{timeout:30000});
+  await expect(page.locator("#place")).toHaveValue(/Λάρισα/);
+  await expect(page.locator("#chart-title")).toContainText("Λάρισα",{timeout:30000});
+  await expect(page.locator("#current-place")).not.toContainText("Coordinates");
+  await expect(page.locator("#chart-title")).not.toContainText("Elliniko");
+  await page.locator("#pin-current").click();
+  await expect(page.locator("#pinned-cities")).toContainText("Λάρισα");
+  await expect(page.locator("#pinned-cities")).not.toContainText("Coordinates");
+});
+test("new location recovers from one Open-Meteo 429 without stale Elliniko data or extra click",async({page})=>{
+  await setup(page);
+  let temporaryFailures=0;
+  await page.route(/https:\/\/(archive-api|api)\.open-meteo\.com\/v1\/(archive|forecast)\?/,async route=>{
+    const url=route.request().url();
+    if(temporaryFailures++===0){
+      await route.fulfill({status:429,contentType:"application/json",
+        headers:{"access-control-allow-origin":"*"},
+        body:JSON.stringify({reason:"Too many concurrent requests"})});
+    } else{
+      await route.fulfill({status:200,contentType:"application/json",
+        headers:{"access-control-allow-origin":"*"},
+        body:JSON.stringify(fakeResponse(url))});
+    }
+  });
+  await page.route(/https:\/\/geocoding-api\.open-meteo\.com\/v1\/search/,async route=>{
+    await route.fulfill({status:200,contentType:"application/json",headers:{"access-control-allow-origin":"*"},
+      body:JSON.stringify({results:[{name:"Volos",country:"Greece",latitude:39.36,longitude:22.95,timezone:"Europe/Athens"}]})});
+  });
+  await page.locator("#place").fill("Volos");
+  await expect(page.locator("#suggestions button").first()).toBeVisible();
+  await page.locator("#suggestions button").first().click();
+  await expect(page.locator("#chart-title")).toContainText("Volos",{timeout:30000});
+  await expect(page.locator("#current-place")).toContainText("Volos");
+  await expect(page.locator("#status")).toContainText("σημεία στο γράφημα",{timeout:60000});
+  expect(temporaryFailures).toBeGreaterThanOrEqual(2);
+  await expect(page.locator("#chart-title")).not.toContainText("Elliniko");
+  await expect(page.locator("#current-temp")).toContainText("°C");
+});
