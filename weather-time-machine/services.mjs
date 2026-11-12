@@ -2,6 +2,7 @@
 // take priority over optional climatology requests. Never retry indefinitely.
 export function createWeatherRequestQueue(fetcher, options={}) {
   const minGap=options.minGapMs ?? 1200;
+  const retryDelays=options.retryDelaysMs ?? [4000,10000,18000];
   const sleeper=options.sleep ?? (ms=>new Promise(resolve=>setTimeout(resolve,ms)));
   const clock=options.now ?? (()=>Date.now());
   const tasks=[];
@@ -25,7 +26,7 @@ export function createWeatherRequestQueue(fetcher, options={}) {
             try {const json=await response.json();reason=json.reason||reason}catch{}
             const seconds=Math.max(1,Math.min(60,Number(response.headers?.get?.("retry-after"))||0));
             cooldownUntil=Math.max(cooldownUntil,clock()+
-              (seconds>1 ? seconds*1000 : [4000,10000,18000][Math.min(job.attempt,2)]));
+              (seconds>1 ? seconds*1000 : retryDelays[Math.min(job.attempt,retryDelays.length-1)]));
             if(job.attempt<2 && !job.signal?.aborted) {
               tasks.push({...job,attempt:job.attempt+1});
             }else job.reject(Object.assign(new Error("Open-Meteo HTTP 429 — όριο αιτημάτων. Δοκίμασε ξανά σε λίγο."),{status:429,reason}));
