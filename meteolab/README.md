@@ -127,3 +127,12 @@ The Weather Assistant no longer uses a local LLM or downloads an on-device model
 **Costs and privacy:** the Puter platform requires user authentication. Each account receives limited free monthly usage. When no free model variant exists, regular hosted model calls can consume that allowance and—if already purchased—account credits. The MeteoLab UI has no billing/top-up action. Cloud AI receives the currently selected city's weather forecast context and the user's question; don't send sensitive information as a prompt. Only enable cloud AI if you accept Puter's terms and metering.
 
 QA: checked both scripts' syntax and DOM references; executed simulated sign-in, model-catalogue ranking (prefer free DeepSeek), chat request and normalized response handling. Actual Puter sign-in/network calls were not performed in a live browser.
+
+## v1.1 — Readable date axis, daily separators and waveform colors (2026-11-12)
+
+- Added an **always-visible sticky UTC date rail** beneath the scientific ECharts timeline; it stays at the bottom of the viewport while scrolling long charts, with labels that adapt to zoom. The final ECharts x-axis also shows high-contrast dates above its zoom slider.
+- Added **UTC midnight dashed day boundaries** on every enabled chart, with a toggle to show/hide them. At large time ranges separator density is reduced for performance (roughly 120 lines max).
+- Added a **color picker beside every graph layer**; colors apply to historical, recent-hourly and forecast waveform sources, with different line styles retaining source distinctions.
+- Added a waveform thickness control, a reset-colors button, and a switch to hide/show the persistent date ribbon. The controls are persisted in the existing localStorage layout settings, and Reset layout restores defaults.
+- Reduced native zoom-slider label clutter and placed it lower to avoid overlapping the dates. Bumped CSS/JS version query parameters to 102.
+- Verified source syntax, DOM references, graph-series day-mark options, last axis label visibility, zoom slider bottom placement and date-ribbon generation using mocked ECharts/forecast responses. **Actual GitHub Pages browser rendering and real external API/CDN behavior have not been visually verified.**
