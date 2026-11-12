@@ -1,5 +1,5 @@
 import {
-  FIELDS, EARLIEST, MAX_DAYS, dayISO, moveDay, validateRange,
+  FIELDS, EARLIEST, MAX_DAYS, dayISO, moveDay, validateRange, separateTimelineAtNow,
   normalizeHourly, mergeHourly, aggregateForView, csvForRows,
   buildForecastParams, beaufort, windArrow, weatherIcon,
   FORECAST_MODELS, ALL_LAYERS, DEFAULT_LAYERS, cumulativeRain,
@@ -341,34 +341,39 @@ function yValue(row,field) {
   return row[field];
 }
 function labelFor(id) {return ALL_LAYERS.find(x=>x.id===id)?.label||id;}
-function plotLines(rows,field,axis,history=true) {
-  const src=history?"history":"forecast";
-  const arr=rows.filter(row=>row.kind===src);
+// A single timestamp is used for all layers on each render. Before it,
+// recent forecast API values remain thinner and are NOT relabelled as ERA5.
+function plotLines(rows,field,axis,segment) {
+  const isHistorical=segment==="historical";
+  const isRecent=segment==="recentModel";
+  const isPast=isHistorical||isRecent;
   const isBars=["precipitation","precipitation_probability"].includes(field);
-  const color=lineColor(field,history);
+  const color=lineColor(field,isPast);
+  const label=isHistorical?"ERA5":isRecent?"Recent model":"Forecast";
+  const detail=isHistorical?"Ιστορικό ERA5":isRecent?"Πρόσφατη εκτίμηση μοντέλου":"Πρόγνωση";
   return {
     type:isBars?"bar":"scatter",mode:isBars?undefined:"lines",xaxis:"x",yaxis:axis,
-    x:arr.map(row=>new Date(row.t*1000).toISOString()),
-    y:arr.map(row=>Number.isFinite(yValue(row,field))?yValue(row,field):null),
-    line:{color,width:history?1.5:state.forecastWeight,shape:"linear"},
-    marker:{color,opacity:history?.6:1},
-    opacity:history?.95:1,showlegend:false,name:(history?"ERA5":"Forecast")+" · "+labelFor(field),
-    hovertemplate:"%{x|%a %d %b %Y %H:%M} UTC<br>%{y:.1f}<extra>"+(history?"Ιστορικό ERA5":"Πρόγνωση")+"</extra>"
+    x:rows.map(row=>new Date(row.t*1000).toISOString()),
+    y:rows.map(row=>Number.isFinite(yValue(row,field))?yValue(row,field):null),
+    line:{color,width:isPast?1.5:state.forecastWeight,shape:"linear",dash:isRecent?"dot":"solid"},
+    marker:{color,opacity:isPast?.6:1},
+    opacity:isPast?.95:1,showlegend:false,name:label+" · "+labelFor(field),
+    hovertemplate:"%{x|%a %d %b %Y %H:%M} UTC<br>%{y:.1f}<extra>"+detail+"</extra>"
   };
 }
-function symbolicTrace(rows,field,axis,history=true) {
-  const src=history?"history":"forecast";
-  const selected=sampleRows(rows.filter(row=>row.kind===src && Number.isFinite(row[field])),56);
+function symbolicTrace(rows,field,axis,segment) {
   const isWind=field==="wind_direction_10m";
+  const isPast=segment!=="futureModel";
+  const selected=sampleRows(rows.filter(row=>Number.isFinite(row[field])),56);
   return {
     type:"scatter",mode:"text",xaxis:"x",yaxis:axis,showlegend:false,
     x:selected.map(row=>new Date(row.t*1000).toISOString()),
     y:selected.map(()=>.55),
     text:selected.map(row=>isWind?windArrow(row.wind_direction_10m):weatherIcon(row.weather_code)),
-    textfont:{size:isWind?16:19,color:lineColor(isWind?"wind_direction_10m":"icons",history)},
+    textfont:{size:isWind?16:19,color:lineColor(isWind?"wind_direction_10m":"icons",isPast)},
     name:isWind?"Wind direction":"Weather icons",
     customdata:selected.map(row=>isWind?Math.round(row.wind_direction_10m)+"° from":String(row.weather_code)),
-    hovertemplate:"%{x|%a %d %b %Y %H:%M} UTC<br>%{customdata}<extra>"+(history?"ERA5":"Forecast")+"</extra>"
+    hovertemplate:"%{x|%a %d %b %Y %H:%M} UTC<br>%{customdata}<extra>"+(segment==="historical"?"ERA5":segment==="recentModel"?"Recent model":"Forecast")+"</extra>"
   };
 }
 function arrayForPlot() {
@@ -678,6 +683,7 @@ async function renderChart(){
     controls.plot.replaceChildren();showStatus("Επίλεξε κάποιο layer.",true);return;
   }
   const {rows,resolution}=arrayForPlot();
+  const slices=separateTimelineAtNow(rows,Date.now()/1000);
   const data=[];
   const n=layers.length,gap=.014,size=(1-(n-1)*gap)/n;
   const from=state.view[0],to=state.view[1];
@@ -712,9 +718,14 @@ async function renderChart(){
     const icons=layer.id==="icons",dirs=layer.id==="wind_direction_10m";
     const name=icons?"weather_code":layer.id;
     if(icons||dirs){
-      data.push(symbolicTrace(rows,name,axis,true),symbolicTrace(rows,name,axis,false));
+      data.push(symbolicTrace(slices.historical,name,axis,"historical"),
+        symbolicTrace(slices.recentModel,name,axis,"recentModel"),
+        symbolicTrace(slices.futureModel,name,axis,"futureModel"));
     }else{
-      data.push(...bandTraces(name,axis),plotLines(rows,name,axis,true),plotLines(rows,name,axis,false));
+      data.push(...bandTraces(name,axis),
+        plotLines(slices.historical,name,axis,"historical"),
+        plotLines(slices.recentModel,name,axis,"recentModel"),
+        plotLines(slices.futureModel,name,axis,"futureModel"));
     }
     const spec={
       anchor:"x",domain:[Math.max(0,top-size),top],

@@ -312,3 +312,29 @@ test("v5 390px mobile keeps header and date ribbon sticky without taking entire 
   expect(dim.overflow).toBeLessThanOrEqual(4);
   await page.screenshot({path:testInfo.outputPath("v5-mobile-sticky-after-scroll.png")});
 });
+
+
+test("bold forecast starts only at now; earlier forecast-model data stays thin and separately attributed",async({page})=>{
+  await setup(page);
+  const result=await page.locator("#plot").evaluate(el=>{
+    const now=Date.now();
+    const matching=el.data.filter(trace=>trace.name?.includes("Θερμοκρασία"));
+    const future=matching.find(trace=>trace.name?.startsWith("Forecast ·"));
+    const recent=matching.find(trace=>trace.name?.startsWith("Recent model ·"));
+    const historical=matching.find(trace=>trace.name?.startsWith("ERA5 ·"));
+    return {
+      now, future:{x:future?.x,width:future?.line?.width},
+      recent:{x:recent?.x,width:recent?.line?.width,dash:recent?.line?.dash,
+        attribution:recent?.hovertemplate},
+      historical:{width:historical?.line?.width}
+    };
+  });
+  expect(result.future.x.length).toBeGreaterThan(0);
+  expect(result.recent.x.length).toBeGreaterThan(0);
+  expect(result.historical.width).toBeLessThan(result.future.width);
+  expect(result.recent.width).toBeLessThan(result.future.width);
+  expect(result.recent.dash).toBe("dot");
+  expect(result.recent.attribution).toContain("Πρόσφατη εκτίμηση μοντέλου");
+  for(const date of result.future.x)expect(Date.parse(date)).toBeGreaterThanOrEqual(result.now-1000);
+  for(const date of result.recent.x)expect(Date.parse(date)).toBeLessThan(result.now);
+});

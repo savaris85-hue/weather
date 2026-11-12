@@ -219,3 +219,20 @@ export function archiveBlocks(start, end, days = 14) {
   }
   return blocks;
 }
+
+
+// The style boundary is the current moment, NOT the forecast API's start date.
+// Recent forecast-model hours are estimates, not ERA5 measurements, so they
+// receive their own thin, clearly labelled trace before "now".
+export function separateTimelineAtNow(rows, nowSeconds) {
+  if(!Number.isFinite(nowSeconds)) throw new Error("Invalid current timestamp");
+  const historical=[], recentModel=[], futureModel=[];
+  for(const row of rows) {
+    if(row.kind === "history") historical.push(row);
+    else if(row.kind === "forecast") {
+      if(row.t < nowSeconds) recentModel.push(row);
+      else futureModel.push(row);
+    }
+  }
+  return {historical,recentModel,futureModel};
+}
