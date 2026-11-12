@@ -146,7 +146,7 @@ function drawLayerControls(){
  const root=$("tlLayerControls");if(!root)return;
  root.innerHTML=layers.map(layer=>'<div class="tl-layer"><input type="checkbox" aria-label="'+layer.name+'" data-layer="'+layer.key+'" '+(enabled[layer.key]?"checked":"")+'><input type="color" class="tl-color-picker" title="Color: '+layer.name+'" aria-label="Color of '+layer.name+'" data-color="'+layer.key+'" value="'+colors[layer.key]+'"><span class="tl-layer-name">'+layer.name+'</span><span class="tl-layer-height"><button data-height="'+layer.key+'" data-dir="-1" title="Shrink">−</button><button data-height="'+layer.key+'" data-dir="1" title="Grow">+</button></span></div>').join("");
  root.querySelectorAll("[data-layer]").forEach(ch=>ch.onchange=e=>{const k=e.target.dataset.layer;enabled[k]=e.target.checked;saveLayout();render()});
- root.querySelectorAll("[data-color]").forEach(ch=>ch.oninput=e=>{const k=e.target.dataset.color;if(/^#[\\da-fA-F]{6}$/.test(e.target.value)){colors[k]=e.target.value;saveLayout();render()}});
+ root.querySelectorAll("[data-color]").forEach(ch=>ch.oninput=e=>{const k=e.target.dataset.color;if(/^#[0-9a-fA-F]{6}$/.test(e.target.value)){colors[k]=e.target.value;saveLayout();render()}});
  root.querySelectorAll("[data-height]").forEach(btn=>btn.onclick=()=>{const k=btn.dataset.height;heights[k]=Math.max(48,Math.min(230,heights[k]+Number(btn.dataset.dir)*16));saveLayout();render()});
 }
 function updateGuideControls(){
@@ -194,7 +194,7 @@ function chartSeries(layer,rows,gridIndex,now){
  }
  const isRain=layer.key==="precipitation";
  const make=(data,historical)=>({...base,name:(historical?"ERA5 daily · ":"Forecast hourly · ")+name,type:isRain?"bar":"line",
- data,barMaxWidth:9,barGap:"-100%",smooth:!isRain,sampling:"lttb",lineStyle:{width:historical?Math.max(1,lineThickness-.5):lineThickness,type:historical?"dashed":"solid",color:historical?"#68c8e5":color},itemStyle:{color:historical?"#68c8e5":color},areaStyle:isRain?{color:historical?"#68c8e542":color+"4a"}:undefined,markLine:(!historical?{silent:true,symbol:"none",label:{show:false},lineStyle:{color:"#e8d0fc",width:1.5,type:"dashed"},data:[{xAxis:now}]}:undefined)});
+ data,barMaxWidth:9,barGap:"-100%",smooth:!isRain,sampling:"lttb",lineStyle:{width:historical?Math.max(1,lineThickness-.5):lineThickness,type:historical?"dashed":"solid",color:color,opacity:historical?.7:1},itemStyle:{color:historical?color:color},areaStyle:isRain?{color:color+(historical?"28":"4a")}:undefined,markLine:(!historical?{silent:true,symbol:"none",label:{show:false},lineStyle:{color:"#e8d0fc",width:1.5,type:"dashed"},data:[{xAxis:now}]}:undefined)});
  const recentLine={...base,name:"Recent model hourly · "+name,type:isRain?"bar":"line",data:recent,
  barMaxWidth:8,smooth:!isRain,sampling:"lttb",lineStyle:{width:Math.max(1,lineThickness-.3),type:"dotted",color:"#6bd5b2"},
  itemStyle:{color:"#6bd5b2"},areaStyle:isRain?{color:"#6bd5b24a"}:undefined};
@@ -219,7 +219,7 @@ function render(){
  const xMin=Math.min(historyOldest??Infinity,...rows.map(r=>r.t)),xMax=Math.max(...rows.map(r=>r.t)),start=Math.max(xMin,shown[0]),end=Math.min(xMax,shown[1]);
  minData=xMin;maxData=xMax;
  const guides=makeDayGuides(start,end,now);
- if(guides)for(let i=0;i<activeLayers.length;i++){const guide=series.find(x=>x.xAxisIndex===i&&x.type!=="scatter");if(guide)guide.markLine=guides;}
+ if(guides)for(let i=0;i<activeLayers.length;i++){const guide=series.find(x=>x.xAxisIndex===i&&x.type!=="scatter");if(guide)guide.markLine=guides;else series.push({type:"line",name:"Day guides",xAxisIndex:i,yAxisIndex:i,data:[],silent:true,showSymbol:false,lineStyle:{opacity:0},tooltip:{show:false},markLine:guides})}
  const opts={backgroundColor:"#172137",animation:false,grid:grids,xAxis,yAxis,series,
  tooltip:{trigger:"axis",confine:true,backgroundColor:"#14243c",borderColor:"#526688",textStyle:{color:"#e1edff",fontSize:11},axisPointer:{type:"cross",crossStyle:{color:"#c0d8ff"}},formatter:params=>{if(!params?.length)return"";const stamp=Number(params[0].axisValue);return '<b>'+utcFormatter(stamp)+'</b><br>'+params.filter(p=>p.value?.[1]!=null).slice(0,10).map(p=>'<span style="color:'+p.color+'">●</span> '+p.seriesName+': <b>'+Number(p.value[1]).toFixed(1)+'</b>').join("<br>")}},
  axisPointer:{show:true,link:[{xAxisIndex:"all"}],label:{backgroundColor:"#355276"}},
