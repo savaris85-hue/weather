@@ -35,7 +35,7 @@ async function setup(page) {
   const requests=[];
   await page.route(/https:\/\/(archive-api|api)\.open-meteo\.com\/v1\/(archive|forecast)\?/,async route=>{
     const url=route.request().url();requests.push(new URL(url));
-    await route.fulfill({status:200,contentType:"application/json",
+    await route.fulfill({status:200,contentType:"application/json",headers:{"access-control-allow-origin":"*"},
       body:JSON.stringify(fakeResponse(url))});
   });
   await page.goto("/weather-time-machine/",{waitUntil:"domcontentloaded"});
