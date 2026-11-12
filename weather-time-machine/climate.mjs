@@ -1,4 +1,4 @@
-// Original ERA5 climatology calculations; no WeatherDave assets or code.
+// Original ERA5 climatology calculations using Open-Meteo historical weather data.
 const DAY=86400000;
 const FIELDS=["temperature_2m","relative_humidity_2m","dew_point_2m","cloud_cover","precipitation","pressure_msl","wind_speed_10m","shortwave_radiation"];
 export const CLIMATE_FIELDS=Object.freeze(FIELDS);
