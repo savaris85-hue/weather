@@ -580,6 +580,68 @@ function updateCurrent() {
   $("#current-pressure").textContent=fmt(nearest.pressure_msl)+" hPa";
   $("#current-rain").textContent=fmt(nearest.precipitation,1)+" mm";
 }
+// Optional radar: RainViewer free API supports recent (~2h) past frames only.
+// Respect API rate limits, provider attribution and the post-2025 blue palette.
+const radarState={frames:[],host:null,layer:null,index:0,timer:null};
+function stopRadar(){
+  if(radarState.timer)clearInterval(radarState.timer);
+  radarState.timer=null;$("#radar-play").textContent="▶";
+}
+function removeRadar(){
+  stopRadar();
+  if(radarState.layer && state.map){state.map.removeLayer(radarState.layer);radarState.layer=null}
+}
+function radarAt(index){
+  if(!state.map||!radarState.frames.length)return;
+  const frame=radarState.frames[(index+radarState.frames.length)%radarState.frames.length];
+  radarState.index=(index+radarState.frames.length)%radarState.frames.length;
+  if(!/^\/v2\/radar\/\d+$/.test(frame.path))throw Error("Unexpected radar tile frame");
+  const url=radarState.host+frame.path+"/256/{z}/{x}/{y}/2/1_1.png";
+  if(radarState.layer)state.map.removeLayer(radarState.layer);
+  radarState.layer=L.tileLayer(url,{
+    tileSize:256,maxNativeZoom:7,maxZoom:18,opacity:.68,
+    attribution:'Radar © <a href="https://www.rainviewer.com/">RainViewer</a>'
+  }).addTo(state.map);
+  $("#radar-time").textContent=new Date(frame.time*1000).toLocaleTimeString("el-GR",{
+    hour:"2-digit",minute:"2-digit",timeZone:"UTC"
+  })+" UTC · τελευταίες 2 ώρες";
+}
+async function setRadar(enabled){
+  removeRadar();
+  if(!enabled){
+    $("#radar-time").textContent="Radar ανενεργό";
+    for(const id of ["#radar-prev","#radar-play","#radar-next"])$(id).disabled=true;
+    return;
+  }
+  $("#radar-time").textContent="Φόρτωση RainViewer…";
+  try{
+    if(!state.map)throw Error("Χάρτης μη διαθέσιμος");
+    const response=await json("https://api.rainviewer.com/public/weather-maps.json");
+    if(!$("#radar-toggle").checked)return;
+    const hostUrl=new URL(response.host);
+    if(hostUrl.protocol!=="https:"|| !hostUrl.hostname.endsWith(".rainviewer.com"))throw Error("Μη έγκυρος tile server");
+    const frames=(response.radar?.past||[]).filter(f=>Number.isFinite(f.time)&&/^\/v2\/radar\/\d+$/.test(f.path));
+    if(!frames.length)throw Error("Δεν υπάρχουν διαθέσιμα πρόσφατα frames radar");
+    radarState.host=hostUrl.origin;radarState.frames=frames;
+    for(const id of ["#radar-prev","#radar-play","#radar-next"])$(id).disabled=false;
+    radarAt(frames.length-1);
+  }catch(error){
+    $("#radar-toggle").checked=false;
+    removeRadar();
+    $("#radar-time").textContent="Radar προσωρινά μη διαθέσιμο: "+error.message;
+  }
+}
+$("#radar-toggle").addEventListener("change",()=>setRadar($("#radar-toggle").checked));
+$("#radar-prev").addEventListener("click",()=>radarAt(radarState.index-1));
+$("#radar-next").addEventListener("click",()=>radarAt(radarState.index+1));
+$("#radar-play").addEventListener("click",()=>{
+  if(radarState.timer){stopRadar();return}
+  if(!radarState.frames.length)return;
+  $("#radar-play").textContent="❚❚";
+  // Slow playback reduces tile requests to stay within the free service limits.
+  radarState.timer=setInterval(()=>radarAt(radarState.index+1),5000);
+});
+
 function setupMap() {
   if(typeof L==="undefined")return;
   try {
