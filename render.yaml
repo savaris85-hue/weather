@@ -1,0 +1,13 @@
+# Independent deployment of only the Weather Time Machine application.
+# Connect this GitHub repository to a Render Blueprint to provision the free
+# static site. Suggested hostname (subject to availability):
+#   https://anagenisis-meteo.onrender.com
+# This file does not register a domain or create a Render account by itself.
+services:
+  - type: web
+    runtime: static
+    name: anagenisis-meteo
+    branch: main
+    buildCommand: 'echo "Publishing Weather Time Machine static files"'
+    staticPublishPath: ./weather-time-machine
+    autoDeployTrigger: commit
