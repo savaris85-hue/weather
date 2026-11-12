@@ -103,3 +103,14 @@ GitHub Actions runs Node.js unit tests, mocked browser startup checks, API smoke
 - App still uses **°C and Beaufort**, Open-Meteo forecast model selection, historic ERA5, independent waveform color settings, radar and CSV export.
 
 Data licences remain unchanged. The free Open-Meteo API has usage limits: requesting 44 historical years can require multiple network calls and may take longer than a 1/2/3-year comparison. Tests use mocked weather data for deterministic UI checks, in addition to separate live Open-Meteo API contract tests.
+
+
+## v5: sticky context, clear time navigation and author credit
+
+- **Developed by Antonis Savaris** is visible unobtrusively in the main header and page footer.
+- On desktop the top purple header, location/current-conditions sidebar, chart date-range toolbar, and separate live date ribbon remain sticky as you scroll. Sticky offsets adjust to the real dimensions of the header and toolbar (including wrapped controls). This preserves the city and date context while inspecting long stacked graphs.
+- On narrower mobile screens the header and compact date ribbon stay sticky, while the large controls and location/map section are allowed to scroll normally so the small display is not obscured by persistent UI.
+- The small, dated ribbon above the charts is synchronized with the currently visible forecast/historical window, with weekday labels and a highlighted current date.
+- The bottom Plotly-based timeline now has a **clearly delimited selection** with stronger contrast, an explicit **start and end date**, the **number of selected days**, a calendar tick row across the loaded data, and a source date range. Users can still drag the selected Plotly window or its handles to pan and zoom, and lazy loading of older ERA5 history remains supported.
+- The selected window is the part rendered in the main graph, **not** an assertion that the entire 1940–present archive is downloaded. The date tick row reflects currently loaded data.
+- Tests include sticky geometry after vertical scrolling at desktop and 390px mobile sizes, and updating the selection dates after navigating the forecast timeline.
