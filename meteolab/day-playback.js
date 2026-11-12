@@ -138,7 +138,7 @@ function update(payload){
 function start(){if(playingStarted)return;playingStarted=true;
  window.addEventListener("meteolab:forecast",e=>update(e.detail));
  window.addEventListener("meteolab:language",e=>{lang=e.detail?.lang||"el";render()});
- document.addEventListener("visibilitychange",()=>{if(document.hidden)playing=false});
+ // Suspend timer work while the tab is hidden; continue auto-play when it returns.
  tick=setInterval(()=>{if(!playing||document.hidden||!data)return;const n=hoursFor(selected).length;if(!n)return;index=(index+1)%n;render()},1300);
 }
 window.MeteoDayPlayback={update,selectDay,render};
