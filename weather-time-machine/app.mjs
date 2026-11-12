@@ -6,6 +6,7 @@ import {
   archiveBlocks
 } from "./data.mjs";
 import {historicalSamplesWindows, historicalSamplesCustomRange, climateQueryParams, calculateClimateSummary, isClimateSupported} from "./climate.mjs";
+import {createWeatherRequestQueue,placeLabel,nearestPlaceName} from "./services.mjs";
 
 const $ = selector => document.querySelector(selector);
 const DAY = 86400000;
@@ -56,11 +57,11 @@ const state = {
   view:null, controller:null, loadId:0,
   renderPending:false, plotting:false, plotBound:false,
   map:null, marker:null, debounce:null, searchId:0, loading:false,
-  climateYears:20, climate:null, climateKey:null, climateCache:new Map(), climateController:null, climateTimer:null,
+  climateYears:3, climate:null, climateKey:null, climateCache:new Map(), climateController:null, climateTimer:null,
   compareLastYear:false, palette:"classic", colors:{...PALETTES.classic}, rowHeight:112,
   layerColors:paletteColors("classic"), forecastWeight:3.5, pins:[],
   climateYearFrom:2000,climateYearTo:2020,
-  overviewBound:false, overviewPlotting:false
+  overviewBound:false, overviewPlotting:false, locationLookupId:0
 };
 const formatDate = value => new Date(value).toLocaleDateString("el-GR",{day:"2-digit",month:"short",year:"numeric",timeZone:"UTC"});
 const fmt = (v,digits=0) => Number.isFinite(v) ? Number(v).toFixed(digits) : "—";
@@ -95,13 +96,11 @@ function syncDates() {
   updateRangeLabels();
 }
 function query(base,parameters) {return base+"?"+new URLSearchParams(parameters).toString();}
-async function json(url,signal) {
+const weatherRequest=createWeatherRequestQueue((url,opts)=>fetch(url,opts),{minGapMs:1400});
+async function json(url,signal,priority=5) {
+  if(new URL(url).hostname.endsWith("open-meteo.com"))return weatherRequest(url,signal,priority);
   const response=await fetch(url,{signal});
-  if(!response.ok) {
-    let reason="";
-    try { const payload=await response.json(); reason=payload.reason||""; } catch {}
-    throw new Error("Open-Meteo HTTP "+response.status+(reason?" — "+reason:""));
-  }
+  if(!response.ok)throw new Error("HTTP "+response.status);
   return response.json();
 }
 async function limitedMap(items,worker,limit=3) {
@@ -134,6 +133,7 @@ function resetData() {
   state.archive.clear();state.forecast.clear();state.rows=[];
   state.climateCache.clear();state.climate=null;state.climateKey=null;
   if(state.climateController)state.climateController.abort();
+  clearTimeout(state.climateTimer);
   state.loadId++;
 }
 function rebuildRows() {
@@ -157,14 +157,14 @@ async function ensureData(from,to,signal) {
     tasks.push(limitedMap(needed,async(block,index)=>{
       const fromDate=block.start<EARLIEST?EARLIEST:block.start;
       const toDate=block.end>cutoff?cutoff:block.end;
-      const api=await json(archiveQuery(fromDate,toDate),signal);
+      const api=await json(archiveQuery(fromDate,toDate),signal,10);
       if(signal.aborted) return;
       state.archive.set(block.key,normalizeHourly(api,"history"));
       showStatus("Φόρτωση παλιότερων δεδομένων: "+(index+1)+"/"+needed.length);
-    },3));
+    },1));
   }
   if(forecastNeeded) tasks.push((async()=>{
-    const api=await json(forecastQuery(),signal);
+    const api=await json(forecastQuery(),signal,12);
     if(signal.aborted) return;
     state.forecast.set(state.model,normalizeHourly(api,"forecast"));
   })());
@@ -242,11 +242,12 @@ function renderPins(){
     const wrapper=document.createElement("span");wrapper.className="pin-item";
     if(pinKey(place)===pinKey(state.place))wrapper.classList.add("active");
     const open=document.createElement("button");open.className="pin-chip";open.type="button";
-    open.textContent=place.name+", "+(place.country||"");
+    open.textContent=placeLabel(place);
     open.title="Μετάβαση σε "+place.name;
     open.addEventListener("click",()=>{
       state.place={...place};
-      controls.place.value=place.name+", "+(place.country||"");
+      if(mapReverseController)mapReverseController.abort();
+      state.locationLookupId++;
       locationChanged();
     });
     const remove=document.createElement("button");remove.className="pin-remove";remove.type="button";
@@ -306,7 +307,7 @@ function restoreLayout() {
     if(saved && Array.isArray(saved.layers)) {
       state.enabled=new Set(saved.layers.filter(id=>ALL_LAYERS.some(x=>x.id===id)));
       state.rainMode=saved.rainMode==="total"?"total":"daily";
-      state.climateYears=[0,1,2,3,10,20,44,"custom"].includes(saved.climateYears)?saved.climateYears:20;
+      state.climateYears=[0,1,2,3,10,20,44,"custom"].includes(saved.climateYears)?saved.climateYears:3;
       state.compareLastYear=!!saved.compareLastYear;
       state.rowHeight=Number.isFinite(saved.rowHeight)?Math.min(190,Math.max(82,saved.rowHeight)):112;
       state.palette=PALETTES[saved.palette]?saved.palette:(saved.palette==="custom"?"custom":"classic");
@@ -412,7 +413,7 @@ function scheduleClimate(force=false){
     return;
   }
   label.textContent="Φόρτωση ιστορικής κλιματικής σύγκρισης ("+(state.climateYears==="custom"?state.climateYearFrom+"–"+state.climateYearTo:state.climateYears+" έτη")+")…";
-  state.climateTimer=setTimeout(()=>loadClimate(key,from,to),force?30:650);
+  state.climateTimer=setTimeout(()=>loadClimate(key,from,to),force?300:1600);
 }
 async function loadClimate(key,from,to){
   if(state.climateController)state.climateController.abort();
@@ -438,7 +439,7 @@ async function loadClimate(key,from,to){
       const url=query("https://archive-api.open-meteo.com/v1/archive",
         climateQueryParams(state.place,win.start,win.end));
       try {
-        const api=await json(url,ctrl.signal);
+        const api=await json(url,ctrl.signal,1);
         if(ctrl.signal.aborted)return;
         results.push({year:win.year,rows:normalizeHourly(api,"climate")});
       } catch(error) {
@@ -448,7 +449,7 @@ async function loadClimate(key,from,to){
       completed++;
       if(!ctrl.signal.aborted)$("#climate-status").textContent=
         "Υπολογισμός κλίματος ERA5: "+completed+"/"+windows.length+" έτη…";
-    },3);
+    },1);
     if(ctrl.signal.aborted||key!==climateKey())return;
     if(results.length<1) {
       $("#climate-status").textContent="Δεν βρέθηκαν ιστορικά δεδομένα για τα επιλεγμένα έτη.";
@@ -745,7 +746,7 @@ async function renderChart(){
       font:{size:mobile?10:13,color:lineColor(layer.id,false)}
     });
   });
-  $("#chart-title").textContent=state.place.name+" · Ιστορικό + "+modelConfig().label;
+  $("#chart-title").textContent=placeLabel(state.place)+" · Ιστορικό + "+modelConfig().label;
   $("#chart-subtitle").textContent=formatDate(from)+" — "+formatDate(to)+
     " · "+(resolution==="hourly"?"Ωριαία":"Ημερήσια")+" ανάλυση · UTC";
   $("#period-summary").textContent="Πορτοκαλί: τώρα · Μοβ: σήμερα · Γκρίζο: κλιματικό ιστορικό";
@@ -787,7 +788,7 @@ function updateCurrent() {
   const nearest=forecast.filter(row=>row.t<=now).at(-1) || forecast[0] ||
     state.rows.filter(row=>row.t<=now && row.t>=now-2*86400).at(-1);
   const p=state.place;
-  $("#current-place").textContent=p.name+", "+(p.country||"");
+  $("#current-place").textContent=placeLabel(p);
   if(!nearest) {
     $("#current-time").textContent="Δεν υπάρχουν τρέχοντα δεδομένα";
     return;
@@ -873,14 +874,7 @@ function setupMap() {
       maxZoom:18,attribution:"© OpenStreetMap contributors"
     }).addTo(state.map);
     state.marker=L.marker([state.place.latitude,state.place.longitude]).addTo(state.map);
-    state.map.on("click",event=>{
-      state.place={
-        name:"Coordinates",country:event.latlng.lat.toFixed(3)+", "+event.latlng.lng.toFixed(3),
-        latitude:event.latlng.lat,longitude:event.latlng.lng,timezone:"GMT"
-      };
-      controls.place.value="Coordinates "+state.place.country;
-      locationChanged();
-    });
+    state.map.on("click",event=>{void selectMapLocation(event.latlng.lat,event.latlng.lng)});
     $("#map").querySelector(".map-fallback")?.remove();
   }catch(error){console.warn("Map unavailable",error);}
 }
@@ -914,7 +908,9 @@ controls.place.addEventListener("input",()=>{
             longitude:loc.longitude,timezone:loc.timezone
           };
           controls.place.value=button.textContent;
-          box.style.display="none";locationChanged();
+          box.style.display="none";
+          if(mapReverseController)mapReverseController.abort();
+          state.locationLookupId++;locationChanged();
         };
         box.append(button);
       }
@@ -959,11 +955,11 @@ $("#rain-mode").addEventListener("change",()=>{
 $("#save-layout").addEventListener("click",()=>{persistLayout();showStatus("✓ Η διάταξη αποθηκεύτηκε στον browser.")});
 $("#reset-layout").addEventListener("click",()=>{
   state.enabled=new Set(DEFAULT_LAYERS);state.rainMode="daily";$("#rain-mode").value="daily";
-  state.climateYears=20;state.compareLastYear=false;state.rowHeight=112;
+  state.climateYears=3;state.compareLastYear=false;state.rowHeight=112;
   state.palette="classic";state.colors={...PALETTES.classic};
   state.layerColors=paletteColors("classic");state.forecastWeight=3.5;
   state.climateYearFrom=2000;state.climateYearTo=2020;
-  $("#climate-years").value="20";$("#compare-last-year").checked=false;
+  $("#climate-years").value="3";$("#compare-last-year").checked=false;
   $("#climate-custom-range").hidden=true;
   $("#climate-year-from").value="2000";$("#climate-year-to").value="2020";
   $("#forecast-weight").value="3.5";
