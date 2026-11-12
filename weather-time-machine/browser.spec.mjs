@@ -246,7 +246,7 @@ test("v5 desktop sticky header, sidebar, controls and date strip remain fixed wh
   await setup(page);
   await expect(page.locator("#site-header")).toContainText("Developed by");
   await expect(page.locator("#site-header")).toContainText("Antonis Savaris");
-  await expect(page.locator("#sticky-dates-values .sticky-day")).toHaveCount(8);
+  await expect(page.locator("#sticky-date-values .sticky-day")).toHaveCount(8);
   const sticky=await page.evaluate(()=>{
     return ["#site-header","#location-sidebar","#main-controls","#sticky-dates"].map(selector=>({
       selector,position:getComputedStyle(document.querySelector(selector)).position
@@ -292,7 +292,7 @@ test("v5 390px mobile keeps header and date ribbon sticky without taking entire 
   await setup(page);
   await expect(page.locator("#developer-credit")).toHaveCount(0);
   await expect(page.locator(".developer-credit")).toBeVisible();
-  await expect(page.locator("#sticky-dates-values .sticky-day")).toHaveCount(3);
+  await expect(page.locator("#sticky-date-values .sticky-day")).toHaveCount(3);
   await expect(page.locator("#nav-date-ticks .nav-date-tick")).toHaveCount(3);
   await page.evaluate(()=>window.scrollTo(0,1350));
   await expect.poll(()=>page.evaluate(()=>window.scrollY)).toBeGreaterThan(500);
