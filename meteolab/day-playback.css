@@ -59,3 +59,8 @@ table.forecast-table tr:hover td,table.scientific-table tr:hover td,#comparisonD
 @media(max-width:760px){.ml-day-head{padding:14px;flex-wrap:wrap}.ml-day-head h3{font-size:16px}.ml-day-sky{min-height:245px}.ml-day-core{padding:45px 18px 50px;gap:12px}.ml-day-icon{font-size:62px}.ml-day-temp{font-size:42px}.ml-day-desc{font-size:15px}.ml-day-meta{padding:9px;gap:6px}.ml-day-meta span{font-size:11px;padding:5px 7px}.ml-day-wind{bottom:12px;right:12px;font-size:11px}.ml-day-clockline{padding:0 7px 12px}.ml-day-clockline span{font-size:8px}.ml-day-controls{padding:12px}.ml-playback{border-radius:15px}}
 @media(max-width:400px){.ml-day-core{display:block}.ml-day-icon{font-size:50px}.ml-day-temp{font-size:38px}.ml-day-arc{height:75px}.ml-day-controls input[type=range]{order:6;flex:1 1 100%}}
 @media(prefers-reduced-motion:reduce){.ml-day-icon,.ml-cloud,.ml-day-rain i{animation:none!important}.ml-day-celestial,.ml-day-sky{transition:none!important}}
+
+/* Keep time sliders usable despite the app-wide input styling. */
+.ml-day-controls input[type="range"]{appearance:auto;background:transparent!important;border:0!important;box-shadow:none!important;padding:0!important;height:25px;min-width:100px;}
+.ml-playback button:focus-visible,.ml-day-clockline span:focus-visible{outline:2px solid #ffe59c;outline-offset:3px;}
+@media(max-width:760px){.ml-day-clockline span:nth-child(even):not(.selected){font-size:0}.ml-day-clockline span.selected{font-size:9px}}
