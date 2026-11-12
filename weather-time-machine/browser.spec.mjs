@@ -98,13 +98,13 @@ test("actual Chromium computes historical percentiles and user-configurable colo
     el.data.some(s=>String(s.name).includes("ιστορικό") && s.fill==="tonexty"));
   expect(hasBand).toBeTruthy();
   const beforeColor=await page.locator("#plot").evaluate(el=>
-    el.data.find(s=>s.name?.startsWith("Forecast · Temperature"))?.line?.color);
+    el.data.find(s=>s.name?.startsWith("Forecast · Θερμοκρασία"))?.line?.color);
   await page.locator("#wave-palette").selectOption("ocean");
   await expect.poll(()=>page.locator("#plot").evaluate(el=>
-    el.data.find(s=>s.name?.startsWith("Forecast · Temperature"))?.line?.color)).not.toBe(beforeColor);
+    el.data.find(s=>s.name?.startsWith("Forecast · Θερμοκρασία"))?.line?.color)).not.toBe(beforeColor);
   const bold=await page.locator("#plot").evaluate(el=>{
-    const prediction=el.data.find(s=>s.name?.startsWith("Forecast · Temperature"));
-    const actual=el.data.find(s=>s.name?.startsWith("ERA5 · Temperature"));
+    const prediction=el.data.find(s=>s.name?.startsWith("Forecast · Θερμοκρασία"));
+    const actual=el.data.find(s=>s.name?.startsWith("ERA5 · Θερμοκρασία"));
     return {prediction:prediction?.line?.width,actual:actual?.line?.width};
   });
   expect(bold.prediction).toBeGreaterThan(bold.actual);
@@ -162,12 +162,12 @@ test("user can customize each measurement and make forecast line bolder; setting
     el.value="#b13586";el.dispatchEvent(new Event("input",{bubbles:true}));
   });
   await expect.poll(()=>page.locator("#plot").evaluate(el=>
-    el.data.find(s=>s.name?.startsWith("Forecast · Temperature"))?.line?.color)).toBe("#912f72");
+    el.data.find(s=>s.name?.startsWith("Forecast · Θερμοκρασία"))?.line?.color)).toBe("#912f72");
   await page.locator("#forecast-weight").evaluate(el=>{
     el.value="4.5";el.dispatchEvent(new Event("input",{bubbles:true}));
   });
   await expect.poll(()=>page.locator("#plot").evaluate(el=>
-    el.data.find(s=>s.name?.startsWith("Forecast · Temperature"))?.line?.width)).toBe(4.5);
+    el.data.find(s=>s.name?.startsWith("Forecast · Θερμοκρασία"))?.line?.width)).toBe(4.5);
   await page.locator("#save-layout").click();
   await page.reload({waitUntil:"domcontentloaded"});
   await expect(page.locator("#status")).toContainText("σημεία στο γράφημα");
