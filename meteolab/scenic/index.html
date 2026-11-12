@@ -3,7 +3,88 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
-  <title>MeteoLab Scenic Weather Workstation</title>
+  <title>MeteoLab Cinematic Scenic Weather 2.0</title>
+  <style>
+/* MeteoLab Cinema 2.0 — lightweight, GPU-friendly scene presentation */
+.scene-wrap.cinema-active{overflow:hidden;isolation:isolate;min-height:420px;background:#233750!important;cursor:grab}
+.scene-wrap.cinema-active:active{cursor:grabbing}
+.scene-wrap.cinema-active>.stars,
+.scene-wrap.cinema-active>.sun-arc,
+.scene-wrap.cinema-active>.arc-point,
+.scene-wrap.cinema-active>.celestial,
+.scene-wrap.cinema-active>.cloud-layer,
+.scene-wrap.cinema-active>.rain-layer,
+.scene-wrap.cinema-active>.sea-scape,
+.scene-wrap.cinema-active>.ground,
+.scene-wrap.cinema-active>.hills,
+.scene-wrap.cinema-active>.city-skyline,
+.scene-wrap.cinema-active>.mount-range,
+.scene-wrap.cinema-active>.pine-line,
+.scene-wrap.cinema-active>.village,
+.scene-wrap.cinema-active>.tree,
+.scene-wrap.cinema-active>.wind-streaks,
+.scene-wrap.cinema-active>.anemometer,
+.scene-wrap.cinema-active>.scene-people,
+.scene-wrap.cinema-active>.scene-overlay{display:none!important}
+.scene-wrap.cinema-active::after{content:"";position:absolute;z-index:3;inset:0;pointer-events:none;background:linear-gradient(180deg,rgba(2,13,32,.3),transparent 23%,transparent 72%,rgba(2,13,32,.33))}
+.cinema-host{position:absolute;inset:0;z-index:1;display:block;overflow:hidden;isolation:isolate}
+.cinema-canvas{display:block;position:absolute;inset:0;width:100%;height:100%;object-fit:cover;touch-action:pan-y;cursor:crosshair}
+.cinema-photo{position:absolute;z-index:2;inset:5% 2% 17% 35%;border-radius:24px;background-size:cover;background-position:center;opacity:.14;mix-blend-mode:soft-light;filter:saturate(.68) contrast(1.1) blur(1.6px);mask-image:linear-gradient(90deg,transparent 0%,black 25%,black 67%,transparent 100%);pointer-events:none;transition:opacity 1.5s ease}
+.cinema-photo-credit{position:absolute;z-index:7;right:12px;bottom:10px;color:#edf4ffbd;text-decoration:none;font-size:9px;background:#08162a67;border-radius:5px;padding:3px 6px;backdrop-filter:blur(3px)}
+.cinema-photo-credit:hover{color:#fff;text-decoration:underline}
+.scene-wrap.cinema-active .scene-controls-toggle{z-index:10;right:16px;top:16px}
+.scene-wrap.cinema-active .scene-titlebox{z-index:9;left:20px;top:20px;max-width:calc(100% - 210px);background:linear-gradient(110deg,rgba(9,21,43,.48),rgba(9,21,43,.04));border-radius:15px;padding:12px 17px 13px 13px;backdrop-filter:blur(2px);pointer-events:none}
+.scene-wrap.cinema-active .scene-titlebox h3{font-size:clamp(18px,2.1vw,28px);letter-spacing:-.02em;font-weight:750;text-shadow:0 2px 12px rgba(1,7,18,.55);line-height:1.15}
+.scene-wrap.cinema-active .scene-titlebox .eyebrow{letter-spacing:.14em;font-size:10px;color:#e5f1ff}
+.scene-wrap.cinema-active .scene-titlebox .subtitle{font-size:12px;color:#f1f6ff;opacity:.89}
+.scene-wrap.cinema-active .clock-badge{font-size:17px;letter-spacing:.03em;font-variant-numeric:tabular-nums;min-width:75px;background:rgba(6,24,48,.48);border-color:rgba(231,243,255,.36)}
+.scene-wrap.cinema-active .scene-gear{font-size:18px;border-color:rgba(231,243,255,.27);background:rgba(6,24,48,.28);opacity:.5;transition:opacity .2s,transform .2s}
+.scene-wrap.cinema-active .scene-gear:hover,.scene-wrap.cinema-active .scene-gear:focus-visible{opacity:1;transform:rotate(50deg)}
+.scene-card.cinematic{border-radius:24px;box-shadow:0 25px 70px rgba(7,18,42,.34),inset 0 0 0 1px rgba(255,255,255,.06)}
+.scene-card.cinematic .scene-panel{background:linear-gradient(100deg,#132744,#1c3052);border-top:1px solid rgba(244,252,255,.13)}
+.scene-card.cinematic .metric-pill{background:#172c48d6;border:1px solid #47688f4a;box-shadow:inset 0 1px 0 #ffffff12}
+.scene-card.cinematic .sun-badge,.scene-card.cinematic .sunset-badge{background:#1c3c64a8;border:1px solid #7897c044;color:#f7fcff}
+.scene-card.cinematic .scene-ctrls{background:#152742}
+.scene-card.cinematic .scene-ctrls:not(.open){display:none}
+.scene-card.cinematic .scene-panel{gap:8px}
+@media(max-width:850px){.scene-wrap.cinema-active{aspect-ratio:16/11;min-height:350px}.scene-wrap.cinema-active .scene-titlebox{max-width:calc(100% - 170px)}.cinema-photo{inset:10% 1% 15% 15%;opacity:.11}}
+@media(max-width:600px){.scene-wrap.cinema-active{aspect-ratio:4/3;min-height:320px}.scene-wrap.cinema-active .scene-titlebox{left:9px;top:8px;max-width:calc(100% - 130px);padding:8px 8px 9px}.scene-wrap.cinema-active .scene-titlebox h3{font-size:17px;line-height:1.1}.scene-wrap.cinema-active .scene-titlebox .eyebrow{font-size:8px;letter-spacing:.05em}.scene-wrap.cinema-active .scene-titlebox .subtitle{font-size:11px}.scene-wrap.cinema-active .scene-controls-toggle{top:8px;right:8px;gap:5px}.scene-wrap.cinema-active .clock-badge{font-size:14px;min-width:63px;padding:6px}.scene-wrap.cinema-active .scene-gear{height:34px;width:34px}.cinema-photo-credit{font-size:8px;bottom:5px;right:5px}.scene-card.cinematic{border-radius:16px}}
+@media(prefers-reduced-motion:reduce){.cinema-photo{transition:none}.scene-wrap.cinema-active .scene-gear{transition:none}}
+/* Photographic texture is deliberately subtle; animated foreground remains weather-driven. */
+.cinema-photo{inset:1% 1% 12% 10%;opacity:.26;mix-blend-mode:soft-light;filter:saturate(.8) contrast(1.2) blur(.9px);mask-image:linear-gradient(90deg,transparent,black 22%,black 82%,transparent)}
+.cinema-photo.scene-city,.cinema-photo.scene-athens,.cinema-photo.scene-thessaloniki{inset:6% 0 24% 36%;opacity:.27;mix-blend-mode:luminosity;mask-image:linear-gradient(90deg,transparent,black 19%,black 82%,transparent)}
+.cinema-photo.scene-sea,.cinema-photo.scene-coast,.cinema-photo.scene-island{inset:1% 0 27%;opacity:.23;mix-blend-mode:soft-light}
+.cinema-photo.scene-mountain{inset:4% 1% 18%;opacity:.28;mix-blend-mode:luminosity}
+@media(max-width:600px){.cinema-photo{opacity:.19}.cinema-photo.scene-city,.cinema-photo.scene-athens{opacity:.22}}
+/* Keep Scenic Lab genuinely usable at phone widths: show the visual experience first. */
+@media(max-width:760px){
+  html,body,#root{max-width:100%;overflow-x:hidden}
+  .app{width:100%;max-width:100%;padding:8px}
+  .topbar{position:relative;top:auto;display:flex;min-width:0;max-width:100%;padding:10px;gap:11px;align-items:stretch}
+  .topbar .brand{min-width:0}.topbar .brand h1{font-size:16px;line-height:1.1}.topbar .brand small{font-size:9px}
+  .topbar .toolbar{width:100%;max-width:100%;min-width:0;display:grid;grid-template-columns:minmax(0,1fr)}
+  .searchbar{width:100%;max-width:100%;min-width:0;display:flex;padding:6px 7px;gap:5px}
+  .searchbar input{width:0;flex:1 1 0;min-width:0;font-size:14px}
+  .searchbar button{padding:8px 10px;white-space:nowrap;flex:0 0 auto}
+  .nav-tabs{display:flex;max-width:100%;overflow-x:auto;flex-wrap:nowrap;scrollbar-width:none;gap:6px}
+  .nav-tabs .tab-btn{font-size:12px;flex:1 0 auto;white-space:nowrap;padding:8px 10px}
+  .layout{display:flex;flex-direction:column;width:100%;gap:12px;min-width:0}
+  .mainpanel{order:0;min-width:0;width:100%}.sidebar{order:1;width:100%;min-width:0;height:auto;position:relative;top:0}
+  .mainpanel section{min-width:0;padding:10px}.scene-card,.scene-wrap,.chart-card,.chartbox{min-width:0;max-width:100%}
+  .hero-header h2{font-size:20px}.hero-header{margin-bottom:10px}
+  .section-grid{grid-template-columns:minmax(0,1fr)}
+  .days-grid{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .scene-wrap.cinema-active{min-height:245px;aspect-ratio:5/4}
+  .scene-panel{gap:5px;padding:8px}.metric-pill{font-size:12px;padding:6px 8px}
+  .scene-controls-toggle{top:6px!important;right:6px!important}
+  .scene-titlebox{max-width:calc(100% - 114px)!important}
+  .scene-titlebox h3{font-size:15px!important}
+  .scene-titlebox .eyebrow{font-size:8px!important}
+  .scene-titlebox .subtitle{font-size:10px!important}
+  .greece-map{height:310px}
+}
+
+</style>
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin=""/>
   <style>
     :root{
@@ -216,7 +297,61 @@
     @keyframes streakMove{0%{transform:translateX(-12px) scaleX(.8);opacity:0}15%{opacity:.7}100%{transform:translateX(48px) scaleX(1.2);opacity:0}}
     @media (max-width:760px){.greece-map{height:300px}.anemometer{transform:scale(.88);transform-origin:bottom right;right:8px}.weather-summary-strip{grid-template-columns:1fr 1fr}}
 
-  </style>
+  
+/* --- Scenic quality upgrade --- */
+.leaflet-popup-content{min-width:210px;line-height:1.4}
+.scene-wrap{background-blend-mode:soft-light;overflow:hidden}
+.scene-wrap[data-scene="sea"],.scene-wrap[data-scene="coast"],.scene-wrap[data-scene="island"]{background:linear-gradient(180deg,#6f8fbe 0%,#8db0d7 52%,#d7e5f3 100%) !important}
+.scene-wrap.night[data-scene="sea"],.scene-wrap.night[data-scene="coast"],.scene-wrap.night[data-scene="island"]{background:linear-gradient(180deg,#15223d 0%,#2d436f 55%,#496691 100%) !important}
+.tree{left:7%;width:150px;height:208px}
+.tree .trunk{left:60px;width:22px;height:104px;border-radius:14px;background:linear-gradient(180deg,#80502f,#53301a)}
+.tree .branch{position:absolute;bottom:78px;left:67px;width:58px;height:10px;border-radius:99px;background:linear-gradient(90deg,#6d4327,#8d603c);transform-origin:0 50%;box-shadow:0 0 0 1px rgba(0,0,0,.04)}
+.tree .branch.b2{width:46px;bottom:96px;left:60px}
+.tree .branch.b3{width:42px;bottom:116px;left:59px}
+.tree .crown{left:10px;width:128px;height:118px;border-radius:47% 53% 44% 56% / 56% 42% 58% 44%;background:radial-gradient(circle at 34% 26%,#a2e29a,#4d8d4d 64%,#2f6337 100%);box-shadow:0 18px 30px rgba(16,41,25,.18)}
+.tree .leaf{width:14px;height:8px;filter:drop-shadow(0 3px 5px rgba(0,0,0,.08))}
+.sea-scape{position:absolute;inset:auto 0 0 0;height:39%;z-index:1;overflow:hidden}
+.sea-line{position:absolute;left:0;right:0;top:6%;height:1px;background:rgba(255,255,255,.35)}
+.sea-haze{position:absolute;left:0;right:0;top:0;height:18%;background:linear-gradient(180deg,rgba(255,255,255,.16),transparent)}
+.sea-body{position:absolute;inset:8% 0 0 0;background:linear-gradient(180deg,#79b7de 0%,#2f7ab3 36%,#12456d 100%)}
+.waveband{position:absolute;left:-8%;right:-8%;height:18px;border-radius:50%;border-top:2px solid rgba(255,255,255,.25);opacity:.7;animation:waveRun calc(6s - var(--swell, .5) * 2s) linear infinite}
+.waveband.w1{top:19%}.waveband.w2{top:35%;animation-duration:4.8s}.waveband.w3{top:52%;animation-duration:4.1s}
+.shoreline{position:absolute;left:0;bottom:28%;width:42%;height:18%;background:radial-gradient(90% 150% at 12% 100%,#d9c38f 0,#c5ad70 52%,transparent 53%)}
+.dune{position:absolute;left:0;bottom:20%;width:48%;height:28%;background:radial-gradient(90% 120% at 6% 100%,rgba(108,144,91,.95) 0,rgba(82,123,75,.94) 40%,transparent 41%)}
+.island-mass{position:absolute;left:36%;bottom:18%;width:30%;height:36%;background:radial-gradient(90% 95% at 50% 100%,#7e8c5d 0,#566b44 48%,#354b37 77%,transparent 78%)}
+.island-cap{position:absolute;left:43%;bottom:34%;width:12%;height:10%;background:#eef3f7;clip-path:polygon(0 100%,20% 30%,50% 0,80% 32%,100% 100%);opacity:.9}
+.island-house{position:absolute;left:48%;bottom:25%;width:18px;height:13px;background:#f4efe4;border-radius:2px;box-shadow:0 -8px 0 -3px #b7614c}
+.island-tree{position:absolute;left:53%;bottom:25%;width:14px;height:36px;border-radius:8px;background:linear-gradient(180deg,#654024,#654024) center bottom/4px 16px no-repeat, radial-gradient(circle at 50% 30%,#5fa95d 0,#3d743e 65%,transparent 66%)}
+.sailboat{position:absolute;bottom:16%;width:150px;height:74px;z-index:3;animation:boatSway 5.2s ease-in-out infinite}
+.sailboat .hull{position:absolute;left:26px;right:18px;bottom:0;height:20px;background:linear-gradient(180deg,#5a3b24,#7d5535);border-radius:0 0 24px 24px;transform:skewX(-18deg)}
+.sailboat .mast{position:absolute;left:72px;bottom:16px;width:4px;height:42px;background:#e9eef8;border-radius:3px}
+.sailboat .sail{position:absolute;bottom:20px;transform-origin:left bottom;filter:drop-shadow(0 3px 5px rgba(0,0,0,.18))}
+.sailboat .sail.front{left:76px;width:0;height:0;border-right:34px solid transparent;border-bottom:42px solid rgba(255,255,255,.95)}
+.sailboat .sail.rear{left:43px;width:0;height:0;border-left:0 solid transparent;border-right:28px solid transparent;border-bottom:34px solid rgba(246,247,250,.82)}
+.mount-range{position:absolute;left:0;right:0;bottom:18%;height:54%;z-index:1}
+.ridge{position:absolute;bottom:0;filter:drop-shadow(0 18px 26px rgba(0,0,0,.14));clip-path:polygon(0 100%,50% 0,100% 100%)}
+.ridge.r1{left:-2%;width:38%;height:66%;background:linear-gradient(180deg,#90a0b5,#586d82)}
+.ridge.r2{left:23%;width:43%;height:78%;background:linear-gradient(180deg,#7f92aa,#485c71)}
+.ridge.r3{left:57%;width:34%;height:62%;background:linear-gradient(180deg,#6a8097,#3d5062)}
+.snowcap{position:absolute;bottom:47%;width:90px;height:44px;background:#f4f8fb;clip-path:polygon(0 100%,15% 65%,30% 0,50% 35%,70% 8%,85% 65%,100% 100%);opacity:.95}
+.snowcap.s1{left:39%}.snowcap.s2{left:66%;transform:scale(.8)}
+.pine-line{position:absolute;left:0;right:0;bottom:21%;height:18%;z-index:2}
+.pine{position:absolute;bottom:0;width:0;height:0;border-left:13px solid transparent;border-right:13px solid transparent;border-bottom:34px solid #34573b;filter:drop-shadow(0 7px 8px rgba(0,0,0,.12))}
+.pine::after{content:"";position:absolute;left:-3px;bottom:-38px;width:6px;height:14px;background:#604027;border-radius:4px}
+.pine.p1{left:10%}.pine.p2{left:18%;transform:scale(1.15)}.pine.p3{left:77%;transform:scale(.9)}.pine.p4{left:84%;transform:scale(1.1)}
+.village.enhanced,.city-skyline.modern{position:absolute;left:0;right:0;bottom:22%;height:28%;z-index:2}
+.village.enhanced .house,.village.enhanced .church{position:absolute;bottom:0;background:linear-gradient(180deg,#f4ead9,#d8cab4);border-radius:6px 6px 2px 2px;box-shadow:0 12px 18px rgba(0,0,0,.12)}
+.village.enhanced .house::before,.village.enhanced .church::before{content:"";position:absolute;left:-2px;right:-2px;top:-18px;height:20px;background:#bc694f;clip-path:polygon(50% 0,100% 100%,0 100%)}
+.village.enhanced .house.h1{left:11%;width:58px;height:42px}.village.enhanced .house.h2{left:23%;width:64px;height:52px}.village.enhanced .house.h3{left:74%;width:68px;height:48px}.village.enhanced .church{left:56%;width:46px;height:58px}.village.enhanced .church::after{content:"";position:absolute;left:18px;top:-31px;width:10px;height:16px;background:#c8d5e9}
+.city-skyline.modern .building{position:absolute;bottom:0;background:linear-gradient(180deg,#2d466d,#18283f);border:1px solid rgba(168,201,255,.14);border-bottom:0;border-radius:9px 9px 0 0;box-shadow:inset 0 0 0 1px rgba(255,255,255,.03)}
+.city-skyline.modern .building::after{content:"";position:absolute;inset:12% 18%;background:repeating-linear-gradient(180deg,rgba(255,225,166,.14),rgba(255,225,166,.14) 6px,transparent 6px,transparent 13px),repeating-linear-gradient(90deg,rgba(255,225,166,.14),rgba(255,225,166,.14) 7px,transparent 7px,transparent 15px);opacity:.85}
+.city-skyline.modern .b1{left:5%;width:62px;height:94px}.city-skyline.modern .b2{left:15%;width:78px;height:124px}.city-skyline.modern .b3{left:27%;width:68px;height:102px}.city-skyline.modern .b4{left:40%;width:94px;height:150px}.city-skyline.modern .b5{left:56%;width:80px;height:120px}.city-skyline.modern .b6{left:69%;width:74px;height:108px}.city-skyline.modern .b7{left:80%;width:58px;height:88px}
+.hills.layered{bottom:24%;height:26%;background:radial-gradient(80% 100% at 15% 100%,rgba(36,83,57,.62),transparent 58%),radial-gradient(70% 100% at 45% 100%,rgba(29,70,49,.75),transparent 54%),radial-gradient(70% 100% at 80% 100%,rgba(40,89,60,.58),transparent 58%)}
+.scene-people{right:7%;bottom:17%}
+.metric-pill{background:linear-gradient(180deg,#162745,#10203a);border:1px solid rgba(135,171,232,.18)}
+@media (max-width:760px){.tree{transform-origin:bottom left;left:2%;scale:.82}.scene-people{right:2%;transform:scale(.82);transform-origin:bottom right}.sailboat{transform-origin:bottom center}.leaflet-popup-content{min-width:170px}}
+
+</style>
 </head>
 <body>
   <div class="app">
@@ -260,6 +395,8 @@
               <option value="auto">Auto</option>
               <option value="city">Πόλη</option>
               <option value="sea">Θάλασσα</option>
+              <option value="coast">Ακτή</option>
+              <option value="island">Νησί</option>
               <option value="mountain">Βουνό</option>
               <option value="village">Χωριό</option>
             </select>
@@ -269,8 +406,19 @@
               <option value="auto">Auto</option>
               <option value="city">Πόλη</option>
               <option value="sea">Θάλασσα</option>
+              <option value="coast">Ακτή</option>
+              <option value="island">Νησί</option>
               <option value="mountain">Βουνό</option>
               <option value="village">Χωριό</option>
+            </select>
+          </label>
+          <label>Οπτική εποχή σκηνικού
+            <select id="scenicSeasonMode" title="Αλλάζει μόνο τα γραφικά, όχι τα μετεωρολογικά δεδομένα">
+              <option value="auto">Αυτόματα από την ημερομηνία</option>
+              <option value="spring">Άνοιξη — ανθοφορία</option>
+              <option value="summer">Καλοκαίρι — έντονο φως</option>
+              <option value="autumn">Φθινόπωρο — χρυσαφένια φύλλα</option>
+              <option value="winter">Χειμώνας — ψυχρή ατμόσφαιρα</option>
             </select>
           </label>
           <label>Scenic source
@@ -349,8 +497,7 @@
                     <option value="14" selected>14 ημέρες</option>
                     <option value="30">30 ημέρες</option>
                     <option value="90">90 ημέρες</option>
-                    <option value="365">365 ημέρες</option>
-                  </select>
+                    <option value="365">365 ημέρες</option>                  </select>
                 </label>
               </div>
               <div class="map-mini-note">Focus στην Ελλάδα. Κλικ στον χάρτη για επιλογή κοντινής περιοχής ή για νέο pin.</div>
@@ -411,12 +558,417 @@
             </div>
           </div>
         </section>
-        <div class="footer-note">MeteoLab Scenic Prototype · <b>Developed by Antonis Savaris</b> · Open weather data powered by Open‑Meteo.</div>
+        <div class="footer-note">MeteoLab Cinematic 2.0 · <b>Developed by Antonis Savaris</b> · Open weather data powered by Open‑Meteo.</div>
       </main>
     </div>
   </div>
 
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
+<script>
+/* MeteoLab Cinema Engine 2.0 — progressive canvas weather scenes.
+   Original procedural art, driven by weather model data, no WebGL or paid API.
+   Meteorological wind direction is FROM; motion is drawn DOWNWIND. */
+(()=>{'use strict';
+const W=1280,H=720,TAU=Math.PI*2;
+const clamp=(v,a,b)=>Math.max(a,Math.min(b,v));
+const mix=(a,b,t)=>a+(b-a)*t;
+const radians=d=>d*Math.PI/180;
+const hash=n=>{const x=Math.sin(n*127.1+311.7)*43758.5453;return x-Math.floor(x)};
+const rgba=(r,g,b,a=1)=>`rgba(${Math.round(r)},${Math.round(g)},${Math.round(b)},${a})`;
+const hexToRgb=hex=>{hex=hex.replace('#','');return [parseInt(hex.slice(0,2),16),parseInt(hex.slice(2,4),16),parseInt(hex.slice(4,6),16)]};
+const color=(a,b,t)=>{const A=hexToRgb(a),B=hexToRgb(b);return rgba(mix(A[0],B[0],t),mix(A[1],B[1],t),mix(A[2],B[2],t))};
+const pal={
+ spring:{leaf:['#a1c983','#5e9863','#3e7950','#dce89b'],ground:['#6d9874','#315f50'],flowers:'#efbacb',sea:'#397ab5'},
+ summer:{leaf:['#709b5e','#447d50','#2b623f','#b7bd79'],ground:['#759366','#2f5c48'],flowers:'#f1dba0',sea:'#1d7ba9'},
+ autumn:{leaf:['#dcb16c','#ab7443','#8c5039','#e3c782'],ground:['#9b9166','#5e6047'],flowers:'#e6a05f',sea:'#347b9b'},
+ winter:{leaf:['#b3b5ae','#858d88','#6d7d7d','#d7dfe1'],ground:['#8c9fa1','#546d76'],flowers:'#deeaf7',sea:'#477a9c'}
+};
+function path(ctx,pts,close=false){ctx.beginPath();ctx.moveTo(pts[0][0],pts[0][1]);for(let i=1;i<pts.length;i++)ctx.lineTo(...pts[i]);if(close)ctx.closePath()}
+function grad(ctx,y1,y2,stops){const g=ctx.createLinearGradient(0,y1,0,y2);stops.forEach(([t,c])=>g.addColorStop(t,c));return g}
+function ellipse(ctx,x,y,rx,ry,fill,alpha=1){ctx.save();ctx.globalAlpha*=alpha;ctx.fillStyle=fill;ctx.beginPath();ctx.ellipse(x,y,rx,ry,0,0,TAU);ctx.fill();ctx.restore()}
+function mountains(ctx,scene,season,light,wind,t){
+ const snowy=season==='winter'||scene.temp<3;
+ const bands=[
+  {base:572,peak:250,c:'#7691a1',snow:.72,alpha:.42},
+  {base:633,peak:225,c:'#4f7182',snow:.48,alpha:.65},
+  {base:690,peak:182,c:'#294b5b',snow:.27,alpha:.96}
+ ];
+ bands.forEach((band,layer)=>{
+   const curve=[];let summitX=210+hash(layer*17+5)*850;
+   for(let i=0;i<=80;i++){
+     const x=i*W/80;
+     const ridges=Array.from({length:4},(_,j)=>Math.max(0,1-Math.abs(x-(135+j*340+hash(layer*11+j)*170))/(200+j*22))*(.6+hash(j*29+layer)*.6)).reduce((a,b)=>Math.max(a,b),0);
+     const jag=(hash(i*7+layer*190)-.5)*22+(Math.sin(x*.038+layer*3)*9);
+     const y=band.base-band.peak*ridges+jag;
+     curve.push([x,y]);
+   }
+   ctx.save();path(ctx,[[-60,H],...curve,[W+60,H]],true);
+   ctx.fillStyle=color(band.c,scene.isDay?'#8b9a9f':'#182a42',band.alpha);ctx.fill();
+   ctx.clip();
+   for(let i=2;i<curve.length-2;i+=2){
+     const [x,y]=curve[i],rough=(hash(i*23+layer*51)-.5)*20;
+     ctx.beginPath();ctx.moveTo(x,y+5);ctx.lineTo(x+rough-17,y+35+hash(i*5)*30);ctx.lineTo(x+rough+28,y+69+hash(i*47)*46);
+     ctx.strokeStyle=(i%3===0)?'rgba(226,235,239,.13)':'rgba(11,26,39,.18)';ctx.lineWidth=1.2;ctx.stroke();
+     if((snowy||layer===0)&&y<band.base-band.peak*.42){
+       const snowLen=(snowy?51:23)+hash(i*12)*15;
+       ctx.beginPath();ctx.moveTo(x-5,y+4);ctx.lineTo(x+5,y+snowLen);
+       ctx.strokeStyle=snowy?'rgba(243,248,250,.55)':'rgba(237,242,247,.32)';ctx.lineWidth=4+hash(i*33)*7;ctx.stroke();
+     }
+   }
+   ctx.restore();
+ });
+ const fog=ctx.createLinearGradient(0,400,0,690);fog.addColorStop(0,'rgba(224,237,242,.02)');fog.addColorStop(1,'rgba(210,223,228,.11)');ctx.fillStyle=fog;ctx.fillRect(0,400,W,290);
+ for(let i=0;i<31;i++){
+   const x=i*45-25,y=625+hash(i*23)*63,sz=20+hash(i*9)*47;
+   drawPine(ctx,x,y,sz,season,light,t,wind,i);
+ }
+}
+
+function drawPine(ctx,x,y,size,season,light,t,wind,idx){
+ const bend=wind*2.2*Math.sin(t*.0008+idx);
+ ctx.save();ctx.translate(x,y);ctx.rotate(bend/250);ctx.lineJoin='round';ctx.strokeStyle='#4b382f';ctx.lineWidth=Math.max(2,size*.08);ctx.beginPath();ctx.moveTo(0,1);ctx.lineTo(0,-size*1.3);ctx.stroke();
+ for(let a=0;a<4;a++){
+ const s=1-a*.22, top=-size*(.28+a*.26),width=size*.44*s;
+ path(ctx,[[0,top-size*.42],[-width,top+size*.18],[0,top+size*.03],[width,top+size*.18]],true);
+ ctx.fillStyle=season==='winter'?'#5c8287':a%2?'#254c3f':'#2e6451';ctx.fill();
+ if(season==='winter'){ctx.strokeStyle='rgba(224,241,250,.6)';ctx.lineWidth=1.4;ctx.beginPath();ctx.moveTo(-width*.85,top+size*.18);ctx.lineTo(0,top-size*.42);ctx.lineTo(width*.85,top+size*.18);ctx.stroke();}
+ }
+ ctx.restore();
+}
+function cloud(ctx,x,y,scale,op,shade,t){
+ ctx.save();ctx.globalAlpha=op;ctx.translate(x,y);ctx.scale(scale,scale);
+ const base=shade?'#c7d3dc':'#f2f7fc';
+ const parts=[[-87,14,68,23],[-48,-4,61,36],[3,-20,76,45],[56,5,70,29],[102,14,37,22]];
+ parts.forEach(([px,py,rx,ry],i)=>{
+ const g=ctx.createRadialGradient(px-rx*.24,py-ry*.35,3,px,py,rx);
+ g.addColorStop(0,shade?'rgba(223,233,242,.93)':'rgba(255,255,255,.98)');g.addColorStop(.65,base);g.addColorStop(1,shade?'rgba(108,140,169,.05)':'rgba(210,224,244,.04)');
+ ellipse(ctx,px,py,rx,ry,g);
+ });ctx.restore();
+}
+function sky(ctx,scene,t){
+ const h=scene.hour, dawn=Number(scene.sunrise?.slice(0,2)||7),dusk=Number(scene.sunset?.slice(0,2)||18);
+ const isDay=h>=dawn&&h<dusk;
+ const twilight=clamp(1-Math.min(Math.abs(h-dawn),Math.abs(h-dusk))/3,0,1);
+ const dayStrength=isDay?clamp(Math.min((h-dawn)/2,(dusk-h)/2,1),.08,1):0;
+ const storm=clamp((scene.rain/5+scene.cloud/170),0,.72);
+ const skyTop=isDay?color('#233e73','#3e8ad4',dayStrength*(1-storm)):color('#080f27','#263854',twilight);
+ const skyBottom=isDay?color('#f4b78a','#c2d9ed',dayStrength*(1-storm)):color('#2f365e','#6e6a8f',twilight);
+ ctx.fillStyle=grad(ctx,0,620,[[0,skyTop],[.61,skyBottom],[1,isDay?'#b9cedd':'#334660']]);ctx.fillRect(0,0,W,H);
+ const moonSunX=clamp((h/24)*W,36,W-36);
+ const sunY=clamp(290-185*Math.sin(clamp((h-dawn)/Math.max(dusk-dawn,1),0,1)*Math.PI),45,310);
+ if(isDay){
+  const g=ctx.createRadialGradient(moonSunX,sunY,0,moonSunX,sunY,295);
+  g.addColorStop(0,'rgba(255,247,193,.88)');g.addColorStop(.08,'rgba(255,234,172,.5)');g.addColorStop(.26,'rgba(255,212,152,.14)');g.addColorStop(1,'rgba(255,219,162,0)');ctx.fillStyle=g;ctx.fillRect(moonSunX-300,sunY-300,600,600);
+  ellipse(ctx,moonSunX,sunY,29,29,'#fff4c4',.9);
+ }else{
+  for(let i=0;i<110;i++){const px=hash(i*7)*W,py=hash(i*9+17)*370;ellipse(ctx,px,py,.5+hash(i)*1.1,.5+hash(i)*1.1,'#e2edff',(.08+hash(i+41)*.55)*(1-twilight*.55));}
+  ellipse(ctx,moonSunX,116,24,24,'#e9f1ff',.95);ellipse(ctx,moonSunX-9,108,24,24,'#233a62',.85);
+ }
+ const cloudiness=clamp(scene.cloud/100,.04,1);
+ const cloudCount=Math.round(2+cloudiness*5);
+ for(let i=0;i<cloudCount;i++){
+  const depth=i%2?1:.55,speed=(i%2?3:1)*scene.wind/7;
+  const x=((hash(i*83)*1450+((t*.0006*speed*scene.flow)*depth))%1550+1550)%1550-135;
+  cloud(ctx,x,115+hash(i*21)*205,depth*(.6+hash(i*11)*.85),cloudiness*(i%2?.65:.37),storm>.3,t);
+ }
+ if(scene.humidity>72){const fog=(scene.humidity-72)/28;ctx.fillStyle=grad(ctx,260,640,[[0,'rgba(235,247,255,0)'],[1,rgba(205,221,228,fog*.18)]]);ctx.fillRect(0,260,W,380);}
+}
+function grass(ctx,scene,t){
+ const P=pal[scene.season]||pal.summer;
+ ctx.fillStyle=grad(ctx,545,H,[[0,P.ground[0]],[1,P.ground[1]]]);ctx.fillRect(0,545,W,175);
+ for(let i=0;i<380;i++){
+  const x=hash(i*23)*W,y=566+hash(i*41)*160;
+  const sway=scene.flow*scene.wind*(.08+.1*hash(i*17)) + Math.sin(t*.001+hash(i)*6)*2;
+  ctx.strokeStyle=i%4?'rgba(191,212,166,.15)':'rgba(230,236,202,.21)';ctx.lineWidth=.8;
+  ctx.beginPath();ctx.moveTo(x,y);ctx.lineTo(x+sway,y-(4+hash(i*31)*15));ctx.stroke();
+ }
+ const g=ctx.createLinearGradient(0,545,0,H);g.addColorStop(0,'rgba(0,0,0,0)');g.addColorStop(1,'rgba(4,18,27,.16)');ctx.fillStyle=g;ctx.fillRect(0,545,W,175);
+}
+function tree(ctx,x,y,scale,scene,t,which=1){
+ const winter=scene.season==='winter',autumn=scene.season==='autumn';
+ const motion=clamp(scene.wind/40,0,1), sway=scene.flow*(12*motion+6*motion*Math.sin(t*.0014+which));
+ const P=pal[scene.season]||pal.summer;
+ ctx.save();ctx.translate(x,y);ctx.scale(scale,scale);
+ // A multi-segment natural trunk; leeward flex increases toward the crown.
+ const bark=ctx.createLinearGradient(-14,0,18,0);bark.addColorStop(0,'#342d28');bark.addColorStop(.48,'#79604a');bark.addColorStop(1,'#433a31');
+ const branch=(x1,y1,x2,y2,width,depth,index)=>{
+  const moveX=sway*(.48+depth*.42);
+  ctx.lineCap='round';ctx.strokeStyle=depth<=1?bark:'#57473b';ctx.lineWidth=width;
+  ctx.beginPath();ctx.moveTo(x1,y1);ctx.bezierCurveTo(x1+moveX*.18,y1-19,x2+moveX*.55,y2+18,x2+moveX,y2);ctx.stroke();
+  if(depth<3){
+   const count=depth===0?3:2;
+   for(let j=0;j<count;j++){
+     const sign=j%2?-1:1,xx=x2+moveX,yy=y2;
+     const len=34-depth*8+hash(index*8+j)*12;
+     branch(xx,yy,xx+sign*len+sway*.25,yy-(50-depth*10+hash(index*6+j)*16),width*.5,depth+1,index*3+j+1);
+   }
+  }
+  if(depth>=2&&!winter){
+    const cx=x2+moveX,cy=y2,leafCount=26;
+    const shadow=ctx.createRadialGradient(cx,cy,0,cx,cy,37);
+    shadow.addColorStop(0,autumn?'rgba(122,77,42,.22)':'rgba(28,81,55,.22)');shadow.addColorStop(1,'rgba(20,70,40,0)');ellipse(ctx,cx,cy,35,32,shadow);
+    for(let k=0;k<leafCount;k++){
+      const rx=(hash(index*31+k*19)-.5)*72,ry=(hash(index*43+k*29)-.5)*58;
+      if(rx*rx/(36*36)+ry*ry/(32*32)>1)continue;
+      const px=cx+rx+sway*.06,py=cy+ry;
+      ctx.save();ctx.translate(px,py);ctx.rotate(hash(index*7+k*13)*TAU);
+      ctx.fillStyle=P.leaf[(index+k)%P.leaf.length];ctx.globalAlpha=.49+hash(index*11+k)*.38;
+      ctx.beginPath();ctx.moveTo(-2.5,0);ctx.quadraticCurveTo(0,-6,3,0);ctx.quadraticCurveTo(0,5,-2.5,0);ctx.fill();
+      if(k%9===0&&scene.season==='spring'){ellipse(ctx,3,-2,1.4,1.5,P.flowers,.92)}
+      ctx.restore();
+    }
+  }
+ };
+ branch(0,0,0,-104,20,0,1);
+ // Fine bark scoring adds textural depth without image downloads.
+ ctx.strokeStyle='rgba(226,186,145,.18)';ctx.lineWidth=1;
+ for(let i=0;i<13;i++){const yy=-12-i*7;ctx.beginPath();ctx.moveTo(-6+hash(i)*5,yy);ctx.lineTo(-1+hash(i*13)*8,yy-12);ctx.stroke()}
+ ctx.restore();
+}
+
+function leaves(ctx,scene,t){
+ if(scene.season==='winter'&&scene.temp<3)return;
+ const count=clamp(Math.round(scene.wind*.65),4,46),P=pal[scene.season]||pal.summer;
+ for(let i=0;i<count;i++){
+  const phase=(t*(.00015+scene.wind*.000012)+hash(i*9))%1;
+  const startX=160+(i%6)*14, startY=405+hash(i*39)*130;
+  const dx=scene.flow*(36+scene.wind*8)*phase;
+  const x=startX+dx,y=startY+phase*110+(Math.sin(t*.004+i)*7);
+  ctx.save();ctx.translate(x,y);ctx.rotate(t*.004+i);ctx.globalAlpha=.7*(1-phase);
+  ctx.fillStyle=P.leaf[i%4];ctx.beginPath();ctx.ellipse(0,0,3.5,8,.5,0,TAU);ctx.fill();ctx.restore();
+ }
+}
+function athensLandmark(ctx,scene){
+ // Cinematic architectural silhouette of the Parthenon, not an exact 3D model.
+ const x=820,y=500,scale=.78;
+ ctx.save();ctx.translate(x,y);ctx.scale(scale,scale);
+ path(ctx,[[-250,18],[-180,-58],[-90,-60],[-30,-91],[70,-73],[130,-116],[222,-70],[287,26]],true);
+ ctx.fillStyle='#626e68';ctx.fill();
+ ctx.fillStyle='#c7bfa6';ctx.shadowColor='rgba(25,33,44,.28)';ctx.shadowBlur=19;
+ ctx.fillRect(-112,-116,240,12);ctx.fillRect(-116,-30,250,12);
+ for(let i=0;i<9;i++){const cx=-105+i*27;ctx.fillStyle=i%2?'#c9c0ab':'#d3c8b1';ctx.fillRect(cx,-105,17,73);ctx.fillStyle='#b8ab92';ctx.fillRect(cx-3,-109,22,5);ctx.fillRect(cx-3,-32,23,6);}
+ path(ctx,[[-125,-119],[8,-176],[138,-119]],true);ctx.fillStyle='#d2c6aa';ctx.fill();ctx.shadowBlur=0;
+ path(ctx,[[-90,-124],[8,-160],[104,-124]],true);ctx.fillStyle='#8e8d82';ctx.fill();
+ ctx.restore();
+}
+function city(ctx,scene,t){
+ // Parallax skyline with glass facade highlights and localized landmark.
+ ctx.fillStyle=grad(ctx,420,640,[[0,'rgba(88,115,128,.24)'],[1,'rgba(38,60,78,.7)']]);
+ for(let i=0;i<36;i++){
+ const bx=i*43-25,h=35+hash(i*5)*145;
+ ctx.fillStyle=i%3?'rgba(51,73,90,.46)':'rgba(81,108,120,.36)';ctx.fillRect(bx,575-h,33+hash(i)*21,h);
+ }
+ if(scene.cityId==='athens')athensLandmark(ctx,scene);
+ else if(scene.cityId==='thessaloniki'){
+  ctx.fillStyle='#d3c1a4';ctx.fillRect(780,395,84,130);ctx.fillStyle='#b6a58f';path(ctx,[[773,397],[822,380],[871,397]],true);ctx.fill();
+  for(let y=407;y<515;y+=18){ctx.fillStyle='#8b7a67';ctx.fillRect(795,y,9,11);ctx.fillRect(838,y,9,11);}
+ }
+ grass(ctx,scene,t);
+ ctx.fillStyle='rgba(21,33,45,.6)';ctx.fillRect(0,638,W,82);
+ for(let i=0;i<9;i++){
+  const x=i*159+30,bh=50+hash(i*13)*85,by=640;
+  ctx.fillStyle=i%3?'#30445c':'#3b536d';ctx.fillRect(x,by-bh,100,bh);
+  ctx.fillStyle='rgba(255,226,165,.29)';for(let j=0;j<3;j++)for(let k=0;k<3;k++)ctx.fillRect(x+10+j*24,by-bh+12+k*23,9,8);
+ }
+ for(let i=0;i<5;i++){
+  const x=130+i*247;ctx.strokeStyle='#263a47';ctx.lineWidth=5;ctx.beginPath();ctx.moveTo(x,635);ctx.lineTo(x,492);ctx.stroke();
+  ctx.fillStyle='#ffe1ab';ellipse(ctx,x,493,5,4,'#ffe1ab',.85);
+ }
+ tree(ctx,130,613,1.04,scene,t,1);
+ tree(ctx,1110,625,.73,scene,t,2);
+}
+function village(ctx,scene,t){
+ grass(ctx,scene,t);
+ for(let i=0;i<5;i++){
+ const x=210+i*194,y=590-20*hash(i*17),s=.8+hash(i)*.44;
+ ctx.save();ctx.translate(x,y);ctx.scale(s,s);
+ ctx.fillStyle='#e8dcc5';ctx.fillRect(-50,-72,100,72);
+ path(ctx,[[-66,-73],[0,-115],[65,-73]],true);ctx.fillStyle='#9e5545';ctx.fill();
+ ctx.fillStyle='#51677a';ctx.fillRect(-34,-48,18,23);ctx.fillRect(17,-48,19,23);
+ ctx.fillStyle='#765d4d';ctx.fillRect(-8,-39,18,39);ctx.restore();
+ }
+ tree(ctx,120,610,1,scene,t,1);tree(ctx,1090,610,.8,scene,t,2);
+}
+function water(ctx,scene,t){
+ const baseY=460,swell=clamp(Math.max(scene.wind/40,(scene.waveHeight||0)/2.6),.06,1),storm=scene.rain>1.7;
+ ctx.fillStyle=grad(ctx,baseY,H,[[0,scene.season==='summer'?'#5eacc8':'#588ca4'],[.3,scene.season==='summer'?'#207e9b':'#2c6683'],[1,storm?'#123a56':'#10394e']]);ctx.fillRect(0,baseY,W,H-baseY);
+ ctx.strokeStyle='rgba(240,248,255,.32)';ctx.lineWidth=1;ctx.beginPath();ctx.moveTo(0,baseY+.5);ctx.lineTo(W,baseY+.5);ctx.stroke();
+ // Moving cinematic glints follow the sun path on the swell.
+ if(scene.isDay){const center=clamp(scene.hour/24*W,80,1200);for(let i=0;i<68;i++){const depth=hash(i*9),y=baseY+12+depth*(H-baseY-15);const spread=28+depth*185;const px=center+(hash(i*17)-.5)*spread*2;ctx.strokeStyle='rgba(243,246,215,'+(.035+depth*.12)+')';ctx.lineWidth=1.1+depth*.6;ctx.beginPath();ctx.moveTo(px,y);ctx.lineTo(px+3+depth*22,y);ctx.stroke()}}
+ const waveCount=31;
+ for(let j=0;j<waveCount;j++){
+  const yy=baseY+10+j*9.1,depth=j/waveCount;
+  const count=Math.round(12-depth*4);
+  for(let i=0;i<count;i++){
+   const x=hash(j*105+i*47)*W;
+   const phase=t*(.0005+.0006*depth)*(1+swell*2)*scene.flow;
+   const x0=((x+phase*240)%1400+1400)%1400-50;
+   const len=(14+hash(i*j+12)*51)*(1+depth);
+   const amp=(.9+depth*1.8)*(1+swell*1.4);
+   ctx.strokeStyle=i%7?'rgba(205,235,248,.15)':'rgba(241,248,255,.28)';ctx.lineWidth=.45+depth*.8;
+   ctx.beginPath();ctx.moveTo(x0,yy);ctx.quadraticCurveTo(x0+len/2,yy-amp,x0+len,yy);ctx.stroke();
+  }
+ }
+ if(swell>.4){for(let i=0;i<52;i++){
+  const x=hash(i*137)*W,y=490+hash(i*91)*220;const z=hash(i*17);
+  ellipse(ctx,x,y,5+z*15,.6+z*.7,'#e5faff',swell*(z>.65?.3:.08));
+ }}
+}
+function boat(ctx,scene,t,x=770,y=540,scale=1){
+ const swell=clamp(Math.max(scene.wind/30,(scene.waveHeight||0)/2.6),0,1),wobble=Math.sin(t*.0018)*swell*7,roll=Math.sin(t*.00145)*swell*.065;
+ ctx.save();ctx.translate(x,y+wobble);ctx.rotate(roll);ctx.scale(scale,scale);
+ ctx.save();ctx.shadowColor='rgba(0,0,0,.25)';ctx.shadowBlur=18;
+ path(ctx,[[-126,-8],[132,-8],[94,23],[-98,23]],true);ctx.fillStyle=grad(ctx,-8,25,[[0,'#d9d8cf'],[.38,'#8e9a9f'],[1,'#354454']]);ctx.fill();ctx.restore();
+ ctx.fillStyle='#264255';ctx.fillRect(-92,-9,173,5);
+ ctx.strokeStyle='#e1e5de';ctx.lineWidth=5;ctx.beginPath();ctx.moveTo(4,-10);ctx.lineTo(4,-220);ctx.stroke();
+ const billow=scene.flow*clamp(scene.wind/2.5,2,19);
+ ctx.fillStyle='rgba(245,246,242,.93)';
+ ctx.beginPath();ctx.moveTo(10,-211);ctx.bezierCurveTo(24+billow,-165,35+billow,-91,15,-13);ctx.lineTo(15,-211);ctx.closePath();ctx.fill();
+ const sailG=ctx.createLinearGradient(0,-220,70,-20);sailG.addColorStop(0,'rgba(255,255,255,.96)');sailG.addColorStop(1,'rgba(167,194,212,.85)');
+ ctx.fillStyle=sailG;ctx.beginPath();ctx.moveTo(-2,-206);ctx.bezierCurveTo(-66-billow*.4,-144,-85-billow,-66,-98,-12);ctx.lineTo(-2,-12);ctx.closePath();ctx.fill();
+ ctx.strokeStyle='rgba(59,81,98,.55)';ctx.lineWidth=1.5;ctx.beginPath();ctx.moveTo(-2,-205);ctx.lineTo(-98,-12);ctx.moveTo(13,-212);ctx.lineTo(15,-14);ctx.stroke();
+ ctx.fillStyle='#b2dce3';ctx.fillRect(-33,-29,72,5);
+ ctx.restore();
+}
+function shoreline(ctx,scene,t){
+ water(ctx,scene,t);
+ ctx.fillStyle=grad(ctx,580,H,[[0,'rgba(225,207,163,.02)'],[.45,'#c8b28b'],[1,'#967d64']]);
+ ctx.beginPath();ctx.moveTo(-40,590);ctx.bezierCurveTo(270,540,460,675,725,615);ctx.bezierCurveTo(940,565,1100,690,1320,640);ctx.lineTo(1320,H);ctx.lineTo(-40,H);ctx.closePath();ctx.fill();
+ ctx.strokeStyle='rgba(246,251,246,.44)';ctx.lineWidth=5;ctx.beginPath();ctx.moveTo(-40,586);ctx.bezierCurveTo(270,536,460,670,725,610);ctx.bezierCurveTo(940,561,1100,686,1320,636);ctx.stroke();
+ for(let i=0;i<85;i++){
+ const x=hash(i*11)*W,y=640+hash(i*17)*80;ellipse(ctx,x,y,.8+hash(i)*2,.7+hash(i)*1.4,i%3?'#a88f77':'#dfcca7',.5);
+ }
+}
+function island(ctx,scene,t){
+ water(ctx,scene,t);
+ // Distant island headland, white plaster architecture, Mediterranean silhouettes.
+ path(ctx,[[250,508],[380,457],[498,398],[576,374],[647,398],[725,436],[810,494],[932,520],[1080,550],[250,550]],true);
+ ctx.fillStyle=grad(ctx,373,555,[[0,'#788674'],[.66,'#4d6860'],[1,'#234d4e']]);ctx.fill();
+ for(let i=0;i<13;i++){
+ const x=415+hash(i*37)*335,level=420+hash(i*71)*87;
+ const wid=13+hash(i*19)*23,hgt=13+hash(i*5)*17;
+ ctx.fillStyle=i%4?'#f0ede0':'#d5e7ee';ctx.fillRect(x,level,wid,hgt);
+ ctx.fillStyle='#6f8cb0';ctx.fillRect(x+wid*.38,level+hgt*.46,Math.max(3,wid*.2),Math.max(4,hgt*.3));
+ }
+ boat(ctx,scene,t,900,589,.8);
+}
+function hillCoast(ctx,scene,t){
+ water(ctx,scene,t);
+ path(ctx,[[-90,575],[58,492],[159,460],[284,485],[338,550],[411,619],[473,H],[-90,H]],true);
+ ctx.fillStyle=grad(ctx,440,H,[[0,'#7c9677'],[1,'#3d675e']]);ctx.fill();
+ ctx.strokeStyle='rgba(238,232,193,.2)';ctx.lineWidth=3;ctx.beginPath();ctx.moveTo(280,485);ctx.quadraticCurveTo(352,520,414,622);ctx.stroke();
+ boat(ctx,scene,t,820,580,.75);
+ tree(ctx,145,555,1.04,scene,t,1);
+}
+function drawPerson(ctx,scene,t){
+ if(scene.sceneType==='sea'||scene.sceneType==='island')return;
+ const wet=scene.rain>.3||scene.rainChance>70,cold=scene.temp<10,hot=scene.temp>26;
+ ctx.save();ctx.translate(1005,615+Math.sin(t*.002)*1.5);
+ ctx.strokeStyle='#273a4d';ctx.lineWidth=8;ctx.lineCap='round';ctx.beginPath();ctx.moveTo(-8,-37);ctx.lineTo(-15,4);ctx.moveTo(8,-37);ctx.lineTo(16,4);ctx.stroke();
+ ctx.fillStyle=cold?'#405a75':hot?'#e2ad79':'#517b8a';ctx.beginPath();ctx.roundRect(-19,-91,38,55,hot?13:9);ctx.fill();
+ ellipse(ctx,0,-106,16,19,'#bf9680');
+ if(cold){ctx.fillStyle='#334a60';ctx.beginPath();ctx.moveTo(-18,-102);ctx.quadraticCurveTo(-22,-130,0,-130);ctx.quadraticCurveTo(23,-132,19,-103);ctx.lineTo(12,-101);ctx.quadraticCurveTo(0,-111,-13,-100);ctx.closePath();ctx.fill()}
+ ctx.strokeStyle='#bf9680';ctx.lineWidth=7;ctx.beginPath();ctx.moveTo(-19,-82);ctx.lineTo(-31,-51);ctx.moveTo(19,-82);ctx.lineTo(30,-53);ctx.stroke();
+ if(wet){ctx.strokeStyle='#403744';ctx.lineWidth=3;ctx.beginPath();ctx.moveTo(28,-77);ctx.lineTo(29,-163);ctx.stroke();ctx.fillStyle='#d6a9a8';ctx.beginPath();ctx.moveTo(-38,-163);ctx.quadraticCurveTo(24,-223,95,-163);ctx.closePath();ctx.fill();}
+ ctx.restore();
+}
+function drawAnemometer(ctx,scene,t){
+ if(scene.sceneType==='sea')return;
+ const x=1165,y=605;ctx.save();ctx.translate(x,y);
+ ctx.strokeStyle='#e4e9e9';ctx.lineWidth=6;ctx.beginPath();ctx.moveTo(0,0);ctx.lineTo(0,-130);ctx.stroke();
+ ctx.fillStyle='#aebfcb';ellipse(ctx,0,-130,7,7,'#aebfcb');
+ const speed=(.00015+scene.wind*.00016)*t;ctx.save();ctx.translate(0,-130);ctx.rotate(speed);
+ for(let i=0;i<3;i++){ctx.save();ctx.rotate(i*TAU/3);ctx.strokeStyle='#dce5ec';ctx.lineWidth=3;ctx.beginPath();ctx.moveTo(0,0);ctx.lineTo(37,0);ctx.stroke();ctx.fillStyle='#6b93a8';ctx.beginPath();ctx.ellipse(41,0,8,5,0,0,TAU);ctx.fill();ctx.restore();}ctx.restore();ctx.restore();
+}
+function precipitation(ctx,scene,t){
+ const rain=scene.rain,wet=scene.rainChance>60;
+ if(rain>.08||wet){
+ const n=clamp(Math.round(70+rain*95),70,420),dx=scene.flow*clamp(scene.wind/3,2,25);
+ ctx.strokeStyle=`rgba(203,229,245,${clamp(.19+rain*.03,.2,.56)})`;ctx.lineWidth=rain>2?1.3:.9;
+ for(let i=0;i<n;i++){
+ const x=((hash(i*22)*1350+t*.32*dx+1400)%1400)-60,y=((hash(i*17+3)*850+t*(.35+rain*.06))%850)-40;
+ ctx.beginPath();ctx.moveTo(x,y);ctx.lineTo(x+dx,y+14+scene.wind*.11);ctx.stroke();
+ }
+ }
+ const snowy=scene.temp<2&&scene.weatherCode>=71&&scene.weatherCode<=77;
+ if(snowy){for(let i=0;i<120;i++){const x=(hash(i*17)*W+Math.sin(t*.001+i)*30+W)%W,y=(hash(i*23)*H+t*(.015+hash(i)*.025))%H;ellipse(ctx,x,y,1+hash(i*19)*2,1+hash(i*19)*2,'#f7fbff',.4+hash(i*3)*.4);}}
+}
+function finishing(ctx,scene,t){
+ const vig=ctx.createRadialGradient(W/2,H*.42,100,W/2,H*.46,800);
+ vig.addColorStop(0,'rgba(11,20,38,0)');vig.addColorStop(1,scene.isDay?'rgba(10,23,40,.25)':'rgba(4,10,24,.5)');ctx.fillStyle=vig;ctx.fillRect(0,0,W,H);
+ // subtle film grain, deterministic and inexpensive.
+ for(let i=0;i<190;i++){
+ const x=hash(i*19)*W,y=hash(i*37)*H;ctx.fillStyle=i%2?'rgba(255,255,255,.018)':'rgba(2,8,20,.018)';ctx.fillRect(x,y,1.5,1.5);
+ }
+ if(scene.humidity>90){ctx.fillStyle='rgba(217,228,236,.055)';ctx.fillRect(0,0,W,H);}
+}
+const cities={
+ athens:/αθήν|athens|ακρόπολ|acropolis|μαρούσ|marous|ελληνικό|ellinik|γονούσ|gono|πειραι|piraeus/i,
+ thessaloniki:/θεσσαλονίκ|thessaloniki|λευκός πύργος/i,
+ patras:/πάτρα|patras/i,
+ chania:/χανιά|chania/i,
+ heraklion:/ηράκλειο|heraklion/i,
+ ioannina:/ιωάννινα|ioannina/i,
+ nafplio:/ναύπλιο|nafplio/i,
+ volos:/βόλος|volos/i,
+ rhodes:/ρόδος|rhodes/i
+};
+const photoPages={athens:'Acropolis of Athens',thessaloniki:'White Tower of Thessaloniki',patras:'Rio–Antirrio Bridge',chania:'Chania',heraklion:'Heraklion',ioannina:'Ioannina',nafplio:'Nafplio',volos:'Volos',rhodes:'Rhodes',sea:'Aegean Sea',coast:'Myrtos Beach',island:'Santorini',mountain:'Mount Olympus',village:'Zagori',city:'Athens'};
+function cityId(name){for(const [id,rx] of Object.entries(cities))if(rx.test(name||''))return id;return 'other'}
+const photoCache=new Map();
+async function photoFor(city){
+ if(!photoPages[city])return null;
+ if(photoCache.has(city))return photoCache.get(city);
+ const result=(async()=>{
+  const title=photoPages[city];const endpoint='https://en.wikipedia.org/w/api.php?action=query&prop=pageimages&piprop=thumbnail&pithumbsize=1400&format=json&origin=*&titles='+encodeURIComponent(title);
+  try{const response=await fetch(endpoint,{mode:'cors'});if(!response.ok)return null;const json=await response.json();const page=Object.values(json.query?.pages||{})[0];const src=page?.thumbnail?.source;if(!src)return null;return {src,href:'https://en.wikipedia.org/wiki/'+encodeURIComponent(title.replaceAll(' ','_'))};}catch{return null}
+ })();photoCache.set(city,result);return result;
+}
+class Cinema{
+ constructor(host){this.host=host;this.canvas=document.createElement('canvas');this.canvas.className='cinema-canvas';this.canvas.setAttribute('aria-label','Ατμοσφαιρικό animation καιρού');this.canvas.setAttribute('role','img');host.appendChild(this.canvas);this.ctx=this.canvas.getContext('2d',{alpha:false});this.target=null;this.scene=null;this.frame=0;this.dpr=0;this.photoId='';this.photoNode=null;this.photoCaption=null;this.resizeObserver=typeof ResizeObserver!=='undefined'?new ResizeObserver(()=>this.resize()):null;this.resizeObserver?.observe(host);this.resize();this.bindDrag()}
+ resize(){const rect=this.host.getBoundingClientRect();if(rect.width===0)return;const dpr=Math.min(window.devicePixelRatio||1,1.8);const w=Math.max(200,Math.ceil(rect.width*dpr)),h=Math.max(125,Math.ceil(rect.height*dpr));if(this.canvas.width!==w||this.canvas.height!==h){this.canvas.width=w;this.canvas.height=h;}this.dpr=dpr}
+ bindDrag(){let dragging=false;const step=e=>{if(!dragging)return;const r=this.canvas.getBoundingClientRect();const frac=clamp((e.clientX-r.left)/Math.max(r.width,1),0,1);this.onScrub?.(Math.round(frac*23))};
+ this.canvas.addEventListener('pointerdown',e=>{if(e.button!==0)return;dragging=true;this.canvas.setPointerCapture(e.pointerId);step(e)});
+ this.canvas.addEventListener('pointermove',step);this.canvas.addEventListener('pointerup',()=>dragging=false);this.canvas.addEventListener('pointercancel',()=>dragging=false);
+ }
+ update(model,onScrub){this.onScrub=onScrub;this.target={
+ sceneType:model.sceneType||'city',season:model.season||'summer',temp:Number(model.temp)||0,rain:Number(model.rain)||0,rainChance:Number(model.rainChance)||0,cloud:Number(model.cloud)||0,humidity:Number(model.humidity)||0,wind:Number(model.wind)||0,windDir:Number(model.windDir)||0,waveHeight:Number(model.waveHeight)||0,weatherCode:Number(model.code)||0,hour:Number(model.hour)||12,lat:Number(model.latitude)||0,lon:Number(model.longitude)||0,sunrise:model.sunrise||'07:00',sunset:model.sunset||'19:00',cityId:cityId(model.city||'')};
+ const angle=radians((this.target.windDir+180)%360);this.target.flow=Math.sin(angle)>=0?1:-1;
+ this.target.isDay=this.target.hour>=Number(this.target.sunrise.slice(0,2))&&this.target.hour<Number(this.target.sunset.slice(0,2));
+ if(!this.scene)this.scene={...this.target};this.updatePhoto();}
+ async updatePhoto(){const city=this.target?.cityId,scene=this.target?.sceneType;const desired=scene==='city'?(city!=='other'?city:'city'):scene;if(this.photoId===desired)return;this.photoId=desired;
+ if(this.photoNode){this.photoNode.remove();this.photoNode=null}if(this.photoCaption){this.photoCaption.remove();this.photoCaption=null}if(!desired)return;
+ const data=await photoFor(desired);if(!data||this.photoId!==desired)return;
+ const back=document.createElement('div');back.className='cinema-photo scene-'+desired;back.style.backgroundImage='url("'+data.src.replace(/"/g,'%22')+'")';back.setAttribute('aria-hidden','true');this.host.appendChild(back);this.photoNode=back;
+ const credit=document.createElement('a');credit.className='cinema-photo-credit';credit.href=data.href;credit.rel='noopener noreferrer';credit.target='_blank';credit.textContent='Φωτογραφικό φόντο · Wikimedia / Wikipedia';this.host.appendChild(credit);this.photoCaption=credit;
+ }
+ draw(now){if(!this.target||!this.ctx||!this.host.isConnected)return;
+ const rect=this.host.getBoundingClientRect();if(rect.width<10||rect.height<10)return;
+ const s=this.scene,d=this.target;
+ // Numeric variables interpolate as hours change, while categorical changes morph at scene boundaries.
+ for(const k of ['temp','rain','rainChance','cloud','humidity','wind','waveHeight','hour'])s[k]=mix(s[k],d[k],.055);
+ s.windDir=d.windDir;s.flow=d.flow;s.sunrise=d.sunrise;s.sunset=d.sunset;s.isDay=d.isDay;s.season=d.season;s.sceneType=d.sceneType;s.weatherCode=d.weatherCode;s.cityId=d.cityId;
+ const c=this.ctx;c.setTransform(this.canvas.width/W,0,0,this.canvas.height/H,0,0);c.clearRect(0,0,W,H);
+ sky(c,s,now);
+ switch(s.sceneType){case 'sea':water(c,s,now);boat(c,s,now,795,575,1.12);break;
+ case 'coast':hillCoast(c,s,now);drawPerson(c,s,now);break;
+ case 'island':island(c,s,now);break;
+ case 'mountain':mountains(c,s.season==='winter'?s:{...s,temp:s.temp-7},s.season,.3,s.wind/30,now);grass(c,s,now);tree(c,200,640,1.17,s,now,1);drawPerson(c,s,now);break;
+ case 'village':village(c,s,now);drawPerson(c,s,now);break;
+ default:city(c,s,now);drawPerson(c,s,now);break;
+ }
+ if(['city','village','mountain','coast'].includes(s.sceneType))leaves(c,s,now);
+ if(s.sceneType!=='sea'&&s.sceneType!=='island')drawAnemometer(c,s,now);
+ precipitation(c,s,now);finishing(c,s,now);
+ }
+}
+const instances=new Map();let raf=0;
+function loop(now){for(const [host,inst] of instances){if(!host.isConnected){inst.resizeObserver?.disconnect();instances.delete(host);continue;}if(inst.host.closest('section')?.classList.contains('active')||!inst.host.closest('section')){if(inst.frame===0||now-inst.frame>=30){inst.frame=now;inst.draw(now)}}}raf=requestAnimationFrame(loop)}
+function attach(host,model,onScrub){if(!host)return;let inst=instances.get(host);if(!inst){inst=new Cinema(host);instances.set(host,inst)}inst.update(model,onScrub);if(!raf&&typeof requestAnimationFrame==='function')raf=requestAnimationFrame(loop);return inst}
+window.MeteoCinema={attach,version:'2.0',activeScenes:()=>instances.size};
+})();
+
+</script>
 <script>
 (()=>{
   const $ = id => document.getElementById(id);
@@ -426,6 +978,7 @@
     query: localStorage.getItem('meteolab-query') || 'Elliniko',
     location: null,
     forecast: null,
+    marine: null,
     historyCache: {},
     selectedDay: 0,
     selectedHour: new Date().getHours(),
@@ -435,6 +988,7 @@
     scenicSourceMode: localStorage.getItem('meteolab-scenic-source') || 'auto',
     defaultSceneType: localStorage.getItem('meteolab-default-scene') || 'auto',
     scenicSceneType: localStorage.getItem('meteolab-scenic-scene') || 'auto',
+    scenicSeasonMode: localStorage.getItem('meteolab-scenic-season') || 'auto',
     view: 'overview',
     overviewControlsOpen: false,
     scenicControlsOpen: false,
@@ -442,8 +996,7 @@
     pins: (()=>{ try{return JSON.parse(localStorage.getItem('meteolab-pins')||'[]').slice(0,5);}catch(e){return [];} })(),
     map: null,
     mapMarkers: [],
-    mapClickMarker: null,
-  };
+    mapClickMarker: null,  };
 
   const weatherText = code => {
     if(code >= 95) return 'Καταιγίδα';
@@ -484,17 +1037,59 @@
     return h*60+m;
   };
   const minsToHM = mins => String(Math.floor(mins/60)).padStart(2,'0')+':'+String(mins%60).padStart(2,'0');
-  const humanScene = type => ({auto:'Auto',city:'Πόλη',sea:'Θάλασσα',mountain:'Βουνό',village:'Χωριό'})[type] || type;
+  const humanScene = type => ({auto:'Auto',city:'Πόλη',sea:'Θάλασσα',coast:'Ακτή',island:'Νησί',mountain:'Βουνό',village:'Χωριό'})[type] || type;
   const pinKey = p => `${Number(p.latitude).toFixed(3)},${Number(p.longitude).toFixed(3)}`;
-  function reverseGeocodeName(lat,lon){
-    const url = `https://nominatim.openstreetmap.org/reverse?format=jsonv2&lat=${encodeURIComponent(lat)}&lon=${encodeURIComponent(lon)}&zoom=10&accept-language=el`;
-    return fetch(url,{headers:{'Accept':'application/json'}}).then(r=>r.json()).then(data=>{
-      const a = data.address || {};
-      const name = a.city || a.town || a.village || a.municipality || a.county || data.name || `${lat.toFixed(3)}, ${lon.toFixed(3)}`;
-      const admin1 = a.state || a.region || '';
-      const country = a.country || 'Greece';
-      return {name,country,admin1,latitude:lat,longitude:lon,timezone:'Europe/Athens'};
-    }).catch(()=>({name:`${lat.toFixed(3)}, ${lon.toFixed(3)}`, country:'Greece', admin1:'', latitude:lat, longitude:lon, timezone:'Europe/Athens'}));
+  
+function reverseGeocodeName(lat,lon){
+  const url = `https://nominatim.openstreetmap.org/reverse?format=jsonv2&lat=${encodeURIComponent(lat)}&lon=${encodeURIComponent(lon)}&zoom=12&namedetails=1&extratags=1&accept-language=el`;
+  return fetch(url,{headers:{'Accept':'application/json'}}).then(r=>r.json()).then(data=>{
+    const a = data.address || {};
+    const textBlob = [data.display_name, data.name, a.city, a.town, a.village, a.municipality, a.county, a.state, a.region, a.island, a.sea, a.bay, a.beach, a.harbour].filter(Boolean).join(' ').toLowerCase();
+    const name = a.city || a.town || a.village || a.municipality || a.island || a.county || data.name || `${lat.toFixed(3)}, ${lon.toFixed(3)}`;
+    const admin1 = a.state || a.region || '';
+    const country = a.country || 'Greece';
+    let surfaceHint = '';
+    if(a.island || /νήσ|νησ|island|islet/.test(textBlob)) surfaceHint = 'island';
+    else if(/παραλί|beach|coast|coastal|marina|λιμάνι|harbour/.test(textBlob)) surfaceHint = 'coast';
+    else if(a.sea || a.bay || /πέλαγ|sea|gulf|bay|strait|marine/.test(textBlob) || ['water','bay','beach'].includes(data.type) || ['natural','waterway'].includes(data.class)) surfaceHint = 'sea';
+    else if(/βουν|όρος|κορυφ|mount|mountain|peak|ridge|ορειν/.test(textBlob)) surfaceHint = 'mountain';
+    else if(/χωρι|village|hamlet/.test(textBlob)) surfaceHint = 'village';
+    else if(/αθήνα|θεσσαλον|πάτρα|πόλη|city|town|urban/.test(textBlob)) surfaceHint = 'city';
+    return {name,country,admin1,latitude:lat,longitude:lon,timezone:'Europe/Athens',surfaceHint,rawClass:data.class||'',rawType:data.type||''};
+  }).catch(()=>({name:`${lat.toFixed(3)}, ${lon.toFixed(3)}`, country:'Greece', admin1:'', latitude:lat, longitude:lon, timezone:'Europe/Athens', surfaceHint:''}));
+}
+
+  async function waterAtMapClick(lat,lon){
+    const zoom=9,n=2**zoom,latRad=lat*Math.PI/180;
+    const u=((lon+180)/360)*n;
+    const v=(1-Math.log(Math.tan(latRad)+1/Math.cos(latRad))/Math.PI)/2*n;
+    const x=Math.floor(u), y=Math.floor(v);
+    const src=`https://tile.openstreetmap.org/${zoom}/${x}/${y}.png`;
+    try{
+      const response=await timedFetch(src,3500);
+      if(!response.ok)return null;
+      const blob=await response.blob();const img=await createImageBitmap(blob);
+      const canvas=document.createElement('canvas');canvas.width=4;canvas.height=4;
+      const ctx=canvas.getContext('2d',{willReadFrequently:true});
+      ctx.drawImage(img,Math.floor((u-x)*256)-1,Math.floor((v-y)*256)-1,4,4,0,0,4,4);
+      const d=ctx.getImageData(1,1,2,2).data;
+      const r=d[0],g=d[1],b=d[2];
+      return b>160&&g>155&&b-r>13&&g-r>9;
+    }catch{return null;}
+  }
+  async function refineMapLocation(lat,lon){
+    const [raw,water]=await Promise.all([reverseGeocodeName(lat,lon),waterAtMapClick(lat,lon)]);
+    let loc={...raw,latitude:lat,longitude:lon};
+    if(water===true){loc.surfaceHint='sea';loc.name=`Θάλασσα ${lat.toFixed(3)}°, ${lon.toFixed(3)}°`;loc.mapSurface='sea';}
+    else if(water===false){loc.mapSurface='land';if(loc.surfaceHint==='sea')loc.surfaceHint='coast';}
+    try{
+      if(water===false&&loc.surfaceHint!=='island'&&loc.surfaceHint!=='coast'){
+        const url=`https://api.open-meteo.com/v1/elevation?latitude=${encodeURIComponent(lat)}&longitude=${encodeURIComponent(lon)}`;
+        const res=await timedFetch(url,2600);
+        if(res.ok){const payload=await res.json();const m=Number(payload?.elevation?.[0]);if(Number.isFinite(m)){loc.elevation=m;if(m>=650)loc.surfaceHint='mountain';}}
+      }
+    }catch{}
+    return loc;
   }
   function savePins(){ localStorage.setItem('meteolab-pins', JSON.stringify(state.pins.slice(0,5))); }
   function renderPinList(){
@@ -509,7 +1104,7 @@
     if(!loc) return;
     const exists = state.pins.findIndex(p=>pinKey(p)===pinKey(loc) || (p.name===loc.name && p.country===loc.country));
     if(exists>=0){ state.pins.unshift(state.pins.splice(exists,1)[0]); }
-    else { state.pins.unshift({name:loc.name,country:loc.country,admin1:loc.admin1||'',latitude:loc.latitude,longitude:loc.longitude,timezone:loc.timezone||'Europe/Athens'}); state.pins = state.pins.slice(0,5); }
+    else { state.pins.unshift({name:loc.name,country:loc.country,admin1:loc.admin1||'',latitude:loc.latitude,longitude:loc.longitude,timezone:loc.timezone||'Europe/Athens',surfaceHint:loc.surfaceHint||'',elevation:loc.elevation??null,mapSurface:loc.mapSurface||''}); state.pins = state.pins.slice(0,5); }
     savePins(); renderPinList(); updateMapMarkers();
   }
   function initMap(){
@@ -520,8 +1115,8 @@
       setStatus('Αναζήτηση κοντινής περιοχής από τον χάρτη...');
       if(state.mapClickMarker) state.map.removeLayer(state.mapClickMarker);
       state.mapClickMarker = L.circleMarker(e.latlng,{radius:9,color:'#ffe08a',weight:2,fillColor:'#ffd15b',fillOpacity:.9}).addTo(state.map);
-      const loc = await reverseGeocodeName(e.latlng.lat, e.latlng.lng);
-      state.mapClickMarker.bindPopup(`<b>${loc.name}</b><br>${loc.country}<br><button id="mapLoadPoint" style="margin-top:6px">Φόρτωση περιοχής</button> <button id="mapPinPoint" style="margin-top:6px">Pin</button>`).openPopup();
+      const loc = await refineMapLocation(e.latlng.lat, e.latlng.lng);
+      state.mapClickMarker.bindPopup(`<b>${loc.name}</b><br>${humanScene(resolveSceneType("auto",loc.name,loc))} · ${loc.country}<br><button id="mapLoadPoint" style="margin-top:6px">Φόρτωση περιοχής</button> <button id="mapPinPoint" style="margin-top:6px">Pin</button>`).openPopup();
       state.mapClickMarker.on('popupopen',()=>{
         setTimeout(()=>{ const a=document.getElementById('mapLoadPoint'); const b=document.getElementById('mapPinPoint'); if(a) a.onclick=()=>loadLocation(loc.name,loc); if(b) b.onclick=()=>addPin(loc); },40);
       });
@@ -654,9 +1249,9 @@
       const data = await res.json();
       if(!data.results || !data.results.length) throw new Error('Δεν βρέθηκε περιοχή');
       const r = data.results[0];
-      return {name:r.name, country:r.country, admin1:r.admin1 || '', latitude:r.latitude, longitude:r.longitude, timezone:r.timezone};
+      return {name:r.name, country:r.country, admin1:r.admin1 || '', latitude:r.latitude, longitude:r.longitude, timezone:r.timezone, surfaceHint: (/(νήσ|island)/i.test((r.name||'')+' '+(r.admin1||'')) ? 'island' : /(βουν|mount|ορειν)/i.test((r.name||'')+' '+(r.admin1||'')) ? 'mountain' : /(παραλί|λιμάνι|coast|marina|beach)/i.test((r.name||'')+' '+(r.admin1||'')) ? 'coast' : /(γλυφάδα|πειραι|ελληνικό|νησ|θάλασσ)/i.test((r.name||'')+' '+(r.admin1||'')) ? 'sea' : ''), elevation:r.elevation || null};
     }catch(err){
-      throw new Error('Η αναζήτηση περιοχής δεν είναι διαθέσιμη τώρα. Δοκίμασε ξανά σε λίγο.');
+      throw new Error('Δεν ήταν δυνατή η αναζήτηση περιοχής. Δοκίμασε ξανά.');
     }
   }
 
@@ -699,10 +1294,21 @@
       state.historyCache[cacheKey] = json;
       return json;
     }catch(err){
-      throw new Error('Τα ιστορικά δεδομένα δεν είναι διαθέσιμα αυτή τη στιγμή.');
+      throw new Error('Δεν είναι διαθέσιμα ιστορικά δεδομένα για την επιλεγμένη ημέρα.');
     }
   }
 
+  async function fetchMarineForecast(loc){
+    const params=new URLSearchParams({latitude:loc.latitude,longitude:loc.longitude,timezone:loc.timezone||'auto',forecast_days:'14',hourly:'wave_height,wave_direction,wave_period'});
+    try{const response=await timedFetch('https://marine-api.open-meteo.com/v1/marine?'+params.toString(),4500);if(!response.ok)return null;return await response.json()}catch{return null}
+  }
+  function marineAt(dateStr,hourStr){
+    const hourly=state.marine?.hourly;
+    if(!hourly?.time?.length)return null;
+    const i=hourly.time.indexOf(dateStr+'T'+hourStr);
+    const height=i>=0?Number(hourly.wave_height?.[i]):NaN;
+    return Number.isFinite(height)?height:null;
+  }
   function getDailyForecast(index){
     if(!state.forecast) return null;
     const d = state.forecast.daily;
@@ -763,14 +1369,20 @@
     return 'normal';
   }
 
-  function resolveSceneType(baseType, locName=''){
-    if(baseType && baseType !== 'auto') return baseType;
-    const q = locName.toLowerCase();
-    if(/λιμάνι|παραλία|μαρίνα|πειραι|γλυφάδα|ελληνικό|βούλα|ποσειδων|νησ|θάλασσ|παραθαλάσσ/.test(q)) return 'sea';
-    if(/χωρι|ναυπ|μέτσοβ|ζαγορ|νήσος|νησί|χωριό/.test(q)) return 'village';
-    if(/όλυμ|παρνασσ|πήλιο|βουν|ορειν/.test(q)) return 'mountain';
-    return 'city';
-  }
+  
+function resolveSceneType(baseType, locName='', locObj=state.location){
+  if(baseType && baseType !== 'auto') return baseType;
+  const q = (locName || '').toLowerCase();
+  const hint = locObj?.surfaceHint || '';
+  if(['sea','coast','island','mountain','village','city'].includes(hint)) return hint;
+  if(/νήσ|island|islet/.test(q)) return 'island';
+  if(/λιμάνι|παραλία|μαρίνα|πειραι|γλυφάδα|ελληνικό|βούλα|ποσειδων|παραθαλάσσ|coast|beach/.test(q)) return 'coast';
+  if(/πέλαγ|θάλασσ|gulf|bay|sea/.test(q)) return 'sea';
+  if(/χωρι|ναυπ|μέτσοβ|ζαγορ|χωριό|village/.test(q)) return 'village';
+  if(/όλυμ|παρνασσ|πήλιο|βουν|ορειν|mount/.test(q)) return 'mountain';
+  return 'city';
+}
+
 
   function buildClouds(cloud){
     const count = clamp(Math.round(cloud / 22), 1, 5);
@@ -806,50 +1418,71 @@
     return html;
   }
 
-  function buildLandscape(sceneType, season, windDir, wind){
-    if(sceneType === 'sea'){
-      const dir = windDir > 180 ? 'scaleX(-1)' : 'scaleX(1)';
-      const sailTilt = windDir > 180 ? -1 : 1;
-      const rough = wind >= 18 ? ' rough' : '';
-      return `
-        <div class="sea${rough}">
-          <div class="wave" style="top:10%;--wd:${(5 - Math.min(wind/30,2)).toFixed(2)}s"></div>
-          <div class="wave" style="top:22%;--wd:${(6 - Math.min(wind/35,2)).toFixed(2)}s"></div>
-          <div class="wave" style="top:36%;--wd:${(4.5 - Math.min(wind/40,1.8)).toFixed(2)}s"></div>
-          <div class="wave" style="top:50%;--wd:${(4.1 - Math.min(wind/42,1.7)).toFixed(2)}s"></div>
-          <div class="boat" style="left:${windDir > 180 ? '62%' : '18%'};transform:${dir}"><div class="mast"></div><div class="sail" style="transform:skewY(${sailTilt * clamp(wind*0.55,4,18)}deg)"></div><div class="hull"></div></div>
-        </div>`;
-    }
-    if(sceneType === 'mountain'){
-      return `
-        <div class="ground ${season}"></div>
-        <div class="mountains">
-          <div class="mountain" style="left:5%"></div>
-          <div class="mountain" style="left:32%;border-bottom-color:rgba(75,102,120,.95)"></div>
-          <div class="mountain" style="left:58%;border-bottom-color:rgba(58,88,104,.86)"></div>
-        </div>`;
-    }
-    if(sceneType === 'village'){
-      return `
-        <div class="ground ${season}"></div>
-        <div class="hills"></div>
-        <div class="village">
-          <div class="house" style="left:12%"></div>
-          <div class="house" style="left:28%;transform:scale(.85)"></div>
-          <div class="house" style="left:68%;transform:scale(1.05)"></div>
-        </div>`;
-    }
+  
+function buildLandscape(sceneType, season, windDir, wind){
+  const flow = windDir > 180 ? -1 : 1;
+  const swell = clamp(wind/28, .25, 1.15).toFixed(2);
+  const sailLean = flow * clamp(wind * 0.65, 5, 24);
+  if(sceneType === 'sea'){
     return `
-      <div class="ground ${season}"></div>
-      <div class="hills"></div>
-      <div class="city-skyline">
-        <div class="building" style="left:8%;width:68px;height:90px"></div>
-        <div class="building" style="left:18%;width:84px;height:132px"></div>
-        <div class="building" style="left:31%;width:74px;height:108px"></div>        <div class="building" style="left:44%;width:95px;height:154px"></div>
-        <div class="building" style="left:60%;width:88px;height:124px"></div>
-        <div class="building" style="left:73%;width:72px;height:102px"></div>
+      <div class="sea-scape open-sea" style="--swell:${swell};--flow:${flow}">
+        <div class="sea-haze"></div>
+        <div class="sea-line"></div>
+        <div class="sea-body"></div>
+        <div class="waveband w1"></div><div class="waveband w2"></div><div class="waveband w3"></div>
+        <div class="sailboat" style="left:${flow < 0 ? '63%' : '17%'};transform:scaleX(${flow})">
+          <div class="mast"></div><div class="sail front" style="transform:skewY(${sailLean}deg)"></div><div class="sail rear" style="transform:skewY(${sailLean*0.55}deg)"></div><div class="hull"></div>
+        </div>
       </div>`;
   }
+  if(sceneType === 'coast'){
+    return `
+      <div class="sea-scape coast" style="--swell:${swell};--flow:${flow}">
+        <div class="sea-line"></div><div class="sea-body"></div><div class="waveband w1"></div><div class="waveband w2"></div>
+        <div class="shoreline"></div>
+        <div class="dune"></div>
+        <div class="sailboat" style="left:${flow < 0 ? '61%' : '21%'};transform:scaleX(${flow}) scale(.9)">
+          <div class="mast"></div><div class="sail front" style="transform:skewY(${sailLean}deg)"></div><div class="sail rear" style="transform:skewY(${sailLean*0.55}deg)"></div><div class="hull"></div>
+        </div>
+      </div>`;
+  }
+  if(sceneType === 'island'){
+    return `
+      <div class="sea-scape island" style="--swell:${swell};--flow:${flow}">
+        <div class="sea-line"></div><div class="sea-body"></div><div class="waveband w1"></div><div class="waveband w2"></div><div class="waveband w3"></div>
+        <div class="island-mass"></div><div class="island-cap"></div><div class="island-house"></div><div class="island-tree"></div>
+        <div class="sailboat" style="left:${flow < 0 ? '73%' : '8%'};transform:scaleX(${flow}) scale(.82)">
+          <div class="mast"></div><div class="sail front" style="transform:skewY(${sailLean}deg)"></div><div class="sail rear" style="transform:skewY(${sailLean*0.55}deg)"></div><div class="hull"></div>
+        </div>
+      </div>`;
+  }
+  if(sceneType === 'mountain'){
+    return `
+      <div class="ground ${season}"></div>
+      <div class="mount-range">
+        <div class="ridge r1"></div><div class="ridge r2"></div><div class="ridge r3"></div>
+        <div class="snowcap s1"></div><div class="snowcap s2"></div>
+      </div>
+      <div class="pine-line">
+        <span class="pine p1"></span><span class="pine p2"></span><span class="pine p3"></span><span class="pine p4"></span>
+      </div>`;
+  }
+  if(sceneType === 'village'){
+    return `
+      <div class="ground ${season}"></div>
+      <div class="hills layered"></div>
+      <div class="village enhanced">
+        <div class="house h1"></div><div class="house h2"></div><div class="house h3"></div><div class="church"></div>
+      </div>`;
+  }
+  return `
+    <div class="ground ${season}"></div>
+    <div class="hills layered"></div>
+    <div class="city-skyline modern">
+      <div class="building b1"></div><div class="building b2"></div><div class="building b3"></div><div class="building b4"></div><div class="building b5"></div><div class="building b6"></div><div class="building b7"></div>
+    </div>`;
+}
+
 
   function buildPeople(temp, rain, wind, season){
     const style = seasonClothes(temp, rain, wind);
@@ -862,8 +1495,7 @@
           ${style === 'umbrella' && i === 0 ? '<div class="umbrella"></div>' : ''}
           ${style === 'hood' ? '<div class="hood"></div>' : ''}
           ${style === 'shirt' ? '<div class="shirt"></div>' : ''}
-          ${style === 'scarf' ? '<div class="scarf"></div>' : ''}
-          <div class="arm a1"></div><div class="arm a2"></div>
+          ${style === 'scarf' ? '<div class="scarf"></div>' : ''}          <div class="arm a1"></div><div class="arm a2"></div>
           <div class="body"></div>
           <div class="leg l1"></div><div class="leg l2"></div>
         </div>`;
@@ -886,8 +1518,9 @@
     const rows = cfg.rows || [];
     if(!rows.length){ el.innerHTML = '<div class="empty">Δεν υπάρχουν διαθέσιμα δεδομένα για αυτήν την επιλογή.</div>'; return; }
     const row = rows[clamp(cfg.hourIndex,0,rows.length-1)];
-    const season = seasonOf(cfg.dateStr);
-    const sceneType = resolveSceneType(cfg.sceneType, state.location?.name || '');
+    const season = cfg.seasonOverride && cfg.seasonOverride !== 'auto' ? cfg.seasonOverride : seasonOf(cfg.dateStr);
+    const sceneType = resolveSceneType(cfg.sceneType, state.location?.name || '', state.location);
+    const marineWave=marineAt(cfg.dateStr,row.time);
     const sun = cfg.sun || {sunrise:'07:00', sunset:'19:00'};
     const sunriseM = parseHM(sun.sunrise), sunsetM = parseHM(sun.sunset), currentM = parseHM(row.time);
     const isDay = row.isDay ?? (currentM >= sunriseM && currentM < sunsetM);
@@ -917,8 +1550,10 @@
     const spinSpeed = clamp(4.8 - row.wind/8, 1.1, 4.8);
     const title = cfg.title || `${state.location?.name || '—'} — ${fmtFull.format(new Date(cfg.dateStr+'T12:00:00'))}`;
     const sourceText = cfg.source === 'history' ? 'Ιστορικό snapshot' : 'Forecast animation';
+    const retainedCinema = el.querySelector('[data-cinema-host]');
     el.innerHTML = `
-      <div class="scene-wrap ${isDay ? '' : 'night'}" style="background:${sky}">
+      <div class="scene-wrap ${isDay ? '' : 'night'} cinema-active" data-season="${season}" data-scene="${sceneType}" style="background:${sky}">
+        <div class="cinema-host" data-cinema-host></div>
         <div class="scene-controls-toggle">
           <span class="clock-badge">${row.time}</span>
           <button class="scene-gear" data-action="toggle-controls" data-target="${cfg.controlKey}">⚙</button>
@@ -926,7 +1561,7 @@
         <div class="scene-titlebox">
           <div class="eyebrow">${sourceText} · ${humanScene(sceneType)}</div>
           <h3>${title}</h3>
-          <div class="subtitle">${weatherText(row.code)} · ${weatherIcon(row.code, isDay ? 1 : 0)} · ${cfg.caption || 'Οπτική απόδοση του καιρού'}</div>
+          <div class="subtitle">${weatherIcon(row.code, isDay ? 1 : 0)} ${weatherText(row.code)}</div>
         </div>
         <div class="stars"></div>
         <div class="sun-arc"></div>
@@ -936,7 +1571,7 @@
         <div class="rain-layer">${rain}</div>
         ${landscape}
         ${windFX}
-        <div class="tree" style="transform:rotate(${windLean*0.22}deg)"><div class="crown" style="transform:rotate(${windLean*0.56}deg);filter:saturate(${row.humidity > 80 ? 1.1 : .98})"></div><div class="trunk" style="transform:rotate(${windLean*0.16}deg)"></div>${leaves}</div>
+        <div class="tree" style="transform:rotate(${windLean*0.22}deg)"><div class="crown" style="transform:rotate(${windLean*0.56}deg);filter:saturate(${row.humidity > 80 ? 1.1 : .98})"></div><div class="branch b1" style="transform:rotate(${windLean*0.35 - 24}deg)"></div><div class="branch b2" style="transform:rotate(${windLean*0.24 + 8}deg)"></div><div class="branch b3" style="transform:rotate(${windLean*0.28 + 28}deg)"></div><div class="trunk" style="transform:rotate(${windLean*0.16}deg)"></div>${leaves}</div>
         <div class="anemometer" style="--spin:${spinSpeed}s;--wind-rot:${windArrowRotation}deg"><div class="mast"></div><div class="hub"></div><div class="rotor"><div class="blade b1"></div><div class="blade b2"></div><div class="blade b3"></div></div><div class="tail"></div><div class="dir">➤</div></div>
         <div class="scene-people">${people}</div>
         <div class="scene-overlay"></div>
@@ -947,6 +1582,7 @@
         <span class="metric-pill"><span class="icon">☔</span><strong>${Math.round(row.rainChance)} %</strong></span>
         <span class="metric-pill"><span class="icon">🌧️</span><strong>${row.rain.toFixed(1)} mm</strong></span>
         <span class="metric-pill"><span class="icon">🧭</span><strong>${bft(row.wind)} Bft · ${dirLabel(row.windDir)} · ${Math.round(row.windDir)}°</strong></span>
+        ${["sea","coast","island"].includes(sceneType) && marineWave!=null ? `<span class="metric-pill"><span class="icon">🌊</span><strong>${marineWave.toFixed(1)} m</strong></span>` : ""}
         <div class="rightgrow">
           <span class="sun-badge">Ανατολή ${sun.sunrise}</span>
           <span class="sunset-badge">Δύση ${sun.sunset}</span>
@@ -962,6 +1598,16 @@
           ${rows.map((r,i)=>`<div class="tick ${i===cfg.hourIndex ? 'active' : ''}" data-jump="${i}" data-target="${cfg.controlKey}">${i%3===0 ? r.time : '·'}</div>`).join('')}
         </div>
       </div>`;
+    const host = el.querySelector('[data-cinema-host]');
+    if(retainedCinema&&host)host.replaceWith(retainedCinema);
+    const activeHost=retainedCinema||host;
+    el.classList.add('cinematic');
+    window.MeteoCinema?.attach(activeHost,{
+      sceneType,season,latitude:state.location?.latitude,longitude:state.location?.longitude,
+      city:state.location?.name||'', temp:row.temp,rain:row.rain,rainChance:row.rainChance,
+      cloud:row.cloud,humidity:row.humidity,wind:row.wind,windDir:row.windDir,
+      code:row.code,hour:parseHM(row.time)/60,isDay,waveHeight:marineWave,sunrise:sun.sunrise,sunset:sun.sunset,
+    },hour=>setHourKey(cfg.controlKey,hour,false));
     el.querySelectorAll('[data-step]').forEach(btn=>btn.addEventListener('click',()=>stepHour(btn.dataset.target, Number(btn.dataset.step))));
     el.querySelectorAll('[data-range]').forEach(input=>input.addEventListener('input',e=>setHourKey(e.target.dataset.range, Number(e.target.value), false)));
     el.querySelectorAll('[data-jump]').forEach(btn=>btn.addEventListener('click',()=>setHourKey(btn.dataset.target, Number(btn.dataset.jump), false)));
@@ -1100,7 +1746,7 @@
     const daily = getDailyForecast(state.selectedDay);
     const rows = currentOverviewRows();
     const hour = clamp(state.selectedHour,0,rows.length-1);
-    $('overviewMeta').textContent = `${state.location.name}, ${state.location.country} · ${fmtFull.format(new Date(daily.date+'T12:00:00'))} · Scene ${humanScene(resolveSceneType(state.defaultSceneType,state.location.name))}`;
+    $('overviewMeta').textContent = `${state.location.name}, ${state.location.country} · ${fmtFull.format(new Date(daily.date+'T12:00:00'))} · Scene ${humanScene(resolveSceneType(state.defaultSceneType,state.location.name,state.location))}`;
     $('locationBadge').textContent = `📍 ${state.location.name} · ${state.location.country}`+(state.forecast.__demo?' · DEMO':'');
     renderOverviewSceneOnly();
     renderDayGrid();
@@ -1167,6 +1813,7 @@
       sun: payload.sun,
       source: payload.source,
       sceneType,
+      seasonOverride:state.scenicSeasonMode,
       title: `${state.location?.name || '—'} · ${fmtFull.format(new Date(payload.dateStr+'T12:00:00'))}`,
       caption: `Scenic ${humanScene(resolveSceneType(sceneType,state.location.name))} · ${payload.source === 'history' ? 'historical' : 'forecast'}`,
       controlsOpen: state.scenicControlsOpen,
@@ -1191,6 +1838,7 @@
     localStorage.setItem('meteolab-query', state.query);
     localStorage.setItem('meteolab-default-scene', $('defaultSceneType').value);
     localStorage.setItem('meteolab-scenic-scene', $('scenicSceneType').value);
+    localStorage.setItem('meteolab-scenic-season', $('scenicSeasonMode').value);
     localStorage.setItem('meteolab-scenic-source', $('scenicSourceMode').value);
   }
 
@@ -1204,6 +1852,8 @@
       const forecast = await fetchForecast(loc);
       state.location = loc;
       state.forecast = forecast;
+      state.marine = null;
+      fetchMarineForecast(loc).then(m=>{if(state.location?.latitude===loc.latitude&&state.location?.longitude===loc.longitude){state.marine=m;renderOverviewSceneOnly();if(state.view==='scenic')renderScenic().catch(()=>{});}});
       initMap();
       state.selectedDay = 0;
       state.selectedHour = new Date().getHours();
@@ -1219,7 +1869,7 @@
       await renderTimeline();
       await renderScenic();
       updateMapMarkers();
-      setStatus(forecast.__demo ? 'DEMO: Προσωρινά δεν διατίθενται live δεδομένα. Οι εμφανιζόμενες τιμές είναι ενδεικτικές και όχι πραγματική πρόγνωση.' : `Έτοιμο · ${loc.name}, ${loc.country} · Forecast 14 ημερών φορτώθηκε.`,forecast.__demo?'error':'normal');
+      setStatus(forecast.__demo ? 'DEMO: Οι τιμές είναι ενδεικτικές επειδή δεν είναι διαθέσιμα τα live δεδομένα.' : `Έτοιμο · ${loc.name}, ${loc.country} · Forecast 14 ημερών φορτώθηκε.`, forecast.__demo?'error':'normal');
     }catch(err){
       console.error(err);
       setStatus(err.message || 'Κάτι πήγε στραβά κατά τη φόρτωση.', 'error');
@@ -1236,6 +1886,7 @@
   $('searchInput').value = state.query;
   $('defaultSceneType').value = state.defaultSceneType;
   $('scenicSceneType').value = state.scenicSceneType;
+  $('scenicSeasonMode').value = state.scenicSeasonMode;
   $('scenicSourceMode').value = state.scenicSourceMode;
   document.querySelectorAll('.tab-btn').forEach(btn=>btn.addEventListener('click',()=>switchView(btn.dataset.view)));
   $('searchBtn').addEventListener('click',()=>loadLocation($('searchInput').value.trim() || 'Elliniko'));
@@ -1246,6 +1897,7 @@
   $('periodPreset').addEventListener('change',()=>{ const n=Number($('periodPreset').value); const base=new Date(); const start=new Date(); start.setDate(base.getDate()-Math.max(0,n-14)); setStatus(`Επιλεγμένο χρονικό εύρος: ${n} ημέρες. Χρησιμοποίησε Timeline/Scenic για πλοήγηση σε forecast ή ιστορικό.`); $('timelineDate').value = n>14 ? start.toISOString().slice(0,10) : (state.forecast?.daily.time[0] || $('timelineDate').value); renderTimeline(); });
   $('defaultSceneType').addEventListener('change',()=>{ state.defaultSceneType = $('defaultSceneType').value; savePrefs(); renderOverviewSceneOnly(); });
   $('scenicSceneType').addEventListener('change',()=>{ state.scenicSceneType = $('scenicSceneType').value; savePrefs(); renderScenic(); });
+  $('scenicSeasonMode').addEventListener('change',()=>{ state.scenicSeasonMode = $('scenicSeasonMode').value; savePrefs(); renderScenic(); });
   $('scenicSourceMode').addEventListener('change',()=>{ state.scenicSourceMode = $('scenicSourceMode').value; savePrefs(); renderScenic(); });
   $('scenicHour').addEventListener('input',()=>{ autoplay.scenic = false; state.scenicHour = Number($('scenicHour').value); renderScenic(); });
   $('scenicDate').addEventListener('change',()=>renderScenic());
