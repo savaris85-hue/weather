@@ -791,6 +791,7 @@ function setupMap() {
   }catch(error){console.warn("Map unavailable",error);}
 }
 function locationChanged() {
+  renderPins();
   resetData();
   $("#current-place").textContent=state.place.name+", "+(state.place.country||"");
   state.marker?.setLatLng([state.place.latitude,state.place.longitude]);
@@ -866,14 +867,38 @@ $("#reset-layout").addEventListener("click",()=>{
   state.enabled=new Set(DEFAULT_LAYERS);state.rainMode="daily";$("#rain-mode").value="daily";
   state.climateYears=20;state.compareLastYear=false;state.rowHeight=112;
   state.palette="classic";state.colors={...PALETTES.classic};
+  state.layerColors=paletteColors("classic");state.forecastWeight=3.5;
+  state.climateYearFrom=2000;state.climateYearTo=2020;
   $("#climate-years").value="20";$("#compare-last-year").checked=false;
+  $("#climate-custom-range").hidden=true;
+  $("#climate-year-from").value="2000";$("#climate-year-to").value="2020";
+  $("#forecast-weight").value="3.5";
   $("#height-slider").value="112";$("#wave-palette").value="classic";
   for(const kind of ["history","forecast","climate"])$("#"+kind+"-color").value=state.colors[kind];
   layerList();scheduleClimate(true);renderChart();
 });
 $("#climate-years").addEventListener("change",()=>{
-  state.climateYears=Number($("#climate-years").value);
-  scheduleClimate(true);renderChart();
+  const selected=$("#climate-years").value;
+  state.climateYears=selected==="custom"?"custom":Number(selected);
+  $("#climate-custom-range").hidden=selected!=="custom";
+  if(selected==="custom"){
+    $("#climate-status").textContent="Διάλεξε έτος έναρξης και λήξης και πάτησε Εφαρμογή.";
+    state.climate=null;state.climateKey=null;renderChart();
+  } else {
+    scheduleClimate(true);renderChart();
+  }
+});
+$("#climate-apply").addEventListener("click",()=>{
+  const from=Number($("#climate-year-from").value),to=Number($("#climate-year-to").value);
+  try{
+    historicalSamplesCustomRange(iso(state.view[0]),iso(state.view[1]),from,to);
+    state.climateYears="custom";
+    $("#climate-years").value="custom";
+    state.climateYearFrom=from;state.climateYearTo=to;
+    scheduleClimate(true);renderChart();
+  }catch(error){
+    $("#climate-status").textContent=error.message;
+  }
 });
 $("#compare-last-year").addEventListener("change",()=>{
   state.compareLastYear=$("#compare-last-year").checked;
@@ -882,14 +907,25 @@ $("#compare-last-year").addEventListener("change",()=>{
 $("#height-slider").addEventListener("input",()=>{
   state.rowHeight=Number($("#height-slider").value);renderChart();
 });
+$("#forecast-weight").addEventListener("input",()=>{
+  state.forecastWeight=Number($("#forecast-weight").value);renderChart();
+});
 $("#wave-palette").addEventListener("change",()=>{
   state.palette=$("#wave-palette").value;
-  if(PALETTES[state.palette])state.colors={...PALETTES[state.palette]};
+  if(PALETTES[state.palette]){
+    state.colors={...PALETTES[state.palette]};
+    state.layerColors=paletteColors(state.palette);
+    layerList();
+  }
   for(const kind of ["history","forecast","climate"])$("#"+kind+"-color").value=state.colors[kind];
   renderChart();
 });
 for(const kind of ["history","forecast","climate"])$("#"+kind+"-color").addEventListener("input",()=>{
   state.palette="custom";state.colors[kind]=$("#"+kind+"-color").value;
+  if(kind==="forecast"){
+    for(const layer of ALL_LAYERS)state.layerColors[layer.id]=state.colors.forecast;
+    layerList();
+  }
   $("#wave-palette").value="custom";renderChart();
 });
 $("#export").addEventListener("click",()=>{
@@ -902,6 +938,7 @@ $("#export").addEventListener("click",()=>{
   document.body.append(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(url),3000);
 });
 restoreLayout();
+restorePins();
 applyPreset(15);
 setupMap();
 refresh({reason:"initial"});
