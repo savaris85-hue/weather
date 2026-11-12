@@ -582,7 +582,7 @@ function updateRangeLabels(){
   const [from,to]=state.view;
   $("#nav-from-date").textContent=friendlyUTC(from);
   $("#nav-to-date").textContent=friendlyUTC(to);
-  const days=Math.max(1,Math.round((to-from)/DAY)+1);
+  const days=Math.max(1,Math.floor((to-from)/DAY)+1);
   $("#nav-duration").textContent=days===1?"1 ημέρα":days+" ημέρες";
 }
 function updateNavigatorDates(){
