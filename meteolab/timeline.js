@@ -6,7 +6,8 @@
 "use strict";
 const $=id=>document.getElementById(id);
 const DAY=86400000,HOUR=3600000,EARLIEST=Date.UTC(1940,0,1),ARCHIVE_LAG=8*DAY;
-const colors={temperature:"#ff9865",humidity:"#6ad3e6",precipitation:"#77a5fa",probability:"#e66b86",pressure:"#e9c46b",wind:"#bf94fa",cloud:"#c6d5eb",direction:"#62deaa",dew:"#e4a7bb",gusts:"#ac8cf6"};
+const defaultColors={temperature:"#ff9865",humidity:"#6ad3e6",precipitation:"#77a5fa",probability:"#e66b86",pressure:"#e9c46b",wind:"#bf94fa",cloud:"#c6d5eb",direction:"#62deaa",dew:"#e4a7bb",gusts:"#ac8cf6"};
+const colors={...defaultColors};
 const layers=[
  {key:"temperature",name:"🌡️ Temperature",unit:"°C",height:94},
  {key:"humidity",name:"💧 Humidity",unit:"%",height:88},
@@ -24,7 +25,7 @@ let active=false,chart=null,forecast=null,forecastExtra=null,place=null,model="b
 let enabled={...defaults},heights=Object.fromEntries(layers.map(x=>[x.key,x.height]));
 let history=new Map(),historyOldest=null,historyLoading=false,historySeq=0,forecastSeq=0;
 let shown=[Date.now()-4*DAY,Date.now()+3*DAY],minData=0,maxData=0,renderLock=false,zoomDebounce=null,resizeObs=null;
-let dbPromise=null,cacheOn=true;
+let dbPromise=null,cacheOn=true,showDaySeparators=true,showBottomDates=true,lineThickness=2.2;
 function en(){return lang==="en"}function status(x){const e=$("tlStatus");if(e)e.textContent=x}
 function dateUTC(ms){return new Date(ms).toISOString().slice(0,10)}
 function number(x){return x===undefined||x===null||!Number.isFinite(Number(x))?null:Number(x)}
@@ -35,9 +36,13 @@ function loadLayout(){
  try{const d=JSON.parse(localStorage.getItem("meteolab-timeline-layout")||"null");
  if(d?.enabled&&typeof d.enabled==="object")for(const k of layers.map(l=>l.key))if(typeof d.enabled[k]==="boolean")enabled[k]=d.enabled[k];
  if(d?.heights)for(const k of layers.map(l=>l.key))if(Number.isFinite(d.heights[k]))heights[k]=Math.max(48,Math.min(230,d.heights[k]));
+ if(d?.colors)for(const k of layers.map(l=>l.key))if(/^#[\da-fA-F]{6}$/.test(d.colors[k]||""))colors[k]=d.colors[k];
+ if(typeof d?.showDaySeparators==="boolean")showDaySeparators=d.showDaySeparators;
+ if(typeof d?.showBottomDates==="boolean")showBottomDates=d.showBottomDates;
+ if(Number.isFinite(d?.lineThickness))lineThickness=Math.max(1,Math.min(5,Number(d.lineThickness)));
  }catch(e){}
 }
-function saveLayout(){try{localStorage.setItem("meteolab-timeline-layout",JSON.stringify({enabled,heights}))}catch(e){}}
+function saveLayout(){try{localStorage.setItem("meteolab-timeline-layout",JSON.stringify({enabled,heights,colors,showDaySeparators,showBottomDates,lineThickness}))}catch(e){}}
 function openDB(){
  if(!("indexedDB" in window))return Promise.resolve(null);
  if(!dbPromise)dbPromise=new Promise(resolve=>{try{const q=indexedDB.open("meteolab-archive-v1",1);q.onupgradeneeded=()=>q.result.createObjectStore("chunks");q.onsuccess=()=>resolve(q.result);q.onerror=()=>resolve(null)}catch(e){resolve(null)}});
@@ -139,10 +144,45 @@ function rowsAll(){
 }
 function drawLayerControls(){
  const root=$("tlLayerControls");if(!root)return;
- root.innerHTML=layers.map(layer=>'<div class="tl-layer"><input type="checkbox" aria-label="'+layer.name+'" data-layer="'+layer.key+'" '+(enabled[layer.key]?"checked":"")+'><span class="tl-layer-symbol" style="background:'+colors[layer.key]+'"></span><span>'+layer.name+'</span><span class="tl-layer-height"><button data-height="'+layer.key+'" data-dir="-1" title="Shrink">−</button><button data-height="'+layer.key+'" data-dir="1" title="Grow">+</button></span></div>').join("");
+ root.innerHTML=layers.map(layer=>'<div class="tl-layer"><input type="checkbox" aria-label="'+layer.name+'" data-layer="'+layer.key+'" '+(enabled[layer.key]?"checked":"")+'><input type="color" class="tl-color-picker" title="Color: '+layer.name+'" aria-label="Color of '+layer.name+'" data-color="'+layer.key+'" value="'+colors[layer.key]+'"><span class="tl-layer-name">'+layer.name+'</span><span class="tl-layer-height"><button data-height="'+layer.key+'" data-dir="-1" title="Shrink">−</button><button data-height="'+layer.key+'" data-dir="1" title="Grow">+</button></span></div>').join("");
  root.querySelectorAll("[data-layer]").forEach(ch=>ch.onchange=e=>{const k=e.target.dataset.layer;enabled[k]=e.target.checked;saveLayout();render()});
+ root.querySelectorAll("[data-color]").forEach(ch=>ch.oninput=e=>{const k=e.target.dataset.color;if(/^#[\\da-fA-F]{6}$/.test(e.target.value)){colors[k]=e.target.value;saveLayout();render()}});
  root.querySelectorAll("[data-height]").forEach(btn=>btn.onclick=()=>{const k=btn.dataset.height;heights[k]=Math.max(48,Math.min(230,heights[k]+Number(btn.dataset.dir)*16));saveLayout();render()});
 }
+function updateGuideControls(){
+ const toggle=$("tlDayLines"),dates=$("tlBottomDates"),thickness=$("tlLineThickness");
+ if(toggle){toggle.checked=showDaySeparators;toggle.setAttribute("aria-checked",String(showDaySeparators))}
+ if(dates)dates.checked=showBottomDates;
+ if(thickness)thickness.value=String(lineThickness);
+ const ribbon=$("tlDateRibbon");if(ribbon)ribbon.hidden=!showBottomDates;
+}
+function utcDays(start,end){
+ const dates=[],span=(end-start)/DAY;
+ const step=span>120?Math.ceil(span/120):1;
+ const begin=Math.ceil(start/DAY)*DAY;
+ for(let t=begin;t<=end&&dates.length<125;t+=step*DAY)dates.push(t);
+ return dates;
+}
+function makeDayGuides(start,end,now){
+ const boundaries=showDaySeparators?utcDays(start,end).map(t=>({xAxis:t,lineStyle:{type:"dashed",width:1,color:"rgba(170,199,237,.27)"}})):[];
+ if(now>=start&&now<=end)boundaries.push({xAxis:now,lineStyle:{type:"dashed",width:1.7,color:"#d6b8ff"}});
+ return boundaries.length?{silent:true,symbol:"none",label:{show:false},precision:0,animation:false,data:boundaries}:undefined;
+}
+function ribbonDate(t,span){
+ const d=new Date(t);
+ return new Intl.DateTimeFormat(en()?"en-GB":"el-GR",{timeZone:"UTC",day:span<75*DAY?"2-digit":undefined,month:"short",year:span>260*DAY?"numeric":undefined}).format(d);
+}
+function updateDateRibbon(start=shown[0],end=shown[1]){
+ const ribbon=$("tlDateRibbon");if(!ribbon)return;
+ ribbon.hidden=!showBottomDates;
+ const viewport=$("tlDateTrack");if(!viewport)return;
+ const width=Math.max(350,viewport.clientWidth||900),span=end-start;
+ const boundaries=utcDays(start,end),minimumSpacing=span>90*DAY?70:span>21*DAY?60:47;
+ let previous=-1e6;
+ const labels=boundaries.map(t=>{const pct=(t-start)/span*100,x=pct*width/100;if(x-previous<minimumSpacing)return "";previous=x;return '<span class="tl-date-tick" style="left:'+pct.toFixed(4)+'%">'+ribbonDate(t,span)+'</span>'}).join("");
+ viewport.innerHTML=labels||'<span class="tl-date-tick tl-date-fallback">'+ribbonDate(start,span)+" — "+ribbonDate(end,span)+"</span>";
+}
+
 function chartSeries(layer,rows,gridIndex,now){
  const hist=rows.filter(r=>r.kind==="history"&&r[layer.key]!=null).map(r=>[r.t,r[layer.key]]);
  const recent=rows.filter(r=>r.kind==="recent-model"&&r[layer.key]!=null).map(r=>[r.t,r[layer.key]]);
@@ -150,13 +190,13 @@ function chartSeries(layer,rows,gridIndex,now){
  const base={xAxisIndex:gridIndex,yAxisIndex:gridIndex,showSymbol:false,connectNulls:false,emphasis:{focus:"series"},large:true,animation:false};
  const name=layer.name.replace(/^[^ ]+ /,""),color=colors[layer.key];
  if(layer.key==="direction"){
-  return [{...base,type:"scatter",name:name+" direction",data:rows.filter(r=>r.direction!=null&&r.wind!=null).filter((r,i)=>r.kind==="history"||i%3===0).map(r=>({value:[r.t,0],symbol:"arrow",symbolSize:17,symbolRotate:(r.direction+180)%360,itemStyle:{color:"#68deb5"},label:{show:false},_deg:r.direction})),tooltip:{valueFormatter:()=>"Wind direction (meteorological)"}}];
+  return [{...base,type:"scatter",name:name+" direction",data:rows.filter(r=>r.direction!=null&&r.wind!=null).filter((r,i)=>r.kind==="history"||i%3===0).map(r=>({value:[r.t,0],symbol:"arrow",symbolSize:17,symbolRotate:(r.direction+180)%360,itemStyle:{color:colors.direction},label:{show:false},_deg:r.direction})),tooltip:{valueFormatter:()=>"Wind direction (meteorological)"}}];
  }
  const isRain=layer.key==="precipitation";
  const make=(data,historical)=>({...base,name:(historical?"ERA5 daily · ":"Forecast hourly · ")+name,type:isRain?"bar":"line",
- data,barMaxWidth:9,barGap:"-100%",smooth:!isRain,sampling:"lttb",lineStyle:{width:historical?1.7:2.2,type:historical?"dashed":"solid"},itemStyle:{color:historical?"#68c8e5":color},areaStyle:isRain?{color:historical?"#68c8e542":color+"4a"}:undefined,markLine:(!historical?{silent:true,symbol:"none",label:{show:false},lineStyle:{color:"#e8d0fc",width:1.5,type:"dashed"},data:[{xAxis:now}]}:undefined)});
+ data,barMaxWidth:9,barGap:"-100%",smooth:!isRain,sampling:"lttb",lineStyle:{width:historical?Math.max(1,lineThickness-.5):lineThickness,type:historical?"dashed":"solid",color:historical?"#68c8e5":color},itemStyle:{color:historical?"#68c8e5":color},areaStyle:isRain?{color:historical?"#68c8e542":color+"4a"}:undefined,markLine:(!historical?{silent:true,symbol:"none",label:{show:false},lineStyle:{color:"#e8d0fc",width:1.5,type:"dashed"},data:[{xAxis:now}]}:undefined)});
  const recentLine={...base,name:"Recent model hourly · "+name,type:isRain?"bar":"line",data:recent,
- barMaxWidth:8,smooth:!isRain,sampling:"lttb",lineStyle:{width:1.8,type:"dotted"},
+ barMaxWidth:8,smooth:!isRain,sampling:"lttb",lineStyle:{width:Math.max(1,lineThickness-.3),type:"dotted",color:"#6bd5b2"},
  itemStyle:{color:"#6bd5b2"},areaStyle:isRain?{color:"#6bd5b24a"}:undefined};
  return [make(hist,true),recentLine,make(fut,false)];
 }
@@ -164,7 +204,7 @@ function render(){
  if(!active||!window.echarts)return;
  if(!chart){const node=$("tlChart");chart=echarts.init(node,null,{renderer:"canvas"});chart.on("datazoom",onZoom);chart.on("dblclick",()=>resetRange());chart.on("finished",()=>{})}
  const activeLayers=layers.filter(x=>enabled[x.key]);if(!activeLayers.length){$("tlChart").style.height="200px";chart.clear();status("Choose at least one graph layer.");return}
- const rows=rowsAll(),now=Date.now(),total=activeLayers.reduce((s,x)=>s+heights[x.key],0)+95;
+ const rows=rowsAll(),now=Date.now(),total=activeLayers.reduce((sum,x)=>sum+heights[x.key],0)+152;
  $("tlChart").style.height=Math.max(380,total)+"px";chart.resize();
  if(!rows.length){status("Waiting for weather data…");return}
  const grids=[],xAxis=[],yAxis=[],series=[],axisIndices=[];
@@ -172,21 +212,24 @@ function render(){
  for(let i=0;i<activeLayers.length;i++){
   const layer=activeLayers[i],h=heights[layer.key];
   grids.push({left:70,right:24,top:top,height:h-12,containLabel:false});
-  xAxis.push({type:"time",gridIndex:i,axisLine:{lineStyle:{color:"#41516e"}},axisTick:{show:false},axisLabel:{show:i===activeLayers.length-1,color:"#92aace",fontSize:10,hideOverlap:true},splitLine:{show:true,lineStyle:{color:"#35445e",opacity:.65}},minInterval:3600000});
+  xAxis.push({type:"time",gridIndex:i,axisLine:{lineStyle:{color:"#41516e"}},axisTick:{show:false},axisLabel:{show:i===activeLayers.length-1&&showBottomDates,color:"#deebff",fontSize:11,margin:14,hideOverlap:true,showMinLabel:true,showMaxLabel:true,formatter:value=>ribbonDate(Number(value),shown[1]-shown[0])},splitLine:{show:false},minInterval:3600000});
   yAxis.push({type:"value",gridIndex:i,name:layer.name+" ("+layer.unit+")",nameLocation:"middle",nameGap:50,nameTextStyle:{fontSize:10,color:"#afc2dc"},axisLine:{show:false},axisLabel:{color:"#8ca6c9",fontSize:10},splitLine:{lineStyle:{color:"#33415a",opacity:.7}},scale:layer.key!=="probability"&&layer.key!=="humidity"&&layer.key!=="cloud",min:["humidity","probability","cloud","wind","gusts","precipitation"].includes(layer.key)?0:undefined,max:["humidity","probability","cloud"].includes(layer.key)?100:layer.key==="direction"?1:layer.key==="wind"||layer.key==="gusts"?12:undefined});
   axisIndices.push(i);series.push(...chartSeries(layer,rows,i,now));top+=h;
  }
  const xMin=Math.min(historyOldest??Infinity,...rows.map(r=>r.t)),xMax=Math.max(...rows.map(r=>r.t)),start=Math.max(xMin,shown[0]),end=Math.min(xMax,shown[1]);
  minData=xMin;maxData=xMax;
+ const guides=makeDayGuides(start,end,now);
+ if(guides)for(let i=0;i<activeLayers.length;i++){const guide=series.find(x=>x.xAxisIndex===i&&x.type!=="scatter");if(guide)guide.markLine=guides;}
  const opts={backgroundColor:"#172137",animation:false,grid:grids,xAxis,yAxis,series,
  tooltip:{trigger:"axis",confine:true,backgroundColor:"#14243c",borderColor:"#526688",textStyle:{color:"#e1edff",fontSize:11},axisPointer:{type:"cross",crossStyle:{color:"#c0d8ff"}},formatter:params=>{if(!params?.length)return"";const stamp=Number(params[0].axisValue);return '<b>'+utcFormatter(stamp)+'</b><br>'+params.filter(p=>p.value?.[1]!=null).slice(0,10).map(p=>'<span style="color:'+p.color+'">●</span> '+p.seriesName+': <b>'+Number(p.value[1]).toFixed(1)+'</b>').join("<br>")}},
  axisPointer:{show:true,link:[{xAxisIndex:"all"}],label:{backgroundColor:"#355276"}},
- dataZoom:[{type:"inside",xAxisIndex:axisIndices,filterMode:"none",zoomOnMouseWheel:true,moveOnMouseMove:true,moveOnMouseWheel:true,startValue:start,endValue:end,throttle:65},{type:"slider",xAxisIndex:axisIndices,filterMode:"none",height:24,bottom:5,backgroundColor:"#101a2e",borderColor:"#405371",fillerColor:"#4a78b64b",handleStyle:{color:"#7faee8"},textStyle:{color:"#acc1dd",fontSize:10},startValue:start,endValue:end}],
+ dataZoom:[{type:"inside",xAxisIndex:axisIndices,filterMode:"none",zoomOnMouseWheel:true,moveOnMouseMove:true,moveOnMouseWheel:true,startValue:start,endValue:end,throttle:65},{type:"slider",xAxisIndex:axisIndices,filterMode:"none",height:23,bottom:12,backgroundColor:"#101a2e",borderColor:"#405371",fillerColor:"#4a78b64b",handleStyle:{color:"#7faee8"},textStyle:{color:"#acc1dd",fontSize:10},labelFormatter:"",startValue:start,endValue:end}],
  graphic:[{type:"text",left:76,top:9,style:{text:"ERA5 DAILY / RECENT MODEL HOURLY",font:"10px sans-serif",fill:"#75cce7"}},{type:"text",right:26,top:9,style:{text:"FORECAST  ·  HOURLY",font:"10px sans-serif",fill:"#ffb37e"}}]
  };
  renderLock=true;chart.setOption(opts,true);renderLock=false;
  $("tlTitle").textContent=(place?.name||"Athens")+" — Weather Timeline";
  $("tlRange").textContent=dateUTC(start)+" → "+dateUTC(end)+" UTC";
+ updateDateRibbon(start,end);
  $("tlSource").innerHTML="Forecast: Open-Meteo "+String(model).replace(/_/g," ")+"<br>Recent model: archived forecast (hourly)<br>Historical: ERA5 daily reanalysis<br>"+history.size+" archived days";
  $("tlIconRow").innerHTML=buildIcons(buildForecast(),start,end);
  if(historyOldest===null)status(en()?"Forecast loaded. Loading daily history…":"Η πρόγνωση φορτώθηκε. Ανακτάται το ημερήσιο ιστορικό…");
@@ -201,6 +244,7 @@ function zoomRange(start,end){
  const width=Math.max(HOUR*3,Math.min(365*DAY*10,end-start)),mid=(start+end)/2;
  shown=[mid-width/2,mid+width/2];if(chart){renderLock=true;chart.dispatchAction({type:"dataZoom",dataZoomIndex:0,startValue:shown[0],endValue:shown[1]});renderLock=false}
  $("tlRange").textContent=dateUTC(shown[0])+" → "+dateUTC(shown[1])+" UTC";
+ updateDateRibbon(shown[0],shown[1]);
  $("tlIconRow").innerHTML=buildIcons(buildForecast(),shown[0],shown[1]);
  maybeLoadOlder();
 }
@@ -213,8 +257,10 @@ function onZoom(){
   if(s===null||e===null){const p=number(z.start),q=number(z.end);if(p===null||q===null)return;s=minData+(maxData-minData)*p/100;e=minData+(maxData-minData)*q/100}
   if(!Number.isFinite(s)||!Number.isFinite(e)||e<=s)return;
   shown=[s,e];$("tlRange").textContent=dateUTC(s)+" → "+dateUTC(e)+" UTC";
+  updateDateRibbon(s,e);
   $("tlIconRow").innerHTML=buildIcons(buildForecast(),s,e);
   maybeLoadOlder();
+  if(showDaySeparators)render();
  },160);
 }
 function maybeLoadOlder(){if(historyOldest!==null&&shown[0]<=historyOldest+18*DAY&&!historyLoading)moreHistory(false)}
@@ -229,9 +275,13 @@ function exportCSV(){
  download("meteolab-timeline.csv",new Blob([csv],{type:"text/csv;charset=utf-8"}));
 }
 function exportPNG(){if(!chart)return;const a=document.createElement("a");a.download="meteolab-timeline.png";a.href=chart.getDataURL({type:"png",pixelRatio:2,backgroundColor:"#172137"});a.click()}
-function resetLayout(){enabled={...defaults};heights=Object.fromEntries(layers.map(x=>[x.key,x.height]));saveLayout();drawLayerControls();render()}
+function resetLayout(){enabled={...defaults};heights=Object.fromEntries(layers.map(x=>[x.key,x.height]));Object.assign(colors,defaultColors);showDaySeparators=true;showBottomDates=true;lineThickness=2.2;saveLayout();drawLayerControls();updateGuideControls();render()}
 function connectControls(){
- loadLayout();drawLayerControls();
+ loadLayout();drawLayerControls();updateGuideControls();
+ $("tlDayLines").onchange=e=>{showDaySeparators=e.target.checked;saveLayout();render()};
+ $("tlBottomDates").onchange=e=>{showBottomDates=e.target.checked;saveLayout();updateGuideControls();render()};
+ $("tlLineThickness").oninput=e=>{lineThickness=Math.max(1,Math.min(5,Number(e.target.value)));saveLayout();render()};
+ $("tlResetColors").onclick=()=>{Object.assign(colors,defaultColors);saveLayout();drawLayerControls();render()};
  $("tlPresets").querySelectorAll("[data-days]").forEach(b=>b.onclick=()=>{$("tlPresets").querySelectorAll("button").forEach(x=>x.classList.remove("active"));b.classList.add("active");preset(Number(b.dataset.days))});
  $("tlBack").onclick=()=>stepHistory(true);$("tlForward").onclick=()=>stepHistory(false);
  $("tlZoomIn").onclick=()=>{const mid=(shown[0]+shown[1])/2,half=(shown[1]-shown[0])*.38;zoomRange(mid-half,mid+half)};
@@ -242,7 +292,7 @@ function connectControls(){
  $("tlShowAll").onclick=()=>{for(const l of layers)enabled[l.key]=true;saveLayout();drawLayerControls();render()};
  $("tlResetLayout").onclick=resetLayout;
  $("tlOpenCompare").onclick=()=>document.querySelector('[data-view="compare"]')?.click();
- if("ResizeObserver" in window){resizeObs=new ResizeObserver(()=>{if(active)chart?.resize()});resizeObs.observe($("tlChart"))}
+ if("ResizeObserver" in window){resizeObs=new ResizeObserver(()=>{if(active)chart?.resize()});resizeObs.observe($("tlChart"));resizeObs.observe($("tlDateTrack"))}
 }
 async function loadAround(ms){
  if(!place||historyLoading)return;
