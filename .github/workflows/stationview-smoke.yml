@@ -1,0 +1,30 @@
+name: StationView Athens API smoke
+on:
+  push:
+    branches: [stationview-validate-422]
+  workflow_dispatch:
+jobs:
+  live-api:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Compare provider validation and Athens station list
+        shell: bash
+        run: |
+          python - <<'PY'
+          import urllib.request, urllib.parse, urllib.error, json
+          base="https://api.opensensemap.org/boxes"
+          for label,p in [
+            ("Athens bbox correct",{"bbox":"23.68,37.93,23.80,38.04","limit":"20","format":"json"}),
+            ("Athens near correct",{"near":"23.72,37.97","maxDistance":"15000","limit":"20","format":"json"}),
+            ("Invalid limit reproducer",{"bbox":"23.68,37.93,23.80,38.04","limit":"100","format":"json"})]:
+            url=base+"?"+urllib.parse.urlencode(p)
+            try:
+              with urllib.request.urlopen(urllib.request.Request(url,headers={"User-Agent":"StationView-API-Smoke/1.0","Accept":"application/json"}),timeout=30) as r:
+                payload=json.load(r)
+                print(label,"STATUS",r.status,"items",len(payload) if isinstance(payload,list) else "non-list",flush=True)
+            except urllib.error.HTTPError as e:
+              print(label,"STATUS",e.code,"body",e.read(500).decode("utf8","replace"),flush=True)
+            except Exception as e:
+              print(label,type(e).__name__,str(e),flush=True)
+          PY
