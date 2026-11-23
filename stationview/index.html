@@ -154,8 +154,19 @@ async function dbPut(k,v){const db=await openDb();if(!db)return;try{db.transacti
 async function dbClear(){const db=await openDb();if(db)await new Promise(resolve=>{const q=db.transaction('entries','readwrite').objectStore('entries').clear();q.onsuccess=q.onerror=()=>resolve();});rt.memory.clear();toast(t('cacheCleared'));}
 function fingerprint(s){let h=0;for(const c of s)h=((h<<5)-h+c.charCodeAt(0))|0;return String(h>>>0);}
 const delay=ms=>new Promise(resolve=>setTimeout(resolve,ms));
-let lastNetworkStart=0,networkQueue=Promise.resolve();
-function paced(fn){const promise=networkQueue.catch(()=>{}).then(async()=>{const wait=Math.max(0,420-(Date.now()-lastNetworkStart));if(wait)await delay(wait);lastNetworkStart=Date.now();return fn();});networkQueue=promise.catch(()=>{});return promise;}
+// Bound concurrency to 3 and space request STARTS by >=420ms; do not serialize
+// the entire HTTP round-trip (a slow provider must not block every map tile).
+let lastNetworkStart=0,networkQueue=Promise.resolve(),networkActive=0,networkWaiters=[];
+function paced(fn){
+ const admitted=networkQueue.catch(()=>{}).then(async()=>{
+  if(networkActive>=3)await new Promise(resolve=>networkWaiters.push(resolve));
+  const wait=Math.max(0,420-(Date.now()-lastNetworkStart));if(wait)await delay(wait);
+  lastNetworkStart=Date.now();networkActive++;
+ });
+ networkQueue=admitted.catch(()=>{});
+ return admitted.then(fn).finally(()=>{networkActive=Math.max(0,networkActive-1);
+  if(networkWaiters.length)networkWaiters.shift()();});
+}
 function apiError(status,detail=''){const e=new Error(detail||({401:t('badKey'),403:'Access denied (403) for this API product.',404:t('notFound'),429:t('rateLimit'),204:t('unavailable')}[status]||`HTTP ${status}`));e.status=status;return e;}
 async function requestPws(path,params={},ttl=0,opts={}){
  const key=store.settings.apiKey.trim();if(!key)throw apiError(0,t('missingKey'));
@@ -261,28 +272,39 @@ async function querySenseTile(coords){
 }
 async function searchSenseRegion(bounds,centerLat,centerLon,onProgress=null,scanActive=()=>true){
  const sw=bounds.getSouthWest(),ne=bounds.getNorthEast();
- // Dense zoom levels need more cells; keep a hard per-scan request cap.
  const width=kmBetween(centerLat,sw.lng,centerLat,ne.lng);
  const height=kmBetween(sw.lat,centerLon,ne.lat,centerLon);
  const cols=width>150?2:width>30?3:4,rows=height>150?2:height>30?3:4;
- const queue=boundsParts(bounds,cols,rows),unique=new Map();let requests=0,firstError=null,successes=0;
- while(queue.length&&requests<36&&scanActive()){
-  const tile=queue.shift();requests++;
-  try{
-   const records=await querySenseTile(tile);successes++;
-   for(const box of records){const station=makeNearby(box,centerLat,centerLon);
-    if(station&&station.hasWeather)unique.set(station.id,station);}
-   if(typeof onProgress==='function')onProgress([...unique.values()].sort((a,b)=>a.distance-b.distance),requests,queue.length);
-   // Query saturated cells again as four smaller tiles, within the request cap.
-   if(records.length===20&&requests+queue.length+4<=36){
-    const [w,s,e,n]=tile,mx=(w+e)/2,my=(s+n)/2;
-    queue.push([w,s,mx,my],[mx,s,e,my],[w,my,mx,n],[mx,my,e,n]);
-   }
-  }catch(error){firstError??=error;
-   // A failing cell should not erase valid markers from other cells.
-   if(error.status===429)break;
+ const queue=boundsParts(bounds,cols,rows);
+ // Inspect the nearest cells first rather than starting in the south-west corner.
+ queue.sort((a,b)=>kmBetween(centerLat,centerLon,(a[1]+a[3])/2,(a[0]+a[2])/2)-
+                       kmBetween(centerLat,centerLon,(b[1]+b[3])/2,(b[0]+b[2])/2));
+ const unique=new Map();let requests=0,firstError=null,successes=0;
+ const emit=()=>{if(scanActive()&&typeof onProgress==='function')
+  onProgress([...unique.values()].sort((a,b)=>a.distance-b.distance),requests,queue.length);};
+ const absorb=records=>{for(const box of records){const station=makeNearby(box,centerLat,centerLon);
+  if(station?.hasWeather)unique.set(station.id,station);}};
+ // A centre-first request is crucial at zoomed-out levels and on slower networks.
+ try{
+  const params=new URLSearchParams({near:`${centerLon.toFixed(5)},${centerLat.toFixed(5)}`,maxDistance:'20000',limit:'20',format:'json'});
+  const near=normalizeBoxCollection(await getJson(`${SENSE_API}/boxes?${params}`,4*60000));
+  successes++;requests++;absorb(near);emit();
+ }catch(error){firstError=error;}
+ // Limit provider traffic: 3 workers, up to 24 cells, progressively render results.
+ // If a cell reaches the backend's limit=20, divide only that cell further.
+ const worker=async()=>{
+  while(queue.length&&requests<24&&scanActive()){
+   const tile=queue.shift();requests++;
+   try{
+    const records=await querySenseTile(tile);successes++;absorb(records);emit();
+    if(records.length===20&&requests+queue.length+4<=24){
+     const [w,s,e,n]=tile,mx=(w+e)/2,my=(s+n)/2;
+     queue.push([w,s,mx,my],[mx,s,e,my],[w,my,mx,n],[mx,my,e,n]);
+    }
+   }catch(error){firstError??=error;if(error.status===429)break;}
   }
- }
+ };
+ await Promise.all([worker(),worker(),worker()]);
  if(!successes&&firstError)throw firstError;
  return [...unique.values()].sort((a,b)=>a.distance-b.distance);
 }
@@ -295,10 +317,21 @@ function circularBounds(lat,lon,radiusKm){
 async function searchSenseNear(lat,lon){
  if(!Number.isFinite(lat)||!Number.isFinite(lon)||Math.abs(lat)>90||Math.abs(lon)>180)throw Error(t('invalidLocation'));
  let lastError=null;
+ // The official API supports near=longitude,latitude and maxDistance in metres.
+ // Verified live from Athens: near=23.72,37.97&maxDistance=15000&limit=20 -> HTTP 200.
  for(const radius of [12,45,140]){
-  try{const items=await searchSenseRegion(circularBounds(lat,lon,radius),lat,lon);
+  const params=new URLSearchParams({near:`${lon.toFixed(5)},${lat.toFixed(5)}`,maxDistance:String(radius*1000),limit:'20',format:'json'});
+  try{
+   const boxes=normalizeBoxCollection(await getJson(`${SENSE_API}/boxes?${params}`,4*60000));
+   const items=boxes.map(box=>makeNearby(box,lat,lon)).filter(x=>x?.hasWeather).sort((a,b)=>a.distance-b.distance);
    if(items.length){rt.nearby=items;rt.mapCenter={lat,lon};return items;}
   }catch(e){lastError=e;if(e.status===429)break;}
+ }
+ // Compatibility fallback for providers that do not support radius search.
+ if(lastError?.status!==429){
+  try{const values=await searchSenseRegion(circularBounds(lat,lon,25),lat,lon);
+   if(values.length){rt.nearby=values;rt.mapCenter={lat,lon};return values;}
+  }catch(e){lastError=e;}
  }
  if(lastError)throw lastError;
  rt.nearby=[];return [];
