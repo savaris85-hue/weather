@@ -340,7 +340,32 @@ async function nearestReporting(lat,lon){const candidates=await searchSenseNear(
  for(const candidate of candidates.slice(0,12)){try{const box=await getJson(`${SENSE_API}/boxes/${candidate.id.slice(3)}`,150000,'sense:'+candidate.id);const r=senseRecord(box);candidate.hasTemp=finite(r.temp);candidate.hasWeather=finite(r.temp)||finite(r.humidity)||finite(r.pressure)||finite(r.wind);candidate.lastSeen=r.t;candidate.sensorCount=r._sensors.length;
  if(candidate.hasWeather&&Date.now()-r.t<3*3600000)return candidate;}catch{}}
  return candidates.find(x=>x.hasWeather)||null;}
-async function placeSearch(q){const coords=q.trim().split(/[ ,]+/).map(Number);if(coords.length===2&&coords.every(Number.isFinite)&&Math.abs(coords[0])<=90&&Math.abs(coords[1])<=180)return {lat:coords[0],lon:coords[1],name:q};const url=`https://geocoding-api.open-meteo.com/v1/search?${new URLSearchParams({name:q,language:store.settings.lang==='el'?'el':'en',count:'5'})}`;const data=await getJson(url,12*3600000);const loc=data.results?.[0];if(!loc)throw Error(t('invalidLocation'));return {lat:loc.latitude,lon:loc.longitude,name:[loc.name,loc.country].filter(Boolean).join(', ')};}
+async function placeSearch(q){
+ const term=q.trim(),coords=term.split(/[ ,]+/).map(Number);
+ if(coords.length===2&&coords.every(Number.isFinite)&&Math.abs(coords[0])<=90&&Math.abs(coords[1])<=180)
+  return {lat:coords[0],lon:coords[1],name:term};
+ // Search normal city names and common Greeklish input without requiring a station ID.
+ // For example 'dafnh' -> 'Dafni', 'athina' -> 'Athens'. Do not guess coordinates.
+ const aliases={dafnh:'Dafni',dafni:'Dafni',athina:'Athens',athens:'Athens',
+  peiraias:'Piraeus',pireas:'Piraeus',glyfada:'Glyfada',pagrati:'Pangrati',kifisia:'Kifisia',
+  marousi:'Marousi',peristeri:'Peristeri',nea_smyrni:'Nea Smyrni'};
+ const key=term.toLowerCase().replace(/\s+/g,'_'),terms=[];
+ if(aliases[key])terms.push(aliases[key]);
+ terms.push(term);
+ if(/^[a-z\s-]+$/i.test(term)&&/h\b/i.test(term))terms.push(term.replace(/h\b/gi,'i'));
+ let lastError=null;
+ for(const name of [...new Set(terms)].slice(0,3)){
+  try{
+   const query=new URLSearchParams({name,language:store.settings.lang==='el'?'el':'en',count:'5'});
+   const data=await getJson(`https://geocoding-api.open-meteo.com/v1/search?${query}`,12*3600000);
+   const found=Array.isArray(data?.results)?data.results:[];
+   const loc=found.find(x=>String(x.country_code||'').toUpperCase()==='GR')||found[0];
+   if(loc&&finite(Number(loc.latitude))&&finite(Number(loc.longitude)))
+    return {lat:Number(loc.latitude),lon:Number(loc.longitude),name:[loc.name,loc.country].filter(Boolean).join(', ')};
+  }catch(e){lastError=e;}
+ }
+ throw lastError||Error(t('invalidLocation'));
+}
 
 // ── 7. Widget tiles, UI shell, accessible interactions ───────────────────
 const safe=(x,max=90)=>esc(String(x??'').slice(0,max));
