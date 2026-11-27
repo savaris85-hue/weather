@@ -226,6 +226,16 @@ body{overflow-x:clip}
 .lang-button:focus-visible{outline:2px solid #ffcc70;outline-offset:2px}
 @media(max-width:800px){.language-picker{flex:none}.lang-button{padding:8px 10px;min-height:33px}}
 
+
+/* Optional privacy-first donation block; never embeds payment forms or ad trackers */
+.support-strip{display:flex;align-items:center;gap:16px;justify-content:space-between;flex-wrap:wrap;margin:12px 12px 0;padding:12px 15px;border:1px solid #c8d8ef;border-radius:11px;background:#f7faff;color:#284877}
+.support-copy{display:grid;gap:3px;font-size:13px}.support-copy small{font-size:11px;color:#6a7e9e}
+.support-link{display:inline-flex;align-items:center;border:1px solid #a8bbdb;border-radius:8px;color:#244d89;background:#fff;padding:9px 13px;text-decoration:none;font-size:12px;font-weight:750}
+.support-link:hover{border-color:#567acc;background:#f0f6ff}
+.support-pending{font-size:11px;color:#667b9c}
+.support-link[hidden],.support-pending[hidden]{display:none}
+@media(max-width:800px){.support-strip{margin:9px 7px 0;padding:11px;gap:8px}.support-link{width:100%;justify-content:center}}
+
 </style>
 </head>
 <body>
@@ -315,6 +325,11 @@ body{overflow-x:clip}
 <div class="panel-buttons"><button id="save-layout">Αποθήκευση</button><button id="reset-layout">Επαναφορά</button><button id="close-layers">Κλείσιμο</button></div>
 <p class="mini-note">Τα layers αναδιατάσσονται αυτόματα. Ορισμένα προγνωστικά δεδομένα μπορεί να μην είναι διαθέσιμα για κάθε μοντέλο ή ιστορική περίοδο. Τα κενά δεν αντικαθίστανται με επινοημένες τιμές.</p>
 </div>
+</div>
+<div class="support-strip" aria-label="Support the project">
+  <span class="support-copy">♡ <strong>Στήριξε το Weather Time Machine</strong><small>Εθελοντική υποστήριξη · χωρίς διαφημίσεις ή συνδρομή</small></span>
+  <a id="support-link" class="support-link" href="#" target="_blank" rel="noopener noreferrer" hidden>♡ Please donate · Support the project</a>
+  <span id="support-pending" class="support-pending">Οι δωρεές θα ενεργοποιηθούν μετά τον έλεγχο ασφαλούς λογαριασμού πληρωμών.</span>
 </div>
 <div class="footerline">Data: <a href="https://open-meteo.com/" target="_blank" rel="noopener">Open-Meteo</a> · Radar: <a href="https://www.rainviewer.com/" target="_blank" rel="noopener">RainViewer</a> (προαιρετικά, μόνο τελευταία 2ωρα) · Map: <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">OpenStreetMap</a> · Ανεξάρτητη εφαρμογή ανάλυσης ιστορικού και προγνωστικού καιρού. API free tier: μη εμπορική χρήση. <strong class="footer-credit">Developed by Antonis Savaris</strong></div>
 </section></main>
