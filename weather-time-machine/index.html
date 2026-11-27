@@ -219,6 +219,13 @@ body{overflow-x:clip}
  .range-chips{width:100%;justify-content:flex-start}
 }
 
+
+.language-picker{display:inline-flex;align-items:center;border:1px solid #9daee8;background:#344dba;border-radius:8px;padding:3px;gap:2px}
+.lang-button{border:0;color:#e3ebff;background:transparent;border-radius:5px;font-size:12px;font-weight:700;cursor:pointer;padding:6px 9px;white-space:nowrap}
+.lang-button.active{background:white;color:#304b9f;box-shadow:0 1px 5px #182c6340}
+.lang-button:focus-visible{outline:2px solid #ffcc70;outline-offset:2px}
+@media(max-width:800px){.language-picker{flex:none}.lang-button{padding:8px 10px;min-height:33px}}
+
 </style>
 </head>
 <body>
@@ -227,6 +234,10 @@ body{overflow-x:clip}
 <span class="header-note">Ιστορικός καιρός + προγνωστικά μοντέλα σε μία χρονογραμμή</span>
 <span class="developer-credit" aria-label="Developer credit">Developed by <strong>Antonis Savaris</strong></span>
 <div class="header-tools">
+<div class="language-picker" role="group" aria-label="Display language">
+<button class="lang-button active" type="button" data-lang="el" aria-pressed="true">Ελληνικά</button>
+<button class="lang-button" type="button" data-lang="en" aria-pressed="false">English</button>
+</div>
 <button class="navbutton" id="help-btn">Οδηγίες</button>
 <button class="navbutton" data-span="3">3-day</button>
 <button class="navbutton" data-span="7">7-day</button>
