@@ -7,6 +7,7 @@ import {
 } from "./data.mjs";
 import {historicalSamplesWindows, historicalSamplesCustomRange, climateQueryParams, calculateClimateSummary, isClimateSupported} from "./climate.mjs";
 import {createWeatherRequestQueue,placeLabel,nearestPlaceName} from "./services.mjs";
+import {initLanguage,setLanguage,getLanguage,translate,onLanguageChange,localizePage} from "./i18n.mjs";
 
 const $ = selector => document.querySelector(selector);
 const DAY = 86400000;
@@ -63,10 +64,10 @@ const state = {
   climateYearFrom:2000,climateYearTo:2020,
   overviewBound:false, overviewPlotting:false, locationLookupId:0
 };
-const formatDate = value => new Date(value).toLocaleDateString("el-GR",{day:"2-digit",month:"short",year:"numeric",timeZone:"UTC"});
+const formatDate = value => new Date(value).toLocaleDateString(getLanguage()==="en"?"en-GB":"el-GR",{day:"2-digit",month:"short",year:"numeric",timeZone:"UTC"});
 const fmt = (v,digits=0) => Number.isFinite(v) ? Number(v).toFixed(digits) : "—";
 const showStatus = (message,error=false) => {
-  controls.status.textContent=message;
+  controls.status.textContent=translate(message);
   controls.status.className=error?"error":"";
 };
 const modelConfig = () => FORECAST_MODELS.find(m=>m.id===state.model)||FORECAST_MODELS[0];
@@ -231,11 +232,11 @@ function renderPins(){
   const target=$("#pinned-cities");target.replaceChildren();
   $("#pin-count").textContent=state.pins.length+"/5";
   const active=state.pins.some(p=>pinKey(p)===pinKey(state.place));
-  $("#pin-current").textContent=active?"★ Αποθηκευμένη":"☆ Αποθήκευση πόλης";
+  $("#pin-current").textContent=translate(active?"★ Αποθηκευμένη":"☆ Αποθήκευση πόλης");
   $("#pin-current").disabled=active||state.pins.length>=5;
   if(!state.pins.length){
     const empty=document.createElement("span");
-    empty.className="pin-empty";empty.textContent="Καρφίτσωσε έως 5 πόλεις για γρήγορη εναλλαγή.";
+    empty.className="pin-empty";empty.textContent=translate("Καρφίτσωσε έως 5 πόλεις για γρήγορη εναλλαγή.");
     target.append(empty);
   }
   state.pins.forEach((place,index)=>{
@@ -283,11 +284,11 @@ function layerList() {
       if(check.checked)state.enabled.add(layer.id);else state.enabled.delete(layer.id);
       renderChart();
     });
-    const title=document.createElement("span");title.className="layer-title";title.textContent=layer.label;
+    const title=document.createElement("span");title.className="layer-title";title.textContent=getLanguage()==="en"?(layer.label.split(" · ")[1]||layer.label):layer.label;
     const picker=document.createElement("input");picker.type="color";picker.className="layer-color";
     picker.value=state.layerColors[layer.id]||LAYER_CLASSIC[layer.id];picker.dataset.layerColor=layer.id;
-    picker.setAttribute("aria-label","Χρώμα: "+layer.label);
-    picker.setAttribute("title","Χρώμα γραμμής: "+layer.label);
+    picker.setAttribute("aria-label",(getLanguage()==="en"?"Color: ":"Χρώμα: ")+title.textContent);
+    picker.setAttribute("title",(getLanguage()==="en"?"Line color: ":"Χρώμα γραμμής: ")+title.textContent);
     picker.addEventListener("input",()=>{
       state.layerColors[layer.id]=picker.value;
       state.palette="custom";$("#wave-palette").value="custom";
@@ -395,13 +396,13 @@ function scheduleClimate(force=false){
   const from=iso(state.view[0]),to=iso(state.view[1]);
   if(!state.climateYears) {
     state.climate=null;state.climateKey=null;
-    label.textContent="Γκρίζες κλιματικές ζώνες: απενεργοποιημένες.";
+    label.textContent=translate("Γκρίζες κλιματικές ζώνες: απενεργοποιημένες.");
     if(force)renderChart();
     return;
   }
   if(!isClimateSupported(from,to)) {
     state.climate=null;state.climateKey=null;
-    label.textContent="Τα κλιματικά ποσοστημόρια εμφανίζονται για παράθυρα έως 32 ημερών. Κάνε zoom in.";
+    label.textContent=translate("Τα κλιματικά ποσοστημόρια εμφανίζονται για παράθυρα έως 32 ημερών. Κάνε zoom in.");
     if(force)renderChart();
     return;
   }
@@ -411,11 +412,11 @@ function scheduleClimate(force=false){
   const existing=state.climateCache.get(key);
   if(existing) {
     state.climate=existing;state.climateKey=key;
-    label.textContent="Κλιματική σύγκριση ERA5: "+existing.years+" έτη ("+existing.yearRange?.join("–")+")";
+    label.textContent=translate("Κλιματική σύγκριση ERA5: "+existing.years+" έτη ("+existing.yearRange?.join("–")+")");
     renderChart();
     return;
   }
-  label.textContent="Φόρτωση ιστορικής κλιματικής σύγκρισης ("+(state.climateYears==="custom"?state.climateYearFrom+"–"+state.climateYearTo:state.climateYears+" έτη")+")…";
+  label.textContent=translate("Φόρτωση ιστορικής κλιματικής σύγκρισης ("+(state.climateYears==="custom"?state.climateYearFrom+"–"+state.climateYearTo:state.climateYears+" έτη")+")…");
   state.climateTimer=setTimeout(()=>loadClimate(key,from,to),force?300:1600);
 }
 async function loadClimate(key,from,to){
@@ -463,7 +464,7 @@ async function loadClimate(key,from,to){
     state.climateCache.set(key,summary);
     if(state.climateCache.size>4)state.climateCache.delete(state.climateCache.keys().next().value);
     state.climateKey=key;state.climate=summary;
-    $("#climate-status").textContent=(summary.years===1?"Γκρίζα: 1 ιστορικό έτος, χωρίς στατιστικό εύρος: ":"Γκρίζα: μέσος ERA5 + 10–90% από ")+
+    $("#climate-status").textContent=(getLanguage()==="en"?(summary.years===1?"Gray: one historical year, no statistical range: ":"Gray: ERA5 mean + 10–90% across "):(summary.years===1?"Γκρίζα: 1 ιστορικό έτος, χωρίς στατιστικό εύρος: ":"Γκρίζα: μέσος ERA5 + 10–90% από "))+
       summary.years+" έτη ("+summary.yearRange?.join("–")+")"+
       (failed?" · "+failed+" αστοχίες φόρτωσης":"");
     await renderChart();
@@ -514,7 +515,7 @@ function niceDays(from,to) {
     const d=new Date(ms),mid=ms+12*3600000;
     if(mid<from||mid>to)continue;
     values.push(new Date(mid).toISOString());
-    labels.push("<b>"+days[d.getUTCDay()]+"</b><br>"+String(d.getUTCDate()).padStart(2,"0")+" "+months[d.getUTCMonth()]);
+    labels.push("<b>"+translate(days[d.getUTCDay()])+"</b><br>"+String(d.getUTCDate()).padStart(2,"0")+" "+translate(months[d.getUTCMonth()]));
   }
   return {values,labels};
 }
@@ -553,7 +554,8 @@ const DATE_DAYS=["Κυρ","Δευ","Τρι","Τετ","Πεμ","Παρ","Σαβ"]
 function friendlyUTC(ms,year=true){
   const d=new Date(ms);
   const val=String(d.getUTCDate()).padStart(2,"0")+" "+DATE_MONTHS[d.getUTCMonth()];
-  return year?val+" "+d.getUTCFullYear():val;
+  const localized=getLanguage()==="en"?String(d.getUTCDate()).padStart(2,"0")+" "+translate(DATE_MONTHS[d.getUTCMonth()]):val;
+  return year?localized+" "+d.getUTCFullYear():localized;
 }
 function setStickyGeometry(){
   if(!document.documentElement?.style?.setProperty)return;
@@ -579,7 +581,7 @@ function updateStickyDates(){
     node.className="sticky-day";
     if(iso(when)===today)node.classList.add("is-today");
     const line=document.createElement("span");
-    line.textContent=DATE_DAYS[d.getUTCDay()];
+    line.textContent=translate(DATE_DAYS[d.getUTCDay()]);
     const date=document.createElement("strong");
     date.textContent=friendlyUTC(when,false);
     node.append(line,date);area.append(node);
@@ -592,7 +594,7 @@ function updateRangeLabels(){
   $("#nav-from-date").textContent=friendlyUTC(from);
   $("#nav-to-date").textContent=friendlyUTC(to);
   const days=Math.max(1,Math.floor((to-from)/DAY)+1);
-  $("#nav-duration").textContent=days===1?"1 ημέρα":days+" ημέρες";
+  $("#nav-duration").textContent=translate(days===1?"1 ημέρα":days+" ημέρες");
 }
 function updateNavigatorDates(){
   updateRangeLabels();
@@ -601,7 +603,7 @@ function updateNavigatorDates(){
   if(!points.length)return;
   let min=Infinity,max=-Infinity;
   for(const t of points){if(t<min)min=t;if(t>max)max=t;}
-  $("#nav-loaded-range").textContent="Φορτωμένο: "+friendlyUTC(min)+" – "+friendlyUTC(max);
+  $("#nav-loaded-range").textContent=(getLanguage()==="en"?"Loaded: ":"Φορτωμένο: ")+friendlyUTC(min)+" – "+friendlyUTC(max);
   const ticks=$("#nav-date-ticks");
   ticks.replaceChildren();
   const screen=window.innerWidth||1200;
@@ -676,6 +678,7 @@ function labelText(layer,mobile){
     uv_index:"Δείκτης UV",
     icons:"Καιρός"
   };
+  if(getLanguage()==="en")return (layer.label.split(" · ")[1]||translate(names[layer.id]||layer.label)).replace("Wind Direction","Wind direction");
   return names[layer.id]||layer.label.split(" · ")[0];
 }
 async function renderChart(){
@@ -749,10 +752,10 @@ async function renderChart(){
       font:{size:mobile?10:13,color:lineColor(layer.id,false)}
     });
   });
-  $("#chart-title").textContent=placeLabel(state.place)+" · Ιστορικό + "+modelConfig().label;
+  $("#chart-title").textContent=placeLabel(state.place)+(getLanguage()==="en"?" · History + ":" · Ιστορικό + ")+modelConfig().label;
   $("#chart-subtitle").textContent=formatDate(from)+" — "+formatDate(to)+
-    " · "+(resolution==="hourly"?"Ωριαία":"Ημερήσια")+" ανάλυση · UTC";
-  $("#period-summary").textContent="Πορτοκαλί: τώρα · Μοβ: σήμερα · Γκρίζο: κλιματικό ιστορικό";
+    " · "+(getLanguage()==="en"?(resolution==="hourly"?"Hourly":"Daily"):(resolution==="hourly"?"Ωριαία":"Ημερήσια"))+(getLanguage()==="en"?" resolution · UTC":" ανάλυση · UTC");
+  $("#period-summary").textContent=translate("Πορτοκαλί: τώρα · Μοβ: σήμερα · Γκρίζο: κλιματικό ιστορικό");
   for(const kind of ["history","forecast","climate"]){
     const swatch=$("#legend-"+kind);
     if(swatch)swatch.style.background=kind==="climate"?state.colors.climate:lineColor("temperature_2m",kind==="history");
@@ -793,13 +796,13 @@ function updateCurrent() {
   const p=state.place;
   $("#current-place").textContent=placeLabel(p);
   if(!nearest) {
-    $("#current-time").textContent="Δεν υπάρχουν τρέχοντα δεδομένα";
+    $("#current-time").textContent=translate("Δεν υπάρχουν τρέχοντα δεδομένα");
     return;
   }
-  $("#current-time").textContent=new Date(nearest.t*1000).toLocaleString("el-GR",{timeZone:"UTC"})+" UTC · "+(nearest.kind==="forecast"?modelConfig().label:"ERA5");
+  $("#current-time").textContent=new Date(nearest.t*1000).toLocaleString(getLanguage()==="en"?"en-GB":"el-GR",{timeZone:"UTC"})+" UTC · "+(nearest.kind==="forecast"?modelConfig().label:"ERA5");
   $("#current-icon").textContent=weatherIcon(nearest.weather_code);
   $("#current-temp").textContent=fmt(nearest.temperature_2m,1)+" °C";
-  $("#current-desc").textContent=nearest.kind==="forecast"?"Προγνωστική εκτίμηση":"Ιστορική αναανάλυση";
+  $("#current-desc").textContent=translate(nearest.kind==="forecast"?"Προγνωστική εκτίμηση":"Ιστορική αναανάλυση");
   $("#current-cloud").textContent=fmt(nearest.cloud_cover)+"%";
   $("#current-humidity").textContent=fmt(nearest.relative_humidity_2m)+"%";
   $("#current-wind").textContent=fmt(beaufort(nearest.wind_speed_10m))+" Bft";
@@ -836,11 +839,11 @@ function radarAt(index){
 async function setRadar(enabled){
   removeRadar();
   if(!enabled){
-    $("#radar-time").textContent="Radar ανενεργό";
+    $("#radar-time").textContent=translate("Radar ανενεργό");
     for(const id of ["#radar-prev","#radar-play","#radar-next"])$(id).disabled=true;
     return;
   }
-  $("#radar-time").textContent="Φόρτωση RainViewer…";
+  $("#radar-time").textContent=translate("Φόρτωση RainViewer…");
   try{
     if(!state.map)throw Error("Χάρτης μη διαθέσιμος");
     const response=await json("https://api.rainviewer.com/public/weather-maps.json");
@@ -855,7 +858,7 @@ async function setRadar(enabled){
   }catch(error){
     $("#radar-toggle").checked=false;
     removeRadar();
-    $("#radar-time").textContent="Radar προσωρινά μη διαθέσιμο: "+error.message;
+    $("#radar-time").textContent=translate("Radar προσωρινά μη διαθέσιμο: "+error.message);
   }
 }
 $("#radar-toggle").addEventListener("change",()=>setRadar($("#radar-toggle").checked));
@@ -885,15 +888,15 @@ function updateLocationUI(){
   const label=placeLabel(state.place);
   controls.place.value=label;
   $("#current-place").textContent=label;
-  $("#chart-title").textContent=label+" · Ιστορικό + "+modelConfig().label;
-  $("#chart-subtitle").textContent="Φόρτωση δεδομένων για "+label+"…";
+  $("#chart-title").textContent=label+(getLanguage()==="en"?" · History + ":" · Ιστορικό + ")+modelConfig().label;
+  $("#chart-subtitle").textContent=translate("Φόρτωση δεδομένων για "+label+"…");
   renderPins();
 }
 function resetCurrentMetrics(){
-  $("#current-time").textContent="Φόρτωση δεδομένων νέας περιοχής…";
+  $("#current-time").textContent=translate("Φόρτωση δεδομένων νέας περιοχής…");
   $("#current-temp").textContent="— °C";
   $("#current-icon").textContent="⛅";
-  $("#current-desc").textContent="Αναμονή πρόγνωσης";
+  $("#current-desc").textContent=translate("Αναμονή πρόγνωσης");
   for(const id of ["#current-cloud","#current-humidity","#current-wind","#current-direction","#current-pressure","#current-rain"])$(id).textContent="—";
 }
 function locationChanged(){
@@ -935,8 +938,8 @@ async function selectMapLocation(lat,lon,pinnedIndex=null){
   const ctrl=new AbortController();mapReverseController=ctrl;
   const token=++state.locationLookupId;
   state.marker?.setLatLng([lat,lon]);
-  controls.place.value="Εντοπισμός κοντινής περιοχής…";
-  $("#current-place").textContent="Εντοπισμός κοντινής περιοχής…";
+  controls.place.value=translate("Εντοπισμός κοντινής περιοχής…");
+  $("#current-place").textContent=translate("Εντοπισμός κοντινής περιοχής…");
   showStatus("Αναζήτηση πλησιέστερης περιοχής στον χάρτη…");
   let named=null;
   try{named=await reverseMapPlace(lat,lon,ctrl.signal)}
@@ -1095,6 +1098,19 @@ $("#export").addEventListener("click",()=>{
 });
 restoreLayout();
 restorePins();
+for(const button of document.querySelectorAll("[data-lang]")){
+  button.addEventListener("click",()=>setLanguage(button.dataset.lang));
+}
+onLanguageChange(()=>{
+  layerList();
+  updateStickyDates();
+  updateNavigatorDates();
+  if(state.rows.length){
+    updateCurrent();
+    void renderChart();
+  }
+});
+initLanguage();
 applyPreset(15);
 setupMap();
 refresh({reason:"initial"});
