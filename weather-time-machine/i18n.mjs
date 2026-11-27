@@ -19,6 +19,7 @@ const WORDS={
 "Κατεύθυνση":"Direction",
 "Πίεση":"Pressure",
 "Βροχόπτωση":"Precipitation",
+"Weather icons":"Weather icons",
 "Radar βροχής · χάρτης OpenStreetMap":"Rain radar · OpenStreetMap",
 "Radar 2 ωρών":"2-hour radar",
 "Radar ανενεργό":"Radar off",
@@ -92,6 +93,9 @@ const WORDS={
 "Εντοπισμός κοντινής περιοχής…":"Finding nearby place…",
 "Επιλεγμένη περιοχή":"Selected area",
 "Αθροιστική βροχή":"Cumulative rainfall",
+"Κλιματική σύγκριση":"Climate comparison",
+"Ημερήσια":"Daily","Ωριαία":"Hourly",
+"Ιστορικό +":"History +",
 "Πιθανότητα βροχής":"Rain probability",
 "Σχετική υγρασία":"Relative humidity",
 "Διεύθυνση ανέμου":"Wind direction",
@@ -140,7 +144,7 @@ export function setLanguage(lang){
   activeLanguage=next;
   try{localStorage.setItem(LANGUAGE_KEY,next)}catch{}
   if(typeof document!=="undefined"){
-    document.documentElement.lang=next;
+    if(document.documentElement)document.documentElement.lang=next;
     for(const button of document.querySelectorAll("[data-lang]")){
       const selected=button.dataset.lang===next;
       button.setAttribute("aria-pressed",String(selected));
@@ -178,7 +182,7 @@ function updateTextNode(node){
   translatedText.set(node,next);
 }
 export function localizePage(){
-  if(typeof document==="undefined"||!document.body)return;
+  if(typeof document==="undefined"||!document.body||typeof document.createTreeWalker!=="function"||typeof NodeFilter==="undefined")return;
   const targets=[
     "#site-header","#location-sidebar","#main-controls","#sticky-dates",
     "#help",".legend-strip",".navigator-shell","#layer-panel",".footerline"
