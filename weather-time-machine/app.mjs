@@ -8,6 +8,7 @@ import {
 import {historicalSamplesWindows, historicalSamplesCustomRange, climateQueryParams, calculateClimateSummary, isClimateSupported} from "./climate.mjs";
 import {createWeatherRequestQueue,placeLabel,nearestPlaceName} from "./services.mjs";
 import {initLanguage,setLanguage,getLanguage,translate,onLanguageChange,localizePage} from "./i18n.mjs";
+import {DONATION_URL,verifiedSupportUrl} from "./support.mjs";
 
 const $ = selector => document.querySelector(selector);
 const DAY = 86400000;
@@ -1096,6 +1097,12 @@ $("#export").addEventListener("click",()=>{
   a.href=url;a.download="weather-time-machine-"+iso(state.view[0])+"-"+iso(state.view[1])+".csv";
   document.body.append(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(url),3000);
 });
+const donationLink=verifiedSupportUrl(DONATION_URL);
+if(donationLink){
+  $("#support-link").href=donationLink;
+  $("#support-link").hidden=false;
+  $("#support-pending").hidden=true;
+}
 restoreLayout();
 restorePins();
 for(const button of document.querySelectorAll("[data-lang]")){
